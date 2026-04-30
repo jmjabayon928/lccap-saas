@@ -1,0 +1,3983 @@
+{
+    "meta": {
+      "project": "LCCAP SaaS",
+      "architecture": ".NET 8 Clean Architecture + Python AI",
+      "tracker_version": "1.0",
+      "last_updated_utc": "2026-04-29T20:00:00Z",
+      "updated_by": "manual_init",
+      "rules": [
+        "Do not overwrite entire file",
+        "Update only affected file records",
+        "Always update current_state after task",
+        "Do not remove completed records"
+      ]
+    },
+  
+    "current_state": {
+      "phase": "MVP",
+      "active_module": "Frontend",
+      "active_task": "Prepare enterprise frontend foundation with Next.js and shadcn/ui",
+      "status": "next"
+    },
+  
+    "files": [
+      {
+        "id": "FILE-0001",
+        "path": "Lccap.sln",
+        "layer": "root",
+        "module": "solution",
+        "file_type": "solution",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Solution file referencing all projects"
+      },
+      {
+        "id": "FILE-0002",
+        "path": "Directory.Build.props",
+        "layer": "root",
+        "module": "build",
+        "file_type": "xml",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "GlobalBuildConfiguration",
+            "kind": "config",
+            "status": "done",
+            "description": "Defines Nullable, TreatWarningsAsErrors, deterministic builds"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0003",
+        "path": ".editorconfig",
+        "layer": "root",
+        "module": "linting",
+        "file_type": "config",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Controls code style and formatting"
+      },
+      {
+        "id": "FILE-0004",
+        "path": ".gitignore",
+        "layer": "root",
+        "module": "git",
+        "file_type": "config",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Excludes bin, obj, env, secrets"
+      },
+      {
+        "id": "FILE-0005",
+        "path": "docker-compose.yml",
+        "layer": "infra",
+        "module": "docker",
+        "file_type": "yaml",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "postgres_service",
+            "kind": "service",
+            "status": "done",
+            "description": "Runs PostgreSQL container"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0006",
+        "path": "db/migrations/001_lccap_full_schema_baseline.sql",
+        "layer": "database",
+        "module": "schema",
+        "file_type": "sql",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "FullSchemaDefinition",
+            "kind": "ddl",
+            "status": "done",
+            "description": "Defines all tables, constraints, indexes"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0007",
+        "path": "scripts/verify-dotnet.ps1",
+        "layer": "scripts",
+        "module": "verification",
+        "file_type": "powershell",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "verify-dotnet",
+            "kind": "script",
+            "status": "done",
+            "description": "Runs restore, build, format check, and tests"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0008",
+        "path": "scripts/verify-python.ps1",
+        "layer": "scripts",
+        "module": "verification",
+        "file_type": "powershell",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "verify-python",
+            "kind": "script",
+            "status": "done",
+            "description": "Runs Python lint/tests if service exists"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0009",
+        "path": ".github/workflows/ci.yml",
+        "layer": "ci",
+        "module": "pipeline",
+        "file_type": "yaml",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "ci_pipeline",
+            "kind": "workflow",
+            "status": "done",
+            "description": "Runs build and tests on push"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0010",
+        "path": "README.md",
+        "layer": "docs",
+        "module": "documentation",
+        "file_type": "markdown",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Project overview and setup instructions"
+      },
+      {
+        "id": "FILE-0011",
+        "path": "src/Lccap.Domain/Lccap.Domain.csproj",
+        "layer": "domain",
+        "module": "project",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Domain project file."
+      },
+      {
+        "id": "FILE-0012",
+        "path": "src/Lccap.Domain/DomainAssemblyMarker.cs",
+        "layer": "domain",
+        "module": "assembly",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "DomainAssemblyMarker",
+            "kind": "marker",
+            "status": "done",
+            "description": "Marker type for referencing the Domain assembly."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0013",
+        "path": "src/Lccap.Domain/Common/Interfaces/IHasRowVersion.cs",
+        "layer": "domain",
+        "module": "common",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "RowVersion",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Requires optimistic concurrency row version support."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0014",
+        "path": "src/Lccap.Domain/Common/Interfaces/ITenantEntity.cs",
+        "layer": "domain",
+        "module": "multi_tenancy",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AccountId",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Requires tenant/account ownership for scoped entities."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0015",
+        "path": "src/Lccap.Domain/Common/Interfaces/IAuditableEntity.cs",
+        "layer": "domain",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "CreatedAtUtc",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Creation timestamp contract."
+          },
+          {
+            "name": "UpdatedAtUtc",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Last update timestamp contract."
+          },
+          {
+            "name": "CreatedByUserId",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Creator user reference contract."
+          },
+          {
+            "name": "UpdatedByUserId",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Last updater user reference contract."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0016",
+        "path": "src/Lccap.Domain/Common/Interfaces/ISoftDeleteEntity.cs",
+        "layer": "domain",
+        "module": "soft_delete",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "IsDeleted",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Soft delete flag contract."
+          },
+          {
+            "name": "DeletedAtUtc",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Soft delete timestamp contract."
+          },
+          {
+            "name": "DeletedByUserId",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Soft delete user reference contract."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0017",
+        "path": "src/Lccap.Domain/Common/Entities/BaseEntity.cs",
+        "layer": "domain",
+        "module": "common",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Id",
+            "kind": "property",
+            "status": "done",
+            "description": "Primary key property using Guid."
+          },
+          {
+            "name": "RowVersion",
+            "kind": "property",
+            "status": "done",
+            "description": "Concurrency token property mapped to bytea."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0018",
+        "path": "src/Lccap.Domain/Common/Entities/TenantEntity.cs",
+        "layer": "domain",
+        "module": "multi_tenancy",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AccountId",
+            "kind": "property",
+            "status": "done",
+            "description": "Tenant/account foreign key."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0019",
+        "path": "src/Lccap.Domain/Common/Entities/AuditableTenantEntity.cs",
+        "layer": "domain",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "CreatedAtUtc",
+            "kind": "property",
+            "status": "done",
+            "description": "Creation timestamp."
+          },
+          {
+            "name": "UpdatedAtUtc",
+            "kind": "property",
+            "status": "done",
+            "description": "Last update timestamp."
+          },
+          {
+            "name": "CreatedByUserId",
+            "kind": "property",
+            "status": "done",
+            "description": "Creator user id."
+          },
+          {
+            "name": "UpdatedByUserId",
+            "kind": "property",
+            "status": "done",
+            "description": "Last updater user id."
+          },
+          {
+            "name": "IsDeleted",
+            "kind": "property",
+            "status": "done",
+            "description": "Soft delete flag."
+          },
+          {
+            "name": "DeletedAtUtc",
+            "kind": "property",
+            "status": "done",
+            "description": "Soft delete timestamp."
+          },
+          {
+            "name": "DeletedByUserId",
+            "kind": "property",
+            "status": "done",
+            "description": "Soft delete user id."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0020",
+        "path": "src/Lccap.Domain/Entities/Account.cs",
+        "layer": "domain",
+        "module": "accounts",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Plans",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Plans owned by this tenant account."
+          },
+          {
+            "name": "FileAssets",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "File assets owned by this tenant account."
+          }
+        ],
+        "notes": "Tenant root entity mapped to accounts table."
+      },
+      {
+        "id": "FILE-0021",
+        "path": "src/Lccap.Domain/Entities/User.cs",
+        "layer": "domain",
+        "module": "users",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Account",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Tenant account for LGU users; nullable for platform users."
+          },
+          {
+            "name": "UserRoles",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Enterprise RBAC role assignments."
+          },
+          {
+            "name": "CreatedPlans",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Plans created by this user."
+          }
+        ],
+        "notes": "Includes user_scope and nullable account_id support for platform users."
+      },
+      {
+        "id": "FILE-0022",
+        "path": "src/Lccap.Domain/Entities/TenantSetting.cs",
+        "layer": "domain",
+        "module": "tenant_settings",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Account",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Tenant account that owns the setting."
+          }
+        ],
+        "notes": "Mapped to tenant_settings table."
+      },
+      {
+        "id": "FILE-0023",
+        "path": "src/Lccap.Domain/Entities/AuditLog.cs",
+        "layer": "domain",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "OldValuesJson",
+            "kind": "json_property",
+            "status": "done",
+            "description": "Previous values captured for audit."
+          },
+          {
+            "name": "NewValuesJson",
+            "kind": "json_property",
+            "status": "done",
+            "description": "New values captured for audit."
+          },
+          {
+            "name": "MetadataJson",
+            "kind": "json_property",
+            "status": "done",
+            "description": "Additional audit metadata."
+          }
+        ],
+        "notes": "Mapped to audit_logs table."
+      },
+      {
+        "id": "FILE-0024",
+        "path": "src/Lccap.Domain/Entities/Role.cs",
+        "layer": "domain",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "UserRoles",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Users assigned to this role."
+          },
+          {
+            "name": "RolePermissions",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Permissions attached to this role."
+          }
+        ],
+        "notes": "Mapped to roles table."
+      },
+      {
+        "id": "FILE-0025",
+        "path": "src/Lccap.Domain/Entities/Permission.cs",
+        "layer": "domain",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "RolePermissions",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Roles that include this permission."
+          }
+        ],
+        "notes": "Mapped to permissions table."
+      },
+      {
+        "id": "FILE-0026",
+        "path": "src/Lccap.Domain/Entities/RolePermission.cs",
+        "layer": "domain",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Role",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Role associated with the permission assignment."
+          },
+          {
+            "name": "Permission",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Permission associated with the role assignment."
+          }
+        ],
+        "notes": "Mapped to role_permissions table."
+      },
+      {
+        "id": "FILE-0027",
+        "path": "src/Lccap.Domain/Entities/UserRole.cs",
+        "layer": "domain",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "User",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "User receiving the role assignment."
+          },
+          {
+            "name": "Role",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Assigned role."
+          },
+          {
+            "name": "Account",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Tenant scope for tenant/resource role assignments."
+          }
+        ],
+        "notes": "Mapped to user_roles table."
+      },
+      {
+        "id": "FILE-0028",
+        "path": "src/Lccap.Domain/Entities/Plan.cs",
+        "layer": "domain",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Account",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Tenant account that owns the plan."
+          },
+          {
+            "name": "Sections",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Plan sections belonging to the plan."
+          },
+          {
+            "name": "Documents",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Documents attached to the plan."
+          },
+          {
+            "name": "CreatedByUser",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "User that created the plan."
+          }
+        ],
+        "notes": "Plan is the aggregate root for the LCCAP workspace."
+      },
+      {
+        "id": "FILE-0029",
+        "path": "src/Lccap.Domain/Entities/PlanSection.cs",
+        "layer": "domain",
+        "module": "plan_sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Plan",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Parent plan for this section."
+          },
+          {
+            "name": "UpdateContent",
+            "kind": "domain_method",
+            "status": "done",
+            "description": "Updates section content and last-edited metadata."
+          }
+        ],
+        "notes": "Mapped to plan_sections table."
+      },
+      {
+        "id": "FILE-0030",
+        "path": "src/Lccap.Domain/Entities/FileAsset.cs",
+        "layer": "domain",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Account",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Tenant account that owns the file asset."
+          }
+        ],
+        "notes": "Canonical physical file storage abstraction."
+      },
+      {
+        "id": "FILE-0031",
+        "path": "src/Lccap.Domain/Entities/Document.cs",
+        "layer": "domain",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Account",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Tenant account that owns the document."
+          },
+          {
+            "name": "Plan",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Plan that owns the document."
+          },
+          {
+            "name": "FileAsset",
+            "kind": "navigation_property",
+            "status": "done",
+            "description": "Physical file metadata used by this document."
+          }
+        ],
+        "notes": "Document is logical usage; FileAsset is physical storage."
+      },
+      {
+        "id": "FILE-0032",
+        "path": "src/Lccap.Domain/Entities/MapAsset.cs",
+        "layer": "domain",
+        "module": "maps",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Rename",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Renames the map asset."
+          },
+          {
+            "name": "ChangeMapType",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Changes map asset classification/type."
+          }
+        ],
+        "notes": "MVP planned map entity; not yet confirmed as implemented."
+      },
+      {
+        "id": "FILE-0033",
+        "path": "src/Lccap.Domain/Entities/MapAnnotation.cs",
+        "layer": "domain",
+        "module": "maps",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Update",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates annotation geometry and note."
+          }
+        ],
+        "notes": "MVP planned map annotation entity."
+      },
+      {
+        "id": "FILE-0034",
+        "path": "src/Lccap.Domain/Entities/ActionItem.cs",
+        "layer": "domain",
+        "module": "actions",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "UpdateDetails",
+            "kind": "domain_method",
+            "status": "done",
+            "description": "Updates action title, description, type, sector, responsible office, budget, timeline, and KPI."
+          }
+        ],
+        "notes": "Planned core MVP action entity."
+      },
+      {
+        "id": "FILE-0035",
+        "path": "src/Lccap.Domain/Entities/MonitoringIndicator.cs",
+        "layer": "domain",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "UpdateDefinition",
+            "kind": "domain_method",
+            "status": "done",
+            "description": "Updates indicator name, description, baseline, target, and unit."
+          }
+        ],
+        "notes": "Planned monitoring entity; schema already exists."
+      },
+      {
+        "id": "FILE-0036",
+        "path": "src/Lccap.Domain/Entities/MonitoringUpdate.cs",
+        "layer": "domain",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "UpdateProgress",
+            "kind": "domain_method",
+            "status": "done",
+            "description": "Updates actual value, status, and notes for a reporting period."
+          }
+        ],
+        "notes": "Planned monitoring update entity; schema already exists."
+      },
+      {
+        "id": "FILE-0037",
+        "path": "src/Lccap.Domain/Entities/Barangay.cs",
+        "layer": "domain",
+        "module": "barangays",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "UpdateIdentity",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates barangay name and code."
+          },
+          {
+            "name": "UpdateLocation",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates latitude and longitude."
+          },
+          {
+            "name": "UpdateBoundary",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates boundary GeoJSON."
+          }
+        ],
+        "notes": "Planned Phase 2 reference data entity."
+      },
+      {
+        "id": "FILE-0038",
+        "path": "src/Lccap.Domain/Entities/CriticalFacility.cs",
+        "layer": "domain",
+        "module": "facilities",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "UpdateDetails",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates facility name, type, barangay, coordinates, and description."
+          }
+        ],
+        "notes": "Planned Phase 2 critical facility entity."
+      },
+      {
+        "id": "FILE-0039",
+        "path": "src/Lccap.Domain/Entities/GeoJsonLayerFeature.cs",
+        "layer": "domain",
+        "module": "geojson",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "UpdateDisplayName",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates display label for a GeoJSON feature."
+          },
+          {
+            "name": "UpdateProperties",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Updates feature properties JSON."
+          }
+        ],
+        "notes": "Planned Phase 2 GeoJSON feature entity."
+      },
+      {
+        "id": "FILE-0040",
+        "path": "src/Lccap.Domain/Entities/SectionComment.cs",
+        "layer": "domain",
+        "module": "comments",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "Resolve",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Marks a section comment as resolved."
+          },
+          {
+            "name": "Reopen",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Reopens a resolved section comment."
+          },
+          {
+            "name": "Edit",
+            "kind": "domain_method",
+            "status": "needs_review",
+            "description": "Edits comment text and type."
+          }
+        ],
+        "notes": "Planned Phase 2 collaboration entity."
+      },
+      {
+        "id": "FILE-0041",
+        "path": "src/Lccap.Application/Lccap.Application.csproj",
+        "layer": "application",
+        "module": "project",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Application layer project file."
+      },
+      {
+        "id": "FILE-0042",
+        "path": "src/Lccap.Application/ApplicationAssemblyMarker.cs",
+        "layer": "application",
+        "module": "assembly",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "ApplicationAssemblyMarker",
+            "kind": "marker",
+            "status": "done",
+            "description": "Marker class for Application assembly."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0043",
+        "path": "src/Lccap.Application/DependencyInjection.cs",
+        "layer": "application",
+        "module": "di",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AddApplicationServices",
+            "kind": "di_registration",
+            "status": "done",
+            "description": "Registers application services into DI container."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0044",
+        "path": "src/Lccap.Application/Common/Interfaces/IClock.cs",
+        "layer": "application",
+        "module": "common",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "UtcNow",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Provides current UTC time."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0045",
+        "path": "src/Lccap.Application/Common/SystemClock.cs",
+        "layer": "application",
+        "module": "common",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "UtcNow",
+            "kind": "property",
+            "status": "done",
+            "description": "Returns DateTimeOffset.UtcNow."
+          }
+        ],
+        "notes": "Default clock implementation."
+      },
+      {
+        "id": "FILE-0046",
+        "path": "src/Lccap.Application/Common/Interfaces/ICurrentUserContext.cs",
+        "layer": "application",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "UserId",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Current user identifier."
+          },
+          {
+            "name": "AccountId",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Current tenant identifier."
+          },
+          {
+            "name": "IsAuthenticated",
+            "kind": "property_contract",
+            "status": "done",
+            "description": "Indicates authentication status."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0047",
+        "path": "src/Lccap.Application/Common/CurrentUserContext.cs",
+        "layer": "application",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "GetUserId",
+            "kind": "method",
+            "status": "done",
+            "description": "Resolves user ID from context."
+          },
+          {
+            "name": "GetAccountId",
+            "kind": "method",
+            "status": "done",
+            "description": "Resolves tenant account ID."
+          },
+          {
+            "name": "IsAuthenticated",
+            "kind": "property",
+            "status": "done",
+            "description": "Indicates if request is authenticated."
+          }
+        ],
+        "notes": "Default implementation; may use HttpContext in API layer."
+      },
+      {
+        "id": "FILE-0048",
+        "path": "src/Lccap.Application/Plans/Commands/CreatePlanCommand.cs",
+        "layer": "application",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Creates a new Plan entity and seeds default plan_sections."
+          },
+          {
+            "name": "AddDefaultPlanSectionsIfMissing",
+            "kind": "helper",
+            "status": "done",
+            "description": "Adds the eight canonical plan_sections for a newly created plan (tenant-scoped, deduped in Local)."
+          }
+        ],
+        "notes": "Planned command for creating plans."
+      },
+      {
+        "id": "FILE-0049",
+        "path": "src/Lccap.Application/Plans/Commands/UpdatePlanCommand.cs",
+        "layer": "application",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Updates plan title and metadata."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0050",
+        "path": "src/Lccap.Application/Plans/Queries/GetPlanByIdQuery.cs",
+        "layer": "application",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "query_handler",
+            "status": "done",
+            "description": "Retrieves plan by ID."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0051",
+        "path": "src/Lccap.Application/Documents/Commands/UploadDocumentCommand.cs",
+        "layer": "application",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Handles file upload and document creation."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0052",
+        "path": "src/Lccap.Application/Documents/Queries/GetDocumentsByPlanQuery.cs",
+        "layer": "application",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "query_handler",
+            "status": "done",
+            "description": "Retrieves all documents for a plan."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0053",
+        "path": "src/Lccap.Application/Monitoring/Commands/CreateIndicatorCommand.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Creates monitoring indicator."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0054",
+        "path": "src/Lccap.Application/Monitoring/Commands/UpdateIndicatorCommand.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Updates monitoring indicator."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0055",
+        "path": "src/Lccap.Application/Monitoring/Queries/GetIndicatorsQuery.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "query_handler",
+            "status": "done",
+            "description": "Fetches indicators per plan."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0056",
+        "path": "src/Lccap.Application/AI/Commands/CreateAiJobCommand.cs",
+        "layer": "application",
+        "module": "ai",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "needs_review",
+            "description": "Creates AI processing job."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0057",
+        "path": "src/Lccap.Application/Export/Commands/CreateExportJobCommand.cs",
+        "layer": "application",
+        "module": "export",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Creates export job for PDF generation."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0058",
+        "path": "src/Lccap.Application/Common/Interfaces/IRepository.cs",
+        "layer": "application",
+        "module": "abstraction",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "AddAsync",
+            "kind": "repository_method",
+            "status": "not_started",
+            "description": "Adds entity to repository."
+          },
+          {
+            "name": "GetByIdAsync",
+            "kind": "repository_method",
+            "status": "not_started",
+            "description": "Fetches entity by ID."
+          },
+          {
+            "name": "Update",
+            "kind": "repository_method",
+            "status": "not_started",
+            "description": "Updates entity."
+          },
+          {
+            "name": "Delete",
+            "kind": "repository_method",
+            "status": "not_started",
+            "description": "Deletes entity."
+          }
+        ],
+        "notes": "Optional abstraction layer; not mandatory in EF-first approach."
+      },
+      {
+        "id": "FILE-0059",
+        "path": "src/Lccap.Application/Common/Interfaces/IUnitOfWork.cs",
+        "layer": "application",
+        "module": "abstraction",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "SaveChangesAsync",
+            "kind": "unit_of_work",
+            "status": "done",
+            "description": "Commits changes to database."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0060",
+        "path": "src/Lccap.Application/Common/Interfaces/IAiService.cs",
+        "layer": "application",
+        "module": "ai",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "SubmitJobAsync",
+            "kind": "service_method",
+            "status": "needs_review",
+            "description": "Submits AI job to Python service."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0061",
+        "path": "src/Lccap.Infrastructure/Lccap.Infrastructure.csproj",
+        "layer": "infrastructure",
+        "module": "project",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Infrastructure project with EF Core and Npgsql dependencies."
+      },
+      {
+        "id": "FILE-0062",
+        "path": "src/Lccap.Infrastructure/InfrastructureAssemblyMarker.cs",
+        "layer": "infrastructure",
+        "module": "assembly",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "InfrastructureAssemblyMarker",
+            "kind": "marker",
+            "status": "done",
+            "description": "Marker class for Infrastructure assembly."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0063",
+        "path": "src/Lccap.Infrastructure/DependencyInjection.cs",
+        "layer": "infrastructure",
+        "module": "di",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AddInfrastructureServices",
+            "kind": "di_registration",
+            "status": "done",
+            "description": "Registers DbContext, interceptors, and infrastructure services."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0064",
+        "path": "src/Lccap.Infrastructure/Persistence/LccapDbContext.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "OnModelCreating",
+            "kind": "ef_override",
+            "status": "done",
+            "description": "Applies entity configurations from assembly."
+          },
+          {
+            "name": "SaveChangesAsync",
+            "kind": "override",
+            "status": "done",
+            "description": "Triggers EF Core save pipeline with interceptors."
+          }
+        ],
+        "notes": "Central EF Core DbContext."
+      },
+      {
+        "id": "FILE-0065",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/EntityConfigurationExtensions.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "ConfigureRowVersion",
+            "kind": "extension_method",
+            "status": "done",
+            "description": "Applies concurrency token mapping."
+          },
+          {
+            "name": "ConfigureJsonb",
+            "kind": "extension_method",
+            "status": "done",
+            "description": "Maps JsonDocument to jsonb."
+          }
+        ],
+        "notes": "Reusable EF configuration helpers."
+      },
+      {
+        "id": "FILE-0066",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/AccountConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "accounts",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps Account entity to accounts table."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0067",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/UserConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "users",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps User entity including RBAC fields."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0068",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/TenantSettingConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "tenant_settings",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps tenant settings entity."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0069",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/AuditLogConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps audit log entity with JSONB fields."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0070",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/PlanConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps Plan entity and relationships."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0071",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/PlanSectionConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "plan_sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps PlanSection entity."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0072",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/FileAssetConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps FileAsset entity to file_assets."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0073",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/DocumentConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps Document entity and relationships."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0074",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/RoleConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps roles table."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0075",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/PermissionConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps permissions table."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0076",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/RolePermissionConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps role_permissions join table."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0077",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/UserRoleConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Configure",
+            "kind": "ef_configuration",
+            "status": "done",
+            "description": "Maps user_roles join table."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0078",
+        "path": "src/Lccap.Infrastructure/Persistence/Interceptors/AuditSaveChangesInterceptor.cs",
+        "layer": "infrastructure",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "SavingChanges",
+            "kind": "interceptor",
+            "status": "done",
+            "description": "Applies audit fields before save."
+          },
+          {
+            "name": "SavingChangesAsync",
+            "kind": "interceptor",
+            "status": "done",
+            "description": "Async audit stamping."
+          }
+        ],
+        "notes": "Handles Created/Updated/Deleted fields via reflection."
+      },
+      {
+        "id": "FILE-0079",
+        "path": "src/Lccap.Infrastructure/Persistence/Repositories/PlanRepository.cs",
+        "layer": "infrastructure",
+        "module": "repositories",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "GetByIdAsync",
+            "kind": "repository_method",
+            "status": "not_started",
+            "description": "Fetch plan by ID."
+          }
+        ],
+        "notes": "Optional repository abstraction."
+      },
+      {
+        "id": "FILE-0080",
+        "path": "src/Lccap.Infrastructure/Services/AiService.cs",
+        "layer": "infrastructure",
+        "module": "ai",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "SubmitJobAsync",
+            "kind": "service_method",
+            "status": "needs_review",
+            "description": "Calls Python AI service."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0081",
+        "path": "src/Lccap.Api/Lccap.Api.csproj",
+        "layer": "api",
+        "module": "project",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "API project file."
+      },
+      {
+        "id": "FILE-0082",
+        "path": "src/Lccap.Api/Program.cs",
+        "layer": "api",
+        "module": "startup",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "BuildApplication",
+            "kind": "startup",
+            "status": "done",
+            "description": "Configures services, middleware, endpoints, and app startup."
+          }
+        ],
+        "notes": "Minimal API entry point."
+      },
+      {
+        "id": "FILE-0083",
+        "path": "src/Lccap.Api/appsettings.json",
+        "layer": "api",
+        "module": "config",
+        "file_type": "json",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Default configuration file."
+      },
+      {
+        "id": "FILE-0084",
+        "path": "src/Lccap.Api/appsettings.Development.json",
+        "layer": "api",
+        "module": "config",
+        "file_type": "json",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Development environment configuration. Safe dev placeholders for Jwt expiration, PythonAi timeout, FileStorage limits/extensions."
+      },
+      {
+        "id": "FILE-0085",
+        "path": "src/Lccap.Api/Extensions/ServiceCollectionExtensions.cs",
+        "layer": "api",
+        "module": "di",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AddLccapServices",
+            "kind": "di_registration",
+            "status": "done",
+            "description": "Registers application + infrastructure services."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0086",
+        "path": "src/Lccap.Api/Health/HealthEndpoints.cs",
+        "layer": "api",
+        "module": "health",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "MapHealthEndpoints",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Maps /health endpoint."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0087",
+        "path": "src/Lccap.Api/Middleware/ExceptionHandlingMiddleware.cs",
+        "layer": "api",
+        "module": "middleware",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Handles global exceptions and returns standardized error responses."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0088",
+        "path": "src/Lccap.Api/Middleware/RequestLoggingMiddleware.cs",
+        "layer": "api",
+        "module": "middleware",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Logs incoming requests and responses."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0089",
+        "path": "src/Lccap.Api/Middleware/TenantResolutionMiddleware.cs",
+        "layer": "api",
+        "module": "multi_tenancy",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Resolves tenant (account_id) from request context."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0090",
+        "path": "src/Lccap.Api/Auth/JwtAuthHandler.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "HandleAuthenticateAsync",
+            "kind": "auth_handler",
+            "status": "done",
+            "description": "Validates JWT tokens and builds ClaimsPrincipal."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0091",
+        "path": "src/Lccap.Api/Auth/AuthorizationPolicies.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "AddPolicies",
+            "kind": "auth_config",
+            "status": "not_started",
+            "description": "Defines RBAC-based authorization policies."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0092",
+        "path": "src/Lccap.Api/Controllers/PlansController.cs",
+        "layer": "api",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "CreatePlan",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Creates a new plan."
+          },
+          {
+            "name": "UpdatePlan",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Updates a plan."
+          },
+          {
+            "name": "GetPlanById",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Retrieves plan details."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0093",
+        "path": "src/Lccap.Api/Controllers/DocumentsController.cs",
+        "layer": "api",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "UploadDocument",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Uploads file and creates document."
+          },
+          {
+            "name": "GetDocuments",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Lists documents for a plan."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0094",
+        "path": "src/Lccap.Api/Controllers/MonitoringController.cs",
+        "layer": "api",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "CreateIndicator",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Creates monitoring indicator."
+          },
+          {
+            "name": "UpdateIndicator",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Updates monitoring indicator."
+          },
+          {
+            "name": "GetIndicators",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Lists indicators for a plan."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0095",
+        "path": "src/Lccap.Api/Controllers/AiController.cs",
+        "layer": "api",
+        "module": "ai",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "CreateJob",
+            "kind": "endpoint",
+            "status": "needs_review",
+            "description": "Creates AI job."
+          },
+          {
+            "name": "GetJobResult",
+            "kind": "endpoint",
+            "status": "needs_review",
+            "description": "Retrieves AI job result."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0096",
+        "path": "src/Lccap.Api/Controllers/ExportController.cs",
+        "layer": "api",
+        "module": "export",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "CreateExport",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Creates export job."
+          },
+          {
+            "name": "DownloadExport",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Downloads generated file."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0097",
+        "path": "src/Lccap.Api/Controllers/AuthController.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Login",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Authenticates user and returns JWT."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0098",
+        "path": "src/Lccap.Api/Filters/AuthorizePermissionAttribute.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "needs_review",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "OnAuthorization",
+            "kind": "filter",
+            "status": "needs_review",
+            "description": "Checks required permission before executing endpoint."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0099",
+        "path": "src/Lccap.Api/Extensions/ApplicationBuilderExtensions.cs",
+        "layer": "api",
+        "module": "startup",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "UseLccapMiddleware",
+            "kind": "pipeline",
+            "status": "not_started",
+            "description": "Registers middleware pipeline."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0100",
+        "path": "src/Lccap.Api/Swagger/SwaggerConfig.cs",
+        "layer": "api",
+        "module": "docs",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "AddSwagger",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Configures Swagger/OpenAPI documentation."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0101",
+        "path": "services/python-ai/app/main.py",
+        "layer": "ai",
+        "module": "startup",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "create_app",
+            "kind": "startup",
+            "status": "not_started",
+            "description": "Initializes FastAPI app, routers, middleware."
+          }
+        ],
+        "notes": "Entry point for Python AI service."
+      },
+      {
+        "id": "FILE-0102",
+        "path": "services/python-ai/app/api/health.py",
+        "layer": "ai",
+        "module": "health",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "health_check",
+            "kind": "endpoint",
+            "status": "not_started",
+            "description": "Returns health status."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0103",
+        "path": "services/python-ai/app/api/document_intelligence.py",
+        "layer": "ai",
+        "module": "document_intelligence",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "analyze_document",
+            "kind": "endpoint",
+            "status": "not_started",
+            "description": "Extracts structured data from documents."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0104",
+        "path": "services/python-ai/app/api/rag.py",
+        "layer": "ai",
+        "module": "rag",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "ask_question",
+            "kind": "endpoint",
+            "status": "not_started",
+            "description": "Handles RAG queries."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0105",
+        "path": "services/python-ai/app/services/rag_service.py",
+        "layer": "ai",
+        "module": "rag",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "retrieve_documents",
+            "kind": "service",
+            "status": "not_started",
+            "description": "Fetches relevant documents for query."
+          },
+          {
+            "name": "generate_answer",
+            "kind": "service",
+            "status": "not_started",
+            "description": "Generates answer from retrieved context."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0106",
+        "path": "services/python-ai/app/services/document_service.py",
+        "layer": "ai",
+        "module": "document_intelligence",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "extract_text",
+            "kind": "service",
+            "status": "not_started",
+            "description": "Extracts raw text from file."
+          },
+          {
+            "name": "parse_structure",
+            "kind": "service",
+            "status": "not_started",
+            "description": "Parses structured content."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0107",
+        "path": "services/python-ai/app/models/rag_models.py",
+        "layer": "ai",
+        "module": "rag",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "RagQuery",
+            "kind": "model",
+            "status": "not_started",
+            "description": "Represents RAG query request."
+          },
+          {
+            "name": "RagResponse",
+            "kind": "model",
+            "status": "not_started",
+            "description": "Represents RAG response."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0108",
+        "path": "services/python-ai/app/models/document_models.py",
+        "layer": "ai",
+        "module": "document_intelligence",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "DocumentRequest",
+            "kind": "model",
+            "status": "not_started",
+            "description": "Document processing request."
+          },
+          {
+            "name": "DocumentResult",
+            "kind": "model",
+            "status": "not_started",
+            "description": "Processed document result."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0109",
+        "path": "services/python-ai/app/core/config.py",
+        "layer": "ai",
+        "module": "config",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "get_settings",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Loads environment variables."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0110",
+        "path": "services/python-ai/app/core/logging.py",
+        "layer": "ai",
+        "module": "logging",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "setup_logging",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Initializes logging system."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0111",
+        "path": "services/python-ai/app/utils/file_utils.py",
+        "layer": "ai",
+        "module": "utils",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "save_temp_file",
+            "kind": "utility",
+            "status": "not_started",
+            "description": "Saves uploaded file temporarily."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0112",
+        "path": "services/python-ai/app/utils/text_utils.py",
+        "layer": "ai",
+        "module": "utils",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "clean_text",
+            "kind": "utility",
+            "status": "not_started",
+            "description": "Normalizes text."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0113",
+        "path": "services/python-ai/requirements.txt",
+        "layer": "ai",
+        "module": "dependencies",
+        "file_type": "text",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [],
+        "notes": "Python dependencies list."
+      },
+      {
+        "id": "FILE-0114",
+        "path": "services/python-ai/tests/test_rag.py",
+        "layer": "ai",
+        "module": "tests",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "test_rag_query",
+            "kind": "test",
+            "status": "not_started",
+            "description": "Tests RAG endpoint."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0115",
+        "path": "services/python-ai/tests/test_document.py",
+        "layer": "ai",
+        "module": "tests",
+        "file_type": "python",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "test_document_processing",
+            "kind": "test",
+            "status": "not_started",
+            "description": "Tests document analysis."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0116",
+        "path": "tests/Lccap.Domain.Tests/Lccap.Domain.Tests.csproj",
+        "layer": "tests",
+        "module": "domain",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Domain unit test project."
+      },
+      {
+        "id": "FILE-0117",
+        "path": "tests/Lccap.Domain.Tests/DomainSmokeTests.cs",
+        "layer": "tests",
+        "module": "domain",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Domain_Should_Load",
+            "kind": "test",
+            "status": "done",
+            "description": "Basic smoke test for domain assembly."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0118",
+        "path": "tests/Lccap.Application.Tests/Lccap.Application.Tests.csproj",
+        "layer": "tests",
+        "module": "application",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Application test project."
+      },
+      {
+        "id": "FILE-0119",
+        "path": "tests/Lccap.Application.Tests/ApplicationSmokeTests.cs",
+        "layer": "tests",
+        "module": "application",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Application_Should_Load",
+            "kind": "test",
+            "status": "done",
+            "description": "Basic smoke test for application layer."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0120",
+        "path": "tests/Lccap.Infrastructure.Tests/Lccap.Infrastructure.Tests.csproj",
+        "layer": "tests",
+        "module": "infrastructure",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Infrastructure test project."
+      },
+      {
+        "id": "FILE-0121",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/LccapDbContextSmokeTests.cs",
+        "layer": "tests",
+        "module": "infrastructure",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "DbContext_Should_Build_Model",
+            "kind": "test",
+            "status": "done",
+            "description": "Ensures EF model builds without DB connection."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0122",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/CoreEntityMappingTests.cs",
+        "layer": "tests",
+        "module": "infrastructure",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Entities_Should_Have_RowVersion",
+            "kind": "test",
+            "status": "done",
+            "description": "Validates concurrency token mapping."
+          },
+          {
+            "name": "MonitoringEntities_Should_Map_In_Real_Model",
+            "kind": "test",
+            "status": "done",
+            "description": "Verifies MonitoringIndicator/MonitoringUpdate exist in model with required FK/account columns and row_version concurrency mapping."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0123",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/RbacEntityMappingTests.cs",
+        "layer": "tests",
+        "module": "rbac",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Rbac_Should_Map_Correctly",
+            "kind": "test",
+            "status": "done",
+            "description": "Validates RBAC entity mappings."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0124",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/PlanWorkspaceMappingTests.cs",
+        "layer": "tests",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "PlanWorkspace_Should_Map_Correctly",
+            "kind": "test",
+            "status": "done",
+            "description": "Validates Plan and related entities."
+          },
+          {
+            "name": "DocumentFileAssetMapping_Should_Map_Correctly",
+            "kind": "test",
+            "status": "done",
+            "description": "Validates Document/FileAsset model presence, required column mapping, row_version concurrency tokens, and Document->FileAsset relationship in real LccapDbContext model."
+          },
+          {
+            "name": "ActionItem_required_columns_are_mapped",
+            "kind": "test",
+            "status": "done",
+            "description": "Asserts ActionItem maps action_items columns including account_id, plan_id, title, tenant fields, and metadata_json."
+          },
+          {
+            "name": "ActionItem_row_version_is_concurrency_token",
+            "kind": "test",
+            "status": "done",
+            "description": "Confirms ActionItem.row_version is configured as EF concurrency token."
+          },
+          {
+            "name": "ActionItem_to_plan_relationship_exists",
+            "kind": "test",
+            "status": "done",
+            "description": "Confirms ActionItem FK to Plan is present in the model."
+          }
+        ],
+        "notes": "Includes Plan workspace and action_items EF mapping assertions (ActionItem)."
+      },
+      {
+        "id": "FILE-0125",
+        "path": "tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj",
+        "layer": "tests",
+        "module": "api",
+        "file_type": "csharp_project",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "API test project."
+      },
+      {
+        "id": "FILE-0126",
+        "path": "tests/Lccap.Api.Tests/ApiSmokeTests.cs",
+        "layer": "tests",
+        "module": "api",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "HealthEndpoint_Should_Return_Success",
+            "kind": "test",
+            "status": "done",
+            "description": "Verifies /health endpoint."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0127",
+        "path": "tests/Lccap.Api.Tests/Integration/PlansControllerTests.cs",
+        "layer": "tests",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "CreatePlan_Should_Return_Success",
+            "kind": "test",
+            "status": "done",
+            "description": "Integration test for creating plan."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0128",
+        "path": "tests/Lccap.Api.Tests/Integration/DocumentsControllerTests.cs",
+        "layer": "tests",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "UploadDocument_Should_Return_Success",
+            "kind": "test",
+            "status": "done",
+            "description": "Integration test for upload."
+          }
+        ],
+        "notes": "Integration FakeDbContext stubs ILccapDbContext: ActionItems, PlanSections, ExportJobs, and other unused DbSets (null!)."
+      },
+      {
+        "id": "FILE-0129",
+        "path": "tests/Lccap.Api.Tests/Integration/MonitoringControllerTests.cs",
+        "layer": "tests",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "CreateIndicator_Should_Work",
+            "kind": "test",
+            "status": "done",
+            "description": "Tests monitoring endpoint."
+          }
+        ],
+        "notes": "TestLccapDbContext ignores ActionItem when trimming the EF model for in-memory monitoring tests."
+      },
+      {
+        "id": "FILE-0130",
+        "path": "tests/Lccap.Api.Tests/Auth/AuthTests.cs",
+        "layer": "tests",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "Login_Should_Return_Token",
+            "kind": "test",
+            "status": "done",
+            "description": "Tests authentication flow."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0131",
+        "path": ".env.example",
+        "layer": "root",
+        "module": "environment",
+        "file_type": "env",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [],
+        "notes": "Example environment variables only. Must not contain real secrets."
+      },
+      {
+        "id": "FILE-0132",
+        "path": "src/Lccap.Api/Properties/launchSettings.json",
+        "layer": "api",
+        "module": "development_runtime",
+        "file_type": "json",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Local launch profiles generated by API template."
+      },
+      {
+        "id": "FILE-0133",
+        "path": "docs/environment-variables.md",
+        "layer": "docs",
+        "module": "environment",
+        "file_type": "markdown",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [],
+        "notes": "Documents required local, staging, and production environment variables."
+      },
+      {
+        "id": "FILE-0134",
+        "path": "docs/security-notes.md",
+        "layer": "docs",
+        "module": "security",
+        "file_type": "markdown",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [],
+        "notes": "Documents auth, upload, tenant isolation, and secret handling rules."
+      },
+      {
+        "id": "FILE-0135",
+        "path": "docs/api-contracts.md",
+        "layer": "docs",
+        "module": "api_contracts",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [],
+        "notes": "Documents API endpoint contracts, request models, response models, and error format."
+      },
+      {
+        "id": "FILE-0136",
+        "path": "docs/ai-contracts.md",
+        "layer": "docs",
+        "module": "ai_contracts",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [],
+        "notes": "Documents .NET API to Python AI service contracts."
+      },
+      {
+        "id": "FILE-0137",
+        "path": "docs/demo-script.md",
+        "layer": "docs",
+        "module": "demo",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [],
+        "notes": "Demo flow for showing LCCAP plan creation, document upload, AI support, and export."
+      },
+      {
+        "id": "FILE-0138",
+        "path": "docs/seeded-demo-data.md",
+        "layer": "docs",
+        "module": "seed_data",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [],
+        "notes": "Documents demo tenant, users, sample plan, and seed data assumptions."
+      },
+      {
+        "id": "FILE-0139",
+        "path": "docs/state/LCCAP_IMPLEMENTATION_TRACKER.json",
+        "layer": "docs",
+        "module": "state_tracking",
+        "file_type": "json",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "FileInventory",
+            "kind": "tracker_section",
+            "status": "done",
+            "description": "Tracks all planned and actual files with implementation status."
+          },
+          {
+            "name": "FunctionInventory",
+            "kind": "tracker_section",
+            "status": "done",
+            "description": "Tracks functions, helpers, tests, endpoints, commands, and configuration responsibilities per file."
+          }
+        ],
+        "notes": "Primary execution-state file for Cursor and future ChatGPT threads."
+      },
+      {
+        "id": "FILE-0140",
+        "path": "docker/Dockerfile.api",
+        "layer": "deployment",
+        "module": "docker",
+        "file_type": "dockerfile",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "BuildApiImage",
+            "kind": "docker_stage",
+            "status": "not_started",
+            "description": "Builds and publishes the .NET API image."
+          },
+          {
+            "name": "RuntimeApiImage",
+            "kind": "docker_stage",
+            "status": "not_started",
+            "description": "Runs the compiled API in a minimal runtime image."
+          }
+        ],
+        "notes": "Optional for containerized deployment."
+      },
+      {
+        "id": "FILE-0141",
+        "path": "docker/Dockerfile.python-ai",
+        "layer": "deployment",
+        "module": "docker",
+        "file_type": "dockerfile",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "BuildPythonAiImage",
+            "kind": "docker_stage",
+            "status": "not_started",
+            "description": "Builds Python AI service image with dependencies."
+          },
+          {
+            "name": "RunPythonAiService",
+            "kind": "docker_stage",
+            "status": "not_started",
+            "description": "Runs FastAPI service through ASGI server."
+          }
+        ],
+        "notes": "Used when Python AI service is introduced."
+      },
+      {
+        "id": "FILE-0142",
+        "path": "docker-compose.override.yml",
+        "layer": "infra",
+        "module": "docker",
+        "file_type": "yaml",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "local_development_overrides",
+            "kind": "docker_compose_config",
+            "status": "not_started",
+            "description": "Overrides ports, volumes, and development-only settings."
+          }
+        ],
+        "notes": "Optional local development overrides."
+      },
+      {
+        "id": "FILE-0143",
+        "path": "scripts/reset-db.ps1",
+        "layer": "scripts",
+        "module": "database",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "reset-db",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Drops and recreates local PostgreSQL database, then applies baseline schema."
+          }
+        ],
+        "notes": "Must require explicit confirmation before destructive reset."
+      },
+      {
+        "id": "FILE-0144",
+        "path": "scripts/dump-schema.ps1",
+        "layer": "scripts",
+        "module": "database",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "dump-schema",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Runs pg_dump schema-only export into db/migrations/001_lccap_full_schema_baseline.sql."
+          }
+        ],
+        "notes": "Should use --schema-only, --no-owner, and --no-privileges."
+      },
+      {
+        "id": "FILE-0145",
+        "path": "scripts/validate-tracker.ps1",
+        "layer": "scripts",
+        "module": "state_tracking",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "validate-tracker",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Validates tracker JSON shape, duplicate IDs, duplicate paths, required fields, and allowed statuses."
+          }
+        ],
+        "notes": "Future hardening script for preventing Cursor tracker mistakes."
+      },
+      {
+        "id": "FILE-0146",
+        "path": "scripts/verify-all.ps1",
+        "layer": "scripts",
+        "module": "verification",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "verify-all",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Runs .NET verification, Python verification, tracker validation, and schema sanity checks."
+          }
+        ],
+        "notes": "Future one-command quality gate."
+      },
+      {
+        "id": "FILE-0147",
+        "path": ".github/workflows/python-ai-ci.yml",
+        "layer": "ci",
+        "module": "python_ai",
+        "file_type": "yaml",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "python_ai_ci_pipeline",
+            "kind": "workflow",
+            "status": "not_started",
+            "description": "Runs ruff, pyright, and pytest for Python AI service."
+          }
+        ],
+        "notes": "Add only after services/python-ai exists."
+      },
+      {
+        "id": "FILE-0148",
+        "path": ".github/workflows/schema-validation.yml",
+        "layer": "ci",
+        "module": "database",
+        "file_type": "yaml",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "schema_validation_pipeline",
+            "kind": "workflow",
+            "status": "not_started",
+            "description": "Validates PostgreSQL schema can apply cleanly to an empty database."
+          }
+        ],
+        "notes": "Future CI hardening for baseline SQL."
+      },
+      {
+        "id": "FILE-0149",
+        "path": "src/Lccap.Api/Options/JwtOptions.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Issuer",
+            "kind": "option_property",
+            "status": "done",
+            "description": "JWT issuer configuration."
+          },
+          {
+            "name": "Audience",
+            "kind": "option_property",
+            "status": "done",
+            "description": "JWT audience configuration."
+          },
+          {
+            "name": "SigningKey",
+            "kind": "option_property",
+            "status": "done",
+            "description": "JWT signing key configuration."
+          }
+        ],
+        "notes": "Must not store real secrets in source."
+      },
+      {
+        "id": "FILE-0150",
+        "path": "src/Lccap.Api/Options/PythonAiOptions.cs",
+        "layer": "api",
+        "module": "ai",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_2",
+        "functions": [
+          {
+            "name": "BaseUrl",
+            "kind": "option_property",
+            "status": "not_started",
+            "description": "Base URL for Python AI service."
+          },
+          {
+            "name": "TimeoutSeconds",
+            "kind": "option_property",
+            "status": "not_started",
+            "description": "HTTP timeout for AI calls."
+          }
+        ],
+        "notes": "Configuration object for AI service integration."
+      },
+      {
+        "id": "FILE-0151",
+        "path": "src/Lccap.Api/Options/FileStorageOptions.cs",
+        "layer": "api",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "RootPath",
+            "kind": "option_property",
+            "status": "done",
+            "description": "Root directory for local file storage."
+          },
+          {
+            "name": "MaxUploadBytes",
+            "kind": "option_property",
+            "status": "done",
+            "description": "Maximum allowed upload size."
+          },
+          {
+            "name": "AllowedExtensions",
+            "kind": "option_property",
+            "status": "done",
+            "description": "Allowed file extensions."
+          }
+        ],
+        "notes": "Used by file upload and validation services."
+      },
+      {
+        "id": "FILE-0152",
+        "path": "src/Lccap.Infrastructure/Storage/LocalFileStorageService.cs",
+        "layer": "infrastructure",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "SaveAsync",
+            "kind": "service_method",
+            "status": "done",
+            "description": "Saves uploaded file stream to local storage."
+          },
+          {
+            "name": "OpenReadAsync",
+            "kind": "service_method",
+            "status": "done",
+            "description": "Opens stored file for download/read."
+          },
+          {
+            "name": "DeleteAsync",
+            "kind": "service_method",
+            "status": "done",
+            "description": "Deletes stored file if policy allows."
+          },
+          {
+            "name": "BuildStoredFilePath",
+            "kind": "helper",
+            "status": "done",
+            "description": "Builds safe tenant-scoped storage path."
+          }
+        ],
+        "notes": "Local filesystem MVP storage behind abstraction."
+      },
+      {
+        "id": "FILE-0153",
+        "path": "src/Lccap.Application/Common/Interfaces/IFileStorageService.cs",
+        "layer": "application",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "SaveAsync",
+            "kind": "interface_method",
+            "status": "done",
+            "description": "Saves file and returns stored file result."
+          },
+          {
+            "name": "OpenReadAsync",
+            "kind": "interface_method",
+            "status": "done",
+            "description": "Opens file stream for reading."
+          },
+          {
+            "name": "DeleteAsync",
+            "kind": "interface_method",
+            "status": "done",
+            "description": "Deletes file from storage."
+          }
+        ],
+        "notes": "Application abstraction for file storage."
+      },
+      {
+        "id": "FILE-0154",
+        "path": "src/Lccap.Application/Common/Models/StoredFileResult.cs",
+        "layer": "application",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "StoredFileResult",
+            "kind": "model",
+            "status": "done",
+            "description": "Represents saved file metadata returned by storage service."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0155",
+        "path": "src/Lccap.Application/Common/Interfaces/IFileTypeValidationService.cs",
+        "layer": "application",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "ValidateDocument",
+            "kind": "interface_method",
+            "status": "not_started",
+            "description": "Validates uploaded document extension, content type, and size."
+          },
+          {
+            "name": "ValidateMap",
+            "kind": "interface_method",
+            "status": "not_started",
+            "description": "Validates uploaded map file."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0156",
+        "path": "src/Lccap.Infrastructure/Logging/SerilogConfig.cs",
+        "layer": "infrastructure",
+        "module": "logging",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "ConfigureSerilog",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Configures Serilog sinks (console, file, external log providers)."
+          }
+        ],
+        "notes": "Centralized logging configuration for structured logs."
+      },
+      {
+        "id": "FILE-0157",
+        "path": "src/Lccap.Api/Middleware/RequestCorrelationMiddleware.cs",
+        "layer": "api",
+        "module": "logging",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Adds correlation ID to request and response headers for traceability."
+          }
+        ],
+        "notes": "Required for distributed tracing and debugging."
+      },
+      {
+        "id": "FILE-0158",
+        "path": "src/Lccap.Infrastructure/Logging/LogEnricher.cs",
+        "layer": "infrastructure",
+        "module": "logging",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "Enrich",
+            "kind": "logging_helper",
+            "status": "not_started",
+            "description": "Adds contextual properties (user_id, account_id, correlation_id) to logs."
+          }
+        ],
+        "notes": "Enhances observability context."
+      },
+      {
+        "id": "FILE-0159",
+        "path": "src/Lccap.Api/Extensions/LoggingExtensions.cs",
+        "layer": "api",
+        "module": "logging",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "UseStructuredLogging",
+            "kind": "pipeline",
+            "status": "not_started",
+            "description": "Registers logging middleware and configures logging pipeline."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0160",
+        "path": "src/Lccap.Infrastructure/Metrics/MetricsConfig.cs",
+        "layer": "infrastructure",
+        "module": "metrics",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "ConfigureMetrics",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Initializes Prometheus metrics collection."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0161",
+        "path": "src/Lccap.Api/Endpoints/MetricsEndpoint.cs",
+        "layer": "api",
+        "module": "metrics",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "MapMetrics",
+            "kind": "endpoint",
+            "status": "not_started",
+            "description": "Exposes /metrics endpoint for Prometheus scraping."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0162",
+        "path": "src/Lccap.Infrastructure/Metrics/RequestMetricsCollector.cs",
+        "layer": "infrastructure",
+        "module": "metrics",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "RecordRequest",
+            "kind": "metrics",
+            "status": "not_started",
+            "description": "Tracks request count, latency, and status codes."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0163",
+        "path": "src/Lccap.Infrastructure/Tracing/TracingConfig.cs",
+        "layer": "infrastructure",
+        "module": "tracing",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "ConfigureTracing",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Configures OpenTelemetry tracing pipeline."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0164",
+        "path": "src/Lccap.Infrastructure/Tracing/ActivitySources.cs",
+        "layer": "infrastructure",
+        "module": "tracing",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "CreateActivitySource",
+            "kind": "tracing",
+            "status": "not_started",
+            "description": "Defines activity sources for tracing spans."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0165",
+        "path": "src/Lccap.Api/Middleware/TracingMiddleware.cs",
+        "layer": "api",
+        "module": "tracing",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Wraps requests in tracing spans."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0166",
+        "path": "docker/observability/prometheus.yml",
+        "layer": "deployment",
+        "module": "observability",
+        "file_type": "yaml",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "scrape_configs",
+            "kind": "config",
+            "status": "not_started",
+            "description": "Configures Prometheus scraping targets."
+          }
+        ],
+        "notes": "Prometheus config for API metrics endpoint."
+      },
+      {
+        "id": "FILE-0167",
+        "path": "docker/observability/grafana-dashboard.json",
+        "layer": "deployment",
+        "module": "observability",
+        "file_type": "json",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Predefined dashboard for API metrics and performance."
+      },
+      {
+        "id": "FILE-0168",
+        "path": "docs/observability.md",
+        "layer": "docs",
+        "module": "observability",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Documents logging, metrics, tracing, and monitoring strategy."
+      },
+      {
+        "id": "FILE-0169",
+        "path": "src/Lccap.Api/Middleware/RateLimitingMiddleware.cs",
+        "layer": "api",
+        "module": "security",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Applies per-IP and per-user rate limits and returns 429 when exceeded."
+          }
+        ],
+        "notes": "Can use token-bucket or sliding window algorithm."
+      },
+      {
+        "id": "FILE-0170",
+        "path": "src/Lccap.Api/Middleware/IpAllowlistMiddleware.cs",
+        "layer": "api",
+        "module": "security",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Blocks requests not in configured allowlist."
+          }
+        ],
+        "notes": "Optional for admin endpoints or internal APIs."
+      },
+      {
+        "id": "FILE-0171",
+        "path": "src/Lccap.Api/Middleware/AntiAbuseMiddleware.cs",
+        "layer": "api",
+        "module": "security",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Detects suspicious patterns (burst traffic, repeated failures)."
+          }
+        ],
+        "notes": "Feeds abuse signals into audit logs."
+      },
+      {
+        "id": "FILE-0172",
+        "path": "src/Lccap.Api/Filters/ValidateModelAttribute.cs",
+        "layer": "api",
+        "module": "validation",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "OnActionExecuting",
+            "kind": "filter",
+            "status": "not_started",
+            "description": "Validates incoming models and returns 400 on failure."
+          }
+        ],
+        "notes": "Ensures consistent model validation."
+      },
+      {
+        "id": "FILE-0173",
+        "path": "src/Lccap.Application/Common/Interfaces/IAuditService.cs",
+        "layer": "application",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "RecordAsync",
+            "kind": "interface_method",
+            "status": "not_started",
+            "description": "Records audit events (action, user, entity, metadata)."
+          }
+        ],
+        "notes": "Abstraction for audit logging."
+      },
+      {
+        "id": "FILE-0174",
+        "path": "src/Lccap.Infrastructure/Audit/AuditService.cs",
+        "layer": "infrastructure",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "RecordAsync",
+            "kind": "service_method",
+            "status": "not_started",
+            "description": "Persists audit events into audit_logs table."
+          }
+        ],
+        "notes": "Concrete audit service implementation."
+      },
+      {
+        "id": "FILE-0175",
+        "path": "src/Lccap.Api/Filters/AuditActionAttribute.cs",
+        "layer": "api",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "OnActionExecutionAsync",
+            "kind": "filter",
+            "status": "not_started",
+            "description": "Captures action execution and sends audit event."
+          }
+        ],
+        "notes": "Decorate sensitive endpoints for auditing."
+      },
+      {
+        "id": "FILE-0176",
+        "path": "src/Lccap.Infrastructure/Security/PasswordHasher.cs",
+        "layer": "infrastructure",
+        "module": "security",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "Hash",
+            "kind": "security",
+            "status": "done",
+            "description": "Hashes passwords using a secure algorithm (e.g., PBKDF2 or bcrypt)."
+          },
+          {
+            "name": "Verify",
+            "kind": "security",
+            "status": "done",
+            "description": "Verifies password against stored hash."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0177",
+        "path": "src/Lccap.Infrastructure/Security/JwtTokenGenerator.cs",
+        "layer": "infrastructure",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "GenerateToken",
+            "kind": "security",
+            "status": "done",
+            "description": "Generates signed JWT token for authenticated user."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0178",
+        "path": "src/Lccap.Api/Middleware/SecurityHeadersMiddleware.cs",
+        "layer": "api",
+        "module": "security",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Adds security headers (CSP, X-Frame-Options, etc.)."
+          }
+        ],
+        "notes": "Protects against XSS, clickjacking, and other attacks."
+      },
+      {
+        "id": "FILE-0179",
+        "path": "src/Lccap.Api/Middleware/FileUploadValidationMiddleware.cs",
+        "layer": "api",
+        "module": "security",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "InvokeAsync",
+            "kind": "middleware",
+            "status": "not_started",
+            "description": "Validates file uploads (size, type, extension)."
+          }
+        ],
+        "notes": "Critical for preventing malicious uploads."
+      },
+      {
+        "id": "FILE-0180",
+        "path": "src/Lccap.Infrastructure/Security/FileTypeValidationService.cs",
+        "layer": "infrastructure",
+        "module": "files",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_mvp",
+        "functions": [
+          {
+            "name": "ValidateDocument",
+            "kind": "service_method",
+            "status": "not_started",
+            "description": "Validates document file type and size."
+          },
+          {
+            "name": "ValidateMap",
+            "kind": "service_method",
+            "status": "not_started",
+            "description": "Validates map file type."
+          }
+        ],
+        "notes": "Implements IFileTypeValidationService."
+      },
+      {
+        "id": "FILE-0181",
+        "path": "docs/security-hardening.md",
+        "layer": "docs",
+        "module": "security",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Documents rate limiting, auth, validation, and audit strategy."
+      },
+      {
+        "id": "FILE-0182",
+        "path": "scripts/security-scan.ps1",
+        "layer": "scripts",
+        "module": "security",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "security-scan",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Runs dependency vulnerability checks and static analysis."
+          }
+        ],
+        "notes": "Optional CI integration for security scanning."
+      },
+      {
+        "id": "FILE-0183",
+        "path": "src/Lccap.Infrastructure/Persistence/Seed/DatabaseSeeder.cs",
+        "layer": "infrastructure",
+        "module": "seed_data",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "SeedAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Runs all seed routines in a safe, idempotent order."
+          }
+        ],
+        "notes": "Top-level database seeder."
+      },
+      {
+        "id": "FILE-0184",
+        "path": "src/Lccap.Infrastructure/Persistence/Seed/RbacSeeder.cs",
+        "layer": "infrastructure",
+        "module": "seed_data",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "SeedRolesAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Seeds system roles."
+          },
+          {
+            "name": "SeedPermissionsAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Seeds system permissions."
+          },
+          {
+            "name": "SeedRolePermissionsAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Seeds role-permission assignments."
+          }
+        ],
+        "notes": "Must remain idempotent."
+      },
+      {
+        "id": "FILE-0185",
+        "path": "src/Lccap.Infrastructure/Persistence/Seed/DemoDataSeeder.cs",
+        "layer": "infrastructure",
+        "module": "seed_data",
+        "file_type": "csharp",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "SeedDemoTenantAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Seeds a demo LGU tenant."
+          },
+          {
+            "name": "SeedDemoUsersAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Seeds demo users for the tenant."
+          },
+          {
+            "name": "SeedDemoPlanAsync",
+            "kind": "seeder",
+            "status": "not_started",
+            "description": "Seeds sample LCCAP plan and sections."
+          }
+        ],
+        "notes": "For local/demo environments only."
+      },
+      {
+        "id": "FILE-0186",
+        "path": "scripts/seed-db.ps1",
+        "layer": "scripts",
+        "module": "seed_data",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "seed-db",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Runs database seed operation for local/dev environments."
+          }
+        ],
+        "notes": "Must never run against production without explicit safeguards."
+      },
+      {
+        "id": "FILE-0187",
+        "path": "scripts/apply-baseline-schema.ps1",
+        "layer": "scripts",
+        "module": "database",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "apply-baseline-schema",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Applies db/migrations/001_lccap_full_schema_baseline.sql to an empty database."
+          }
+        ],
+        "notes": "Used for local rebuilds and schema validation."
+      },
+      {
+        "id": "FILE-0188",
+        "path": "scripts/verify-schema.ps1",
+        "layer": "scripts",
+        "module": "database",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "verify-schema",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Checks expected table, index, constraint, and FK counts after schema application."
+          }
+        ],
+        "notes": "Should compare against known baseline counts."
+      },
+      {
+        "id": "FILE-0189",
+        "path": "scripts/backup-db.ps1",
+        "layer": "scripts",
+        "module": "backup_restore",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "backup-db",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Creates timestamped PostgreSQL backup using pg_dump."
+          }
+        ],
+        "notes": "Should write to local backup folder or configured path."
+      },
+      {
+        "id": "FILE-0190",
+        "path": "scripts/restore-db.ps1",
+        "layer": "scripts",
+        "module": "backup_restore",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "restore-db",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Restores PostgreSQL backup into a target database with confirmation prompts."
+          }
+        ],
+        "notes": "Must require explicit confirmation before destructive restore."
+      },
+      {
+        "id": "FILE-0191",
+        "path": "scripts/create-migration.ps1",
+        "layer": "scripts",
+        "module": "migrations",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "create-migration",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Creates EF Core migration using the infrastructure project and startup API project."
+          }
+        ],
+        "notes": "Should enforce naming and target project conventions."
+      },
+      {
+        "id": "FILE-0192",
+        "path": "scripts/apply-migrations.ps1",
+        "layer": "scripts",
+        "module": "migrations",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "apply-migrations",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Applies EF Core migrations to configured database."
+          }
+        ],
+        "notes": "Should require target environment confirmation."
+      },
+      {
+        "id": "FILE-0193",
+        "path": "scripts/check-migration-drift.ps1",
+        "layer": "scripts",
+        "module": "migrations",
+        "file_type": "powershell",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "check-migration-drift",
+            "kind": "script",
+            "status": "not_started",
+            "description": "Checks for EF model/schema drift and pending model changes."
+          }
+        ],
+        "notes": "Prevents accidental schema mismatch."
+      },
+      {
+        "id": "FILE-0194",
+        "path": "docs/operations/database-backup-restore.md",
+        "layer": "docs",
+        "module": "backup_restore",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Documents backup and restore procedures."
+      },
+      {
+        "id": "FILE-0195",
+        "path": "docs/operations/schema-migration-runbook.md",
+        "layer": "docs",
+        "module": "migrations",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Documents migration creation, review, application, and rollback rules."
+      },
+      {
+        "id": "FILE-0196",
+        "path": "docs/operations/incident-runbook.md",
+        "layer": "docs",
+        "module": "operations",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Documents incident response, triage, rollback, and communication steps."
+      },
+      {
+        "id": "FILE-0197",
+        "path": ".github/workflows/database-ops-validation.yml",
+        "layer": "ci",
+        "module": "database",
+        "file_type": "yaml",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "database_ops_validation_pipeline",
+            "kind": "workflow",
+            "status": "not_started",
+            "description": "Validates schema apply, migration drift checks, and operational scripts."
+          }
+        ],
+        "notes": "Future CI gate for database operational safety."
+      },
+      {
+        "id": "FILE-0198",
+        "path": "db/seeds/001_seed_rbac.sql",
+        "layer": "database",
+        "module": "seed_data",
+        "file_type": "sql",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "SeedRbac",
+            "kind": "seed_sql",
+            "status": "not_started",
+            "description": "Seeds default roles, permissions, and role-permission relationships."
+          }
+        ],
+        "notes": "Must be idempotent using ON CONFLICT or existence checks."
+      },
+      {
+        "id": "FILE-0199",
+        "path": "db/seeds/002_seed_demo_lgu.sql",
+        "layer": "database",
+        "module": "seed_data",
+        "file_type": "sql",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [
+          {
+            "name": "SeedDemoLgu",
+            "kind": "seed_sql",
+            "status": "not_started",
+            "description": "Seeds demo LGU account, users, plan, sections, and sample data."
+          }
+        ],
+        "notes": "Local/demo only; never include real credentials."
+      },
+      {
+        "id": "FILE-0200",
+        "path": "db/README.md",
+        "layer": "database",
+        "module": "documentation",
+        "file_type": "markdown",
+        "status": "not_started",
+        "source": "planned_phase_3",
+        "functions": [],
+        "notes": "Documents database folder structure, baseline schema, seeds, and operational scripts."
+      },
+      {
+        "id": "FILE-0201",
+        "path": "frontend/package.json",
+        "layer": "frontend",
+        "module": "foundation",
+        "file_type": "json",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Next.js frontend workspace configuration and scripts. Verified npm install, type-check, lint, and build pass in frontend directory."
+      },
+      {
+        "id": "FILE-0202",
+        "path": "frontend/app/layout.tsx",
+        "layer": "frontend",
+        "module": "layout",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "RootLayout",
+            "kind": "component",
+            "status": "done",
+            "description": "Wraps frontend pages in enterprise app shell."
+          }
+        ],
+        "notes": "Defines base metadata and shared shell layout."
+      },
+      {
+        "id": "FILE-0203",
+        "path": "frontend/app/(dashboard)/dashboard/page.tsx",
+        "layer": "frontend",
+        "module": "dashboard",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "DashboardPage",
+            "kind": "component",
+            "status": "done",
+            "description": "Renders static enterprise dashboard preview with typed demo data."
+          }
+        ],
+        "notes": "Foundation dashboard view for future API integration. Build verification pass completed."
+      },
+      {
+        "id": "FILE-0204",
+        "path": "frontend/components/layout/app-shell.tsx",
+        "layer": "frontend",
+        "module": "layout",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AppShell",
+            "kind": "component",
+            "status": "done",
+            "description": "Provides responsive sidebar and topbar command-center shell."
+          }
+        ],
+        "notes": "Shared shell used by all frontend pages."
+      },
+      {
+        "id": "FILE-0205",
+        "path": "frontend/components/layout/sidebar.tsx",
+        "layer": "frontend",
+        "module": "navigation",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Sidebar",
+            "kind": "component",
+            "status": "done",
+            "description": "Primary navigation for dashboard, planning, documents, actions, monitoring, and exports."
+          }
+        ],
+        "notes": "Includes future Maps and AI Assistant entries."
+      },
+      {
+        "id": "FILE-0206",
+        "path": "frontend/components/dashboard/*",
+        "layer": "frontend",
+        "module": "dashboard",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Dashboard cards for metrics, plan progress, action status, risks, and recent activity."
+      }
+    ]
+  }

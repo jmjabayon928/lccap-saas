@@ -1,0 +1,37 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env*.local
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local/generated files
+data/
+uploads/
+*.log
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/*.user
+
+# Private database schema / sensitive implementation details
+db/
+
+# Local tracker scratch file
+docs/state/tracker.txt

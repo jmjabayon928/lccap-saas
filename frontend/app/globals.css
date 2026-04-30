@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 222 22% 14%;
+  --border: 214 20% 88%;
+  --ring: 160 84% 34%;
+  --primary: 160 84% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 191 79% 32%;
+  --secondary-foreground: 0 0% 100%;
+  --success: 145 63% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 26 83% 14%;
+  --danger: 0 84% 60%;
+  --danger-foreground: 0 0% 100%;
+  --muted: 214 22% 95%;
+  --muted-foreground: 215 16% 40%;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+.page-title {
+  @apply text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl;
+}
+
+.page-description {
+  @apply mt-2 text-sm text-muted-foreground md:text-base;
+}
