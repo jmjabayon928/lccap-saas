@@ -4,6 +4,7 @@ using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
 using Lccap.Domain.Entities;
 using Lccap.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -148,6 +149,141 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Get_plans_returns_only_current_account_non_deleted_plans()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _ = await SeedPlan(db, accountId, "One");
+        _ = await SeedPlan(db, accountId, "Two");
+        var controller = CreateController(db, accountId, userId);
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true)),
+            CancellationToken.None);
+
+        var plans = AssertPlansList(result);
+        Assert.Equal(2, plans.Count);
+        Assert.Contains(plans, p => p.Title == "One");
+        Assert.Contains(plans, p => p.Title == "Two");
+    }
+
+    [Fact]
+    public async Task Get_plans_excludes_cross_tenant_plans()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _ = await SeedPlan(db, accountId, "Mine");
+        _ = await SeedPlan(db, otherAccountId, "Theirs");
+        var controller = CreateController(db, accountId, userId);
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true)),
+            CancellationToken.None);
+
+        var plans = AssertPlansList(result);
+        Assert.Single(plans);
+        Assert.Equal("Mine", plans[0].Title);
+    }
+
+    [Fact]
+    public async Task Get_plans_excludes_deleted_plans()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _ = await SeedPlan(db, accountId, "Active");
+        _ = await SeedPlan(db, accountId, "Gone", isDeleted: true);
+        var controller = CreateController(db, accountId, userId);
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true)),
+            CancellationToken.None);
+
+        var plans = AssertPlansList(result);
+        Assert.Single(plans);
+        Assert.Equal("Active", plans[0].Title);
+    }
+
+    [Fact]
+    public async Task Get_plans_orders_newest_first()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var t0 = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        _ = await SeedPlan(db, accountId, "Oldest", createdAtUtc: t0, updatedAtUtc: null);
+        _ = await SeedPlan(db, accountId, "Mid", createdAtUtc: t0, updatedAtUtc: t0.AddYears(3));
+        _ = await SeedPlan(db, accountId, "Newest", createdAtUtc: t0.AddYears(10), updatedAtUtc: null);
+        var controller = CreateController(db, accountId, userId);
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true)),
+            CancellationToken.None);
+
+        var plans = AssertPlansList(result);
+        Assert.Equal(3, plans.Count);
+        Assert.Equal("Newest", plans[0].Title);
+        Assert.Equal("Mid", plans[1].Title);
+        Assert.Equal("Oldest", plans[2].Title);
+    }
+
+    [Fact]
+    public async Task Get_plans_returns_empty_list_when_no_plans()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var controller = CreateController(db, accountId, userId);
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true)),
+            CancellationToken.None);
+
+        var plans = AssertPlansList(result);
+        Assert.Empty(plans);
+    }
+
+    [Fact]
+    public async Task Get_plans_does_not_accept_account_id_from_query_or_body()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _ = await SeedPlan(db, accountId, "Mine");
+        _ = await SeedPlan(db, otherAccountId, "Theirs");
+        var controller = CreateController(db, accountId, userId);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.QueryString = new QueryString("?accountId=" + Uri.EscapeDataString(otherAccountId.ToString()));
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true)),
+            CancellationToken.None);
+
+        var plans = AssertPlansList(result);
+        Assert.Single(plans);
+        Assert.Equal("Mine", plans[0].Title);
+    }
+
+    [Fact]
+    public async Task Get_plans_returns_forbidden_when_account_context_missing()
+    {
+        using var db = CreateDbContext();
+        var userId = Guid.NewGuid();
+        var controller = CreateController(db, Guid.NewGuid(), userId);
+
+        var result = await controller.GetPlans(
+            new GetPlansQuery(db, new TestCurrentUserContext(null, userId, true)),
+            CancellationToken.None);
+
+        _ = Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
     public async Task Update_succeeds_for_same_account_plan()
     {
         using var db = CreateDbContext();
@@ -187,6 +323,16 @@ public sealed class PlansControllerTests
         _ = Assert.IsType<NotFoundResult>(result);
     }
 
+    private static List<PlanListItemDto> AssertPlansList(IActionResult result)
+    {
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(ok.Value);
+        var prop = ok.Value.GetType().GetProperty("plans");
+        Assert.NotNull(prop);
+        var raw = prop.GetValue(ok.Value);
+        return Assert.IsType<List<PlanListItemDto>>(raw);
+    }
+
     private static PlansController CreateController(LccapDbContext db, Guid accountId, Guid userId)
     {
         _ = db;
@@ -204,7 +350,13 @@ public sealed class PlansControllerTests
         return new TestLccapDbContext(options);
     }
 
-    private static async Task<Plan> SeedPlan(LccapDbContext db, Guid accountId, string title)
+    private static async Task<Plan> SeedPlan(
+        LccapDbContext db,
+        Guid accountId,
+        string title,
+        bool isDeleted = false,
+        DateTimeOffset? createdAtUtc = null,
+        DateTimeOffset? updatedAtUtc = null)
     {
         var plan = new Plan
         {
@@ -215,8 +367,9 @@ public sealed class PlansControllerTests
             Status = "Draft",
             TemplateMode = "New",
             VersionNumber = 1,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            IsDeleted = false,
+            CreatedAtUtc = createdAtUtc ?? DateTimeOffset.UtcNow,
+            UpdatedAtUtc = updatedAtUtc,
+            IsDeleted = isDeleted,
             RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
         };
 

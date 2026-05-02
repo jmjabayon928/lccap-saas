@@ -1,10 +1,10 @@
 interface DocumentSizeProps {
-  readonly bytes: number;
+  readonly bytes: number | null;
   readonly className?: string;
 }
 
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) {
+function formatBytes(bytes: number | null): string {
+  if (bytes === null || !Number.isFinite(bytes) || bytes < 0) {
     return "—";
   }
   if (bytes < 1024) {

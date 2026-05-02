@@ -5,20 +5,27 @@
 /** Values commonly used in forms; APIs may return additional status strings. */
 export type PlanStatus =
   | "Draft"
-  | "Published"
-  | "UnderReview"
+  | "InProgress"
+  | "ReadyForExport"
+  | "Submitted"
   | "Approved"
   | "Archived"
   | (string & {});
 
-export type TemplateMode = "Standard" | "Guided" | (string & {});
+export type TemplateMode = "New" | "Partial" | "Enhancement" | (string & {});
 
 export interface PlanSummary {
   readonly id: string;
+  readonly accountId: string;
   readonly title: string;
   readonly startYear: number;
   readonly endYear: number;
-  readonly status: string;
+  readonly status: PlanStatus;
+  readonly templateMode: TemplateMode;
+  readonly versionNumber: number;
+  readonly description: string | null;
+  readonly createdAtUtc: string | null;
+  readonly updatedAtUtc: string | null;
 }
 
 export interface CreatePlanRequest {
@@ -27,6 +34,8 @@ export interface CreatePlanRequest {
   readonly endYear: number;
   readonly status: PlanStatus;
   readonly templateMode: TemplateMode;
+  readonly versionNumber: number;
+  readonly description?: string;
 }
 
 /** Normalized create response — `planId` is always set after parsing. */
@@ -58,4 +67,15 @@ export interface SavePlanSectionRequest {
 }
 
 /** Normalized PUT response for a section. */
-export type SavePlanSectionResult = PlanSectionSummary;
+export interface SavePlanSectionResult {
+  readonly sectionId: string;
+  readonly lastEditedAtUtc: string;
+  readonly lastEditedByUserId?: string;
+  // Optional full object fields for backward compatibility
+  readonly id?: string;
+  readonly planId?: string;
+  readonly sectionKey?: string;
+  readonly title?: string;
+  readonly content?: string;
+  readonly sortOrder?: number;
+}

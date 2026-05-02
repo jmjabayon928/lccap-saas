@@ -8,6 +8,8 @@ const api = {
 
   /** POST /api/plans */
   createPlan: () => `/api/plans`,
+  /** GET /api/plans */
+  plansList: () => `/api/plans`,
   planById: (planId: string) => `/api/plans/${encodeURIComponent(planId)}`,
 
   planSections: (planId: string) => `/api/plans/${encodeURIComponent(planId)}/sections`,

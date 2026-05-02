@@ -4,19 +4,22 @@ import { parseDocumentsList, parseUploadDocumentResult } from "@/lib/documents/d
 import type { DocumentSummary, UploadDocumentRequest, UploadDocumentResult } from "@/types/documents";
 
 /** Maps upload API result into list row shape (timestamps approximated client-side until next GET). */
-export function uploadResultToSummary(result: UploadDocumentResult): DocumentSummary {
+export function uploadResultToSummary(
+  result: UploadDocumentResult,
+  request: UploadDocumentRequest
+): DocumentSummary {
   return {
     id: result.id,
-    planId: result.planId,
-    fileAssetId: result.fileAssetId,
-    title: result.title,
-    category: result.category,
-    description: null,
-    originalFileName: result.originalFileName,
-    contentType: result.contentType,
-    sizeBytes: result.sizeBytes,
+    planId: result.planId ?? request.planId,
+    fileAssetId: result.fileAssetId ?? null,
+    title: result.title ?? request.title,
+    category: result.category ?? request.category,
+    description: request.description ?? null,
+    originalFileName: result.originalFileName ?? request.file.name,
+    contentType: result.contentType ?? (request.file.type || "application/octet-stream"),
+    sizeBytes: result.sizeBytes ?? request.file.size,
     uploadedAtUtc: new Date().toISOString(),
-    createdAtUtc: null
+    createdAtUtc: new Date().toISOString()
   };
 }
 

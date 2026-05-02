@@ -20,14 +20,13 @@ import { IndicatorsList } from "@/components/monitoring/indicators-list";
 import { ExportPanel } from "@/components/exports/export-panel";
 import { isApiError } from "@/lib/api/api-error";
 import { actionClient } from "@/lib/actions/action-client";
-import { documentClient, uploadResultToSummary } from "@/lib/documents/document-client";
+import { documentClient } from "@/lib/documents/document-client";
 import { monitoringClient } from "@/lib/monitoring/monitoring-client";
 import { planClient } from "@/lib/plans/plan-client";
-import type { DocumentSummary, UploadDocumentResult } from "@/types/documents";
+import type { DocumentSummary } from "@/types/documents";
 import type { ActionItemSummary, SaveActionItemResult } from "@/types/actions";
 import type {
-  MonitoringIndicatorSummary,
-  SaveMonitoringIndicatorResult
+  MonitoringIndicatorSummary
 } from "@/types/monitoring";
 import type { PlanSectionSummary, PlanSummary } from "@/types/plans";
 
@@ -262,8 +261,7 @@ export default function PlanWorkspacePage() {
     setSelectedSectionKey(updated.sectionKey);
   }
 
-  function handleDocumentUploaded(result: UploadDocumentResult): void {
-    const summary = uploadResultToSummary(result);
+  function handleDocumentUploaded(summary: DocumentSummary): void {
     setDocsState((d) => {
       if (d.status === "error" || d.status === "idle" || d.status === "loading") {
         return { status: "ready", items: sortDocumentsNewestFirst([summary]) };
@@ -288,7 +286,7 @@ export default function PlanWorkspacePage() {
     });
   }
 
-  function handleIndicatorSaved(saved: SaveMonitoringIndicatorResult): void {
+  function handleIndicatorSaved(saved: MonitoringIndicatorSummary): void {
     setMonitoringState((s) => {
       if (s.status !== "ready") {
         return { status: "ready", items: sortIndicatorsNewestFirst([saved]) };

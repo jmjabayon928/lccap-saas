@@ -13,10 +13,8 @@ import { isApiError } from "@/lib/api/api-error";
 import { monitoringClient } from "@/lib/monitoring/monitoring-client";
 import type {
   CreateMonitoringIndicatorRequest,
-  MonitoringIndicatorDetail,
   MonitoringIndicatorSummary,
   MonitoringStatus,
-  SaveMonitoringIndicatorResult,
   UpdateMonitoringIndicatorRequest
 } from "@/types/monitoring";
 
@@ -30,8 +28,8 @@ const MONITORING_STATUSES: readonly MonitoringStatus[] = [
 
 interface IndicatorFormProps {
   readonly planId: string;
-  readonly selectedIndicator?: MonitoringIndicatorDetail | MonitoringIndicatorSummary | null;
-  readonly onSaved: (indicator: SaveMonitoringIndicatorResult) => void;
+  readonly selectedIndicator?: MonitoringIndicatorSummary | null;
+  readonly onSaved: (indicator: MonitoringIndicatorSummary) => void;
   readonly onCancelEdit?: () => void;
 }
 
@@ -80,7 +78,7 @@ export function IndicatorForm({ planId, selectedIndicator, onSaved, onCancelEdit
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const applyFromIndicator = useCallback((row: MonitoringIndicatorDetail | MonitoringIndicatorSummary | null | undefined) => {
+  const applyFromIndicator = useCallback((row: MonitoringIndicatorSummary | null | undefined) => {
     if (!row) {
       setName("");
       setDescription("");
@@ -219,14 +217,31 @@ export function IndicatorForm({ planId, selectedIndicator, onSaved, onCancelEdit
 
     setSubmitting(true);
     try {
+      const snapshot = isEdit ? updateReq : createReq;
+      const now = new Date().toISOString();
+
       if (isEdit && selectedIndicator) {
-        const saved = await monitoringClient.updateIndicator(selectedIndicator.id, updateReq);
-        onSaved(saved);
-        applyFromIndicator(saved);
+        const result = await monitoringClient.updateIndicator(selectedIndicator.id, updateReq);
+        const updated: MonitoringIndicatorSummary = {
+          ...selectedIndicator,
+          ...snapshot,
+          id: result.id,
+          updatedAtUtc: now,
+          lastUpdatedAtUtc: now
+        };
+        onSaved(updated);
+        applyFromIndicator(updated);
         setSuccessMessage("Indicator updated.");
       } else {
-        const saved = await monitoringClient.createIndicator(createReq);
-        onSaved(saved);
+        const result = await monitoringClient.createIndicator(createReq);
+        const created: MonitoringIndicatorSummary = {
+          ...createReq,
+          id: result.id,
+          createdAtUtc: now,
+          updatedAtUtc: now,
+          lastUpdatedAtUtc: now
+        };
+        onSaved(created);
         applyFromIndicator(null);
         setSuccessMessage("Indicator created.");
       }

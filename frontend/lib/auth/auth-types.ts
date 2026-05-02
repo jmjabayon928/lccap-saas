@@ -13,6 +13,7 @@ export interface AuthUser {
   readonly email: string;
   readonly accountId: string;
   readonly role: string;
+  readonly fullName: string;
 }
 
 export interface LoginResponse {
@@ -41,29 +42,68 @@ function parseAuthUser(raw: unknown): AuthUser | null {
   const email = raw.email;
   const accountId = raw.accountId;
   const role = raw.role;
+  const fullName = raw.fullName;
+
   if (
     !isNonEmptyString(id) ||
     !isNonEmptyString(email) ||
     !isNonEmptyString(accountId) ||
-    !isNonEmptyString(role)
+    !isNonEmptyString(role) ||
+    !isNonEmptyString(fullName)
   ) {
     return null;
   }
-  return { id, email, accountId, role };
+  return {
+    id,
+    email,
+    accountId,
+    role,
+    fullName
+  };
 }
 
 export function parseLoginResponse(raw: unknown): LoginResponse {
   if (!isRecord(raw)) {
     throw new Error("Invalid login response: expected object");
   }
+
   const token = raw.token;
-  const userRaw = raw.user;
   if (!isNonEmptyString(token)) {
     throw new Error("Invalid login response: missing token");
   }
-  const user = parseAuthUser(userRaw);
-  if (!user) {
-    throw new Error("Invalid login response: missing or invalid user");
+
+  // 1. Try flat response (actual backend shape)
+  const userId = raw.userId;
+  const accountId = raw.accountId;
+  const email = raw.email;
+  const role = raw.role;
+  const fullName = raw.fullName;
+
+  if (
+    isNonEmptyString(userId) &&
+    isNonEmptyString(accountId) &&
+    isNonEmptyString(email) &&
+    isNonEmptyString(role) &&
+    isNonEmptyString(fullName)
+  ) {
+    return {
+      token,
+      user: {
+        id: userId,
+        accountId,
+        email,
+        role,
+        fullName
+      }
+    };
   }
-  return { token, user };
+
+  // 2. Try nested response (legacy/fallback shape)
+  const userRaw = raw.user;
+  const user = parseAuthUser(userRaw);
+  if (user) {
+    return { token, user };
+  }
+
+  throw new Error("Invalid login response: missing or invalid user data");
 }

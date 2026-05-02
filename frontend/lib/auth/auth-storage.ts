@@ -26,17 +26,26 @@ function parseStoredSession(raw: unknown): AuthSession | null {
   const email = userRaw.email;
   const accountId = userRaw.accountId;
   const role = userRaw.role;
+  const fullName = userRaw.fullName;
+
   if (
     !isNonEmptyString(id) ||
     !isNonEmptyString(email) ||
     !isNonEmptyString(accountId) ||
-    !isNonEmptyString(role)
+    !isNonEmptyString(role) ||
+    !isNonEmptyString(fullName)
   ) {
     return null;
   }
   return {
     token,
-    user: { id, email, accountId, role }
+    user: {
+      id,
+      email,
+      accountId,
+      role,
+      fullName
+    }
   };
 }
 

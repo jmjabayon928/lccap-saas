@@ -193,5 +193,23 @@ export function parseMonitoringIndicatorsList(payload: unknown): MonitoringIndic
 }
 
 export function parseSaveMonitoringIndicatorResult(payload: unknown): SaveMonitoringIndicatorResult {
-  return parseMonitoringIndicator(payload);
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid monitoring indicator response: expected object", 502, payload);
+  }
+
+  // 1. Try compact response (actual backend shape)
+  const id = payload.id;
+  if (isNonEmptyString(id)) {
+    return {
+      id,
+      rowVersion: typeof payload.rowVersion === "string" ? payload.rowVersion : undefined
+    };
+  }
+
+  // 2. Try full indicator object (fallback/legacy)
+  try {
+    return parseMonitoringIndicator(payload);
+  } catch {
+    throw new ApiError("Invalid monitoring indicator response: malformed fields", 502, payload);
+  }
 }

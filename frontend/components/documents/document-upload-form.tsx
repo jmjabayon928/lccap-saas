@@ -10,13 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isApiError } from "@/lib/api/api-error";
-import { documentClient } from "@/lib/documents/document-client";
+import { documentClient, uploadResultToSummary } from "@/lib/documents/document-client";
 import {
   ALLOWED_DOCUMENT_EXTENSIONS,
   DOCUMENT_CATEGORIES,
   MAX_DOCUMENT_UPLOAD_BYTES,
   type DocumentCategory,
-  type UploadDocumentResult
+  type DocumentSummary
 } from "@/types/documents";
 
 function extensionAllowed(fileName: string): boolean {
@@ -34,9 +34,20 @@ function formatUploadError(err: unknown): string {
   return "Upload failed. Please try again.";
 }
 
+function isCommandLike(value: string): boolean {
+  const lower = value.toLowerCase();
+  return (
+    lower.includes("npm run") ||
+    lower.includes("$env:") ||
+    lower.includes("dotnet run") ||
+    lower.includes("git ") ||
+    lower.includes("powershell")
+  );
+}
+
 export interface DocumentUploadFormProps {
   readonly planId: string;
-  readonly onUploaded: (document: UploadDocumentResult) => void;
+  readonly onUploaded: (document: DocumentSummary) => void;
 }
 
 export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormProps) {
@@ -61,9 +72,14 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
     setApiError(null);
     setSuccessMessage(null);
 
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
+    const submittedTitle = title.trim();
+    if (!submittedTitle) {
       setClientError("Title is required.");
+      return;
+    }
+
+    if (isCommandLike(submittedTitle)) {
+      setClientError("Document title looks like a local command. Please enter a descriptive document title.");
       return;
     }
 
@@ -85,17 +101,32 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
       return;
     }
 
+    const snapshot = {
+      planId,
+      category,
+      title: submittedTitle,
+      description: description.trim() || null,
+      file
+    } as const;
+
     setIsSubmitting(true);
     try {
       const result = await documentClient.uploadDocument({
-        planId,
-        category,
-        title: trimmedTitle,
-        description: description.trim() || undefined,
-        file
+        planId: snapshot.planId,
+        category: snapshot.category,
+        title: snapshot.title,
+        description: snapshot.description ?? undefined,
+        file: snapshot.file
       });
-      onUploaded(result);
-      setSuccessMessage(`Uploaded “${trimmedTitle}”.`);
+      const summary = uploadResultToSummary(result, {
+        planId: snapshot.planId,
+        category: snapshot.category,
+        title: snapshot.title,
+        description: snapshot.description ?? undefined,
+        file: snapshot.file
+      });
+      onUploaded(summary);
+      setSuccessMessage(`Uploaded “${snapshot.title}”.`);
       setTitle("");
       setDescription("");
       resetFileInput();

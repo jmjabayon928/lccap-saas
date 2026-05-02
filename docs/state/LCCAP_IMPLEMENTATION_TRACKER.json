@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-02T13:00:00Z",
+      "last_updated_utc": "2026-05-02T18:00:00Z",
       "updated_by": "documentation_positioning",
       "rules": [
         "Do not overwrite entire file",
@@ -1102,6 +1102,35 @@
         "notes": ""
       },
       {
+        "id": "FILE-0273",
+        "path": "src/Lccap.Application/Plans/Queries/GetPlansQuery.cs",
+        "layer": "application",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "Execute",
+            "kind": "query_handler",
+            "status": "done",
+            "description": "Lists tenant-scoped non-deleted plans; PlanListItemDto projection."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0274",
+        "path": "frontend/components/plans/existing-plans-list.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Table/card list of PlanSummary; loading, error retry, workspace links."
+      },
+      {
         "id": "FILE-0051",
         "path": "src/Lccap.Application/Documents/Commands/UploadDocumentCommand.cs",
         "layer": "application",
@@ -1873,6 +1902,12 @@
             "kind": "endpoint",
             "status": "done",
             "description": "Retrieves plan details."
+          },
+          {
+            "name": "GetPlans",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Lists non-deleted plans for the current tenant."
           }
         ],
         "notes": ""

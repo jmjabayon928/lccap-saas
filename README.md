@@ -4,7 +4,7 @@
 ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-success)
 ![AI](https://img.shields.io/badge/AI-Python%20FastAPI-blue)
-![Status](https://img.shields.io/badge/Status-MVP%20Development-green)
+![Status](https://img.shields.io/badge/Status-MVP%20E2E%20Validated-green)
 ![License](https://img.shields.io/badge/License-Private-lightgrey)
 
 **LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, and **export-ready draft packages** that teams can refine offline and route through their own official channels. It **complements existing official government and donor systems**—it does not supersede them.
@@ -33,7 +33,7 @@ Later phases extend capability (evidence indexing, richer exports, interoperabil
 - Target Users
 - Current MVP Status
 - Core Modules
-- Completed Backend Capabilities
+- Completed MVP Capabilities
 - In Progress / Planned Capabilities
 - System Architecture
 - Technology Stack
@@ -42,6 +42,8 @@ Later phases extend capability (evidence indexing, richer exports, interoperabil
 - AI and Intelligence Roadmap
 - Frontend Direction
 - Local Setup & Development
+- Demo Login Users
+- End-to-End Demo Script
 - Testing and Quality Gates
 - Roadmap
 - Enterprise Design Principles
@@ -67,7 +69,7 @@ LCCAP SaaS provides a structured SaaS **planning workspace** for:
 
 It **complements** official government and donor systems; it does not replace mandated portals, diagnostics, or approvals.
 
-The MVP backend is currently implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, and **PostgreSQL**, with planned frontend development using **Next.js**, **shadcn/ui**, and responsive enterprise dashboard patterns.
+The MVP is implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, **PostgreSQL**, and a **Next.js / TypeScript / Tailwind CSS** frontend. The core MVP flow has been locally validated end-to-end: login, tenant-scoped plan workspace, section editing, document upload/listing, action items, monitoring indicators, PDF export generation, and PDF download.
 
 ---
 
@@ -170,7 +172,21 @@ Enterprise deployments may define additional **internal** roles; MVP does **not*
 
 ## Current MVP Status
 
-The backend MVP is actively under development.
+The MVP is now **locally end-to-end validated** for the core LGU workspace flow.
+
+Validated flow:
+
+```text
+Login
+  → View existing tenant plans
+  → Open real plan workspace
+  → Edit and save LCCAP section content
+  → Upload and list supporting documents
+  → Create action item
+  → Create monitoring indicator
+  → Generate PDF draft package
+  → Download generated PDF
+```
 
 ### Completed Backend Slices
 
@@ -183,7 +199,10 @@ The backend MVP is actively under development.
 | EF Core DbContext and mappings | Complete |
 | Auth / JWT bearer authentication | Complete |
 | Current user / tenant context | Complete |
+| Development CORS configuration | Complete |
+| Development-only demo seed service | Complete |
 | Plans API | Complete |
+| Tenant-scoped plans list API | Complete |
 | Default plan section seeding | Complete |
 | Plan Sections API | Complete |
 | Documents API | Complete |
@@ -193,23 +212,38 @@ The backend MVP is actively under development.
 | Export Job / PDF generation | Complete |
 | Export download endpoint | Complete |
 | Mapping tests for key entities | Complete |
+| API controller tests | Complete |
 
-### In Progress / Planned MVP Items
+### Completed Frontend Slices
 
 | Module | Status |
 |---|---|
-| Frontend foundation | Not started |
-| Responsive enterprise UI shell | Not started |
-| shadcn/ui setup | Not started |
-| Dashboard preview | Not started |
-| Plan workspace UI | Not started |
-| Documents UI | Not started |
-| Actions UI | Not started |
-| Monitoring UI | Not started |
-| Export UI | Not started |
+| Next.js frontend foundation | Complete |
+| Responsive enterprise UI shell | Complete |
+| Tailwind CSS setup | Complete |
+| Local shadcn-style UI primitives | Complete |
+| Login UI and auth session handling | Complete |
+| API client and typed HTTP layer | Complete |
+| Dashboard preview | Complete |
+| Existing plans list | Complete |
+| Create plan UI | Complete |
+| Plan workspace UI | Complete |
+| Plan sections editor | Complete |
+| Documents upload/list UI | Complete |
+| Action items UI | Complete |
+| Monitoring indicators UI | Complete |
+| PDF export/download UI | Complete |
+| Production-like `npm start` flow | Complete |
+
+### Remaining MVP Polish Items
+
+| Module | Status |
+|---|---|
 | Swagger/OpenAPI polish | Planned |
-| Seed/demo data | Planned |
-| End-to-end smoke validation | Planned |
+| README/demo documentation refresh | In progress |
+| UI polish and screenshot capture | Planned |
+| Optional cleanup of local test data | Planned |
+| Broader E2E regression script | Planned |
 
 ---
 
@@ -228,6 +262,7 @@ Key capabilities:
 - `account_id` claim for tenant isolation
 - Current user context used by commands and queries
 - No public `accountId` accepted from request bodies, routes, or query strings
+- Development-only seeded demo users for local testing
 
 Tenant isolation is enforced through the authenticated current user context.
 
@@ -241,6 +276,7 @@ Capabilities:
 
 - Create plan
 - Update plan
+- List plans for the authenticated tenant
 - Get plan by ID
 - Tenant-scoped access
 - Default plan sections seeded after plan creation
@@ -249,6 +285,7 @@ Capabilities:
 Current API surface:
 
 ```text
+GET  /api/plans
 POST /api/plans
 PUT  /api/plans/{planId}
 GET  /api/plans/{planId}
@@ -300,6 +337,7 @@ Capabilities:
 - Safe generated stored filenames
 - Extension validation
 - Path traversal protection
+- Frontend-safe rendering without exposing stored server paths
 
 Current API surface:
 
@@ -434,12 +472,13 @@ GET  /api/exports/{exportJobId}/download
 
 ---
 
-## Completed Backend Capabilities
+## Completed MVP Capabilities
 
-The current backend implements the major MVP workflow:
+The current MVP implements and validates the major LGU workspace workflow:
 
 ```text
 Authenticate
+  → View Existing Plans
   → Create Plan
   → Auto-create Default Sections
   → Edit Sections
@@ -458,17 +497,11 @@ This is the core LCCAP planning loop.
 
 ### MVP Remaining
 
-- Frontend foundation
-- Responsive dashboard layout
-- Plan workspace UI
-- Section editor UI
-- Document upload UI
-- Action item UI
-- Monitoring UI
-- Export UI
-- Demo seed data
-- Swagger/OpenAPI polishing
-- End-to-end smoke scripts
+- Swagger/OpenAPI polish
+- Demo script and screenshot capture
+- UI copy polish where needed
+- Optional local test-data cleanup
+- E2E regression checklist or automated smoke script
 
 ### Phase 2 (later)
 
@@ -498,7 +531,7 @@ LCCAP SaaS uses a modular Clean Architecture approach.
 ```text
 ┌────────────────────────────────────┐
 │              Frontend              │
-│     Next.js + shadcn/ui planned    │
+│   Next.js / TypeScript / Tailwind  │
 └─────────────────┬──────────────────┘
                   │ HTTP / JSON
                   ▼
@@ -550,14 +583,15 @@ Planned AI layer:
 - JWT bearer authentication
 - Local file storage abstraction
 
-### Frontend Planned
+### Frontend
 
 - Next.js
 - TypeScript
 - Tailwind CSS
-- shadcn/ui
+- Local shadcn-style UI primitives
 - Responsive dashboard shell
 - Mobile-friendly layouts
+- Typed API clients and defensive response parsing
 
 ### AI Planned
 
@@ -574,6 +608,9 @@ Planned AI layer:
 - EF model mapping tests
 - API/controller tests
 - Storage service tests
+- Frontend type-checking
+- Frontend linting
+- Production frontend build validation
 - Targeted build/test validation per slice
 
 ---
@@ -598,6 +635,8 @@ Security principles:
 - Export downloads return 404 for cross-tenant access
 - File storage paths are tenant-scoped
 - Stored server paths are not exposed in API responses
+- Development demo seed is disabled by default and must be explicitly enabled
+- LocalStorage JWT is acceptable for MVP development only; production should move toward httpOnly cookies, CSRF protection, CSP, and refresh-token rotation
 
 ---
 
@@ -665,15 +704,16 @@ AI outputs should be:
 
 ## Frontend Direction
 
-The frontend is planned as an enterprise SaaS interface using:
+The frontend is implemented as an enterprise SaaS interface using:
 
 - Next.js
 - TypeScript
 - Tailwind CSS
-- shadcn/ui
-- responsive layouts
-- accessible components
-- dashboard-oriented design
+- Local shadcn-style UI primitives
+- Responsive layouts
+- Accessible components
+- Dashboard-oriented design
+- Typed API client modules for auth, plans, documents, actions, monitoring, and exports
 
 Recommended visual identity:
 
@@ -709,29 +749,138 @@ The UI should be:
 ### Prerequisites
 
 - .NET 8 SDK
-- PostgreSQL
+- Docker Desktop or a local PostgreSQL 16 instance
 - PowerShell
-- Node.js / npm for future frontend
+- Node.js / npm
 - Python for future AI service
 
-### Restore and Build
+### Start PostgreSQL
+
+From the repository root:
 
 ```powershell
+cd C:\projects\LCCAP
+docker compose up -d
+```
+
+The committed `docker-compose.yml` defaults to:
+
+```text
+Host: localhost
+Port: 55432
+Database: lccap_db
+Username: lccap_user
+Password: lccap_password
+```
+
+If your existing Docker volume was initialized earlier with a different password, use the password stored in that local volume or recreate the volume. During local testing, one existing environment used `Password=123456`.
+
+### Restore and Build Backend
+
+```powershell
+cd C:\projects\LCCAP
 dotnet restore Lccap.sln
 dotnet build Lccap.sln
 ```
 
-### Run API
+### Run Backend API
+
+Set local environment variables before running the API:
 
 ```powershell
-dotnet run --project src/Lccap.Api/Lccap.Api.csproj
+cd C:\projects\LCCAP
+
+$env:ConnectionStrings__Postgres="Host=localhost;Port=55432;Database=lccap_db;Username=lccap_user;Password=lccap_password"
+$env:Jwt__Issuer="Lccap.Api.Dev"
+$env:Jwt__Audience="Lccap.Client.Dev"
+$env:Jwt__SigningKey="DEV_ONLY_HS256_SIGNING_KEY_MINIMUM_32_CHARACTERS_CHANGE_BEFORE_PRODUCTION_00000000"
+$env:Jwt__ExpirationMinutes="60"
+$env:DemoSeed__Enabled="false"
+
+dotnet run --project .\src\Lccap.Api\Lccap.Api.csproj
 ```
+
+If your local PostgreSQL volume uses `123456` instead of the committed Docker Compose password, use:
+
+```powershell
+$env:ConnectionStrings__Postgres="Host=localhost;Port=55432;Database=lccap_db;Username=lccap_user;Password=123456"
+```
+
+Expected API URL:
+
+```text
+http://localhost:5243
+```
+
+### Seed Demo Users Locally
+
+Demo seeding is **development-only**, disabled by default, and requires an explicit password.
+
+To seed the demo accounts and users once:
+
+```powershell
+cd C:\projects\LCCAP
+
+$env:ConnectionStrings__Postgres="Host=localhost;Port=55432;Database=lccap_db;Username=lccap_user;Password=lccap_password"
+$env:Jwt__Issuer="Lccap.Api.Dev"
+$env:Jwt__Audience="Lccap.Client.Dev"
+$env:Jwt__SigningKey="DEV_ONLY_HS256_SIGNING_KEY_MINIMUM_32_CHARACTERS_CHANGE_BEFORE_PRODUCTION_00000000"
+$env:Jwt__ExpirationMinutes="60"
+$env:DemoSeed__Enabled="true"
+$env:DemoSeed__Password="DemoPassword123!"
+
+dotnet run --project .\src\Lccap.Api\Lccap.Api.csproj
+```
+
+After seeding succeeds, restart the API with:
+
+```powershell
+$env:DemoSeed__Enabled="false"
+```
+
+Do not commit real passwords. Do not enable demo seed outside local development.
+
+### Run Frontend
+
+Create or update `frontend/.env.local`:
+
+```powershell
+cd C:\projects\LCCAP\frontend
+Set-Content .env.local "NEXT_PUBLIC_API_BASE_URL=http://localhost:5243"
+```
+
+Run the frontend in production-like mode:
+
+```powershell
+cd C:\projects\LCCAP\frontend
+npm install
+npm run build
+$env:PORT="3010"
+npm start
+```
+
+Frontend URL:
+
+```text
+http://localhost:3010
+```
+
+Use `npm start` after `npm run build` for local demo testing. Use `npm run dev` only when actively developing frontend code and needing hot reload.
 
 ### Run Tests
 
 ```powershell
 dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj
 dotnet test tests/Lccap.Infrastructure.Tests/Lccap.Infrastructure.Tests.csproj
+```
+
+### Frontend Quality Checks
+
+```powershell
+cd C:\projects\LCCAP\frontend
+npm run type-check
+npm run lint
+npm run build
 ```
 
 ### Targeted Test Examples
@@ -747,9 +896,188 @@ dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter ExportControll
 
 ---
 
+## Demo Login Users
+
+All demo users use this local development password when seeded with the instructions above:
+
+```text
+DemoPassword123!
+```
+
+| User type | Email | Role | Scope | LGU / Account | Login status |
+|---|---|---|---|---|---|
+| Platform admin | `platform.admin@lccap.local` | `SystemAdmin` | Platform | None | Seeded, but may not log in until platform-user login support is enabled |
+| LGU planner | `naga.planner@lccap.local` | `Planner` | Tenant | Naga City Demo LGU | Use for primary MVP demo |
+| LGU viewer | `naga.viewer@lccap.local` | `Viewer` | Tenant | Naga City Demo LGU | Tenant demo user |
+| LGU planner | `pasig.planner@lccap.local` | `Planner` | Tenant | Pasig City Demo LGU | Tenant demo user |
+| LGU viewer | `pasig.viewer@lccap.local` | `Viewer` | Tenant | Pasig City Demo LGU | Tenant demo user |
+| LGU planner | `quezon.planner@lccap.local` | `Planner` | Tenant | Quezon City Demo LGU | Tenant demo user |
+| LGU viewer | `quezon.viewer@lccap.local` | `Viewer` | Tenant | Quezon City Demo LGU | Tenant demo user |
+
+Recommended MVP demo login:
+
+```text
+Email: naga.planner@lccap.local
+Password: DemoPassword123!
+```
+
+Demo users are for local MVP testing only. They do not represent official government accounts, submission reviewers, approval authorities, or national platform operators.
+
+---
+
+## End-to-End Demo Script
+
+Use this script after the backend and frontend are running.
+
+### 1. Login
+
+Open:
+
+```text
+http://localhost:3010/login
+```
+
+Login with:
+
+```text
+naga.planner@lccap.local
+DemoPassword123!
+```
+
+Expected result:
+
+- Login succeeds
+- User lands on `/dashboard`
+- Topbar shows `naga.planner@lccap.local`
+
+### 2. Open or Create Plan
+
+Go to:
+
+```text
+/plans
+```
+
+Expected result:
+
+- Existing tenant plans appear in **Your workspaces**
+- Click **Open workspace** for an existing plan, or create a new one
+
+Suggested new plan values:
+
+```text
+Title: Naga City LCCAP 2026-2030
+Start year: 2026
+End year: 2030
+Status: Draft
+Template mode: New
+```
+
+Expected result:
+
+- The app redirects to `/plans/{realPlanId}`
+- Default sections appear in the workspace
+
+### 3. Edit Section
+
+Open the **Executive Summary** section and enter:
+
+```text
+This is a draft executive summary for the Naga City LCCAP 2026-2030. This section will summarize priority climate risks, planned adaptation and mitigation actions, evidence references, and monitoring approach.
+```
+
+Click **Save section**.
+
+Expected result:
+
+- Save succeeds
+- Last edited timestamp appears
+- Refreshing the page keeps the saved content
+
+### 4. Upload Document
+
+Use a small PDF, DOCX, XLSX, PNG, JPG, or JPEG.
+
+Suggested values:
+
+```text
+Title: CLUP Reference Map
+Category: Map
+Description: Sample supporting document for local climate planning evidence.
+```
+
+Expected result:
+
+- Upload succeeds
+- Document appears in the attached documents list
+- Refreshing the workspace reloads the document list
+
+### 5. Create Action Item
+
+Suggested values:
+
+```text
+Title: Improve flood early warning coverage
+Description: Expand flood early warning coverage by updating barangay-level response protocols, improving communication channels, and coordinating preparedness drills with local disaster risk reduction teams.
+Action type: Adaptation
+Status: Planned
+Sector: Disaster Risk Reduction and Management
+Responsible office: City DRRMO
+Budget amount (PHP): 500000
+Funding source: Local DRRM Fund
+Timeline start: 2026-01-01T08:00
+Timeline end: 2026-12-31T17:00
+KPI: Number of barangays covered by updated flood early warning and response protocol
+Priority score: 8
+```
+
+Expected result:
+
+- Action is created
+- Action appears in the action items list
+
+### 6. Create Monitoring Indicator
+
+Suggested values:
+
+```text
+Name: Barangays covered by flood early warning protocol
+Description: Tracks the number of barangays with updated flood early warning and response protocols linked to the local DRRM implementation plan.
+Unit: barangays
+Status: InProgress
+Baseline value: 5
+Current value: 5
+Target value: 20
+Progress (%): 25
+Frequency: Quarterly
+Responsible office: City DRRMO
+```
+
+Expected result:
+
+- Indicator is created
+- Indicator appears in the monitoring indicators list
+
+### 7. Generate and Download PDF Draft Package
+
+In the export section:
+
+1. Click **Generate PDF draft**
+2. Wait for the latest export job to show **Completed**
+3. Click **Download PDF**
+
+Expected result:
+
+- PDF downloads as `lccap-draft-package.pdf`
+- PDF contains the plan title and saved section content
+
+This PDF is a draft working output for internal preparation. It is not an official submission package.
+
+---
+
 ## Testing and Quality Gates
 
-Every completed slice must pass:
+Every completed backend slice must pass:
 
 ```powershell
 dotnet build Lccap.sln
@@ -757,13 +1085,23 @@ dotnet build Lccap.sln
 
 And targeted tests for the affected module.
 
+Every completed frontend slice must pass:
+
+```powershell
+cd frontend
+npm run type-check
+npm run lint
+npm run build
+```
+
 Current test categories:
 
 - API/controller tests
 - EF Core mapping tests
 - storage service tests
 - authentication tests
-- smoke tests
+- frontend type-check / lint / build checks
+- manual MVP E2E validation
 
 Quality rules:
 
@@ -773,6 +1111,7 @@ Quality rules:
 - Do not guess database schema
 - Always preserve tenant isolation
 - Use exact schema when implementing database-facing tasks
+- Keep MVP, Phase 2, and Phase 3 scope separated
 
 ---
 

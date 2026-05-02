@@ -17,7 +17,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Plans", href: "/plans", icon: FileText },
-  { label: "Plan Workspace", href: "/plans/demo-plan", icon: FolderOpen },
+  { label: "Plan Workspace", href: "/plans", icon: FolderOpen },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Actions", href: "/actions", icon: CheckSquare },
   { label: "Monitoring", href: "/monitoring", icon: Activity },

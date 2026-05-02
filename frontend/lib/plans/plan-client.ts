@@ -5,6 +5,7 @@ import {
   parsePlanSection,
   parsePlanSections,
   parsePlanSummary,
+  parsePlansList,
   parseSavePlanSectionResult
 } from "@/lib/plans/plan-parsers";
 import type {
@@ -21,6 +22,11 @@ export const planClient = {
   async createPlan(request: CreatePlanRequest): Promise<CreatePlanResult> {
     const data = await http.postJson(endpoints.createPlan(), request);
     return parseCreatePlanResult(data);
+  },
+
+  async getPlans(): Promise<PlanSummary[]> {
+    const data = await http.get(endpoints.plansList());
+    return parsePlansList(data);
   },
 
   async getPlanById(planId: string): Promise<PlanSummary> {

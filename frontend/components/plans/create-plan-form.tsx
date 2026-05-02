@@ -17,6 +17,11 @@ const MAX_YEAR = 2100;
 
 function formatSubmitError(err: unknown): string {
   if (isApiError(err)) {
+    // Backend returns { errors: string[] } for 400 Bad Request
+    const details = err.details as { errors?: string[] } | undefined;
+    if (details?.errors && Array.isArray(details.errors) && details.errors.length > 0) {
+      return details.errors.join(" ");
+    }
     return err.message;
   }
   if (err instanceof Error) {
@@ -31,7 +36,7 @@ export function CreatePlanForm() {
   const [startYear, setStartYear] = useState("");
   const [endYear, setEndYear] = useState("");
   const [status, setStatus] = useState<PlanStatus>("Draft");
-  const [templateMode, setTemplateMode] = useState<TemplateMode>("Standard");
+  const [templateMode, setTemplateMode] = useState<TemplateMode>("New");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,7 +72,8 @@ export function CreatePlanForm() {
         startYear: sy,
         endYear: ey,
         status,
-        templateMode
+        templateMode,
+        versionNumber: 1
       });
       router.push(`/plans/${encodeURIComponent(result.planId)}`);
       router.refresh();
@@ -153,8 +159,9 @@ export function CreatePlanForm() {
                 disabled={isSubmitting}
               >
                 <option value="Draft">Draft</option>
-                <option value="UnderReview">Under review</option>
-                <option value="Published">Published</option>
+                <option value="InProgress">In progress</option>
+                <option value="ReadyForExport">Ready for export</option>
+                <option value="Submitted">Submitted</option>
                 <option value="Approved">Approved</option>
                 <option value="Archived">Archived</option>
               </Select>
@@ -168,8 +175,9 @@ export function CreatePlanForm() {
                 onChange={(ev) => setTemplateMode(ev.target.value as TemplateMode)}
                 disabled={isSubmitting}
               >
-                <option value="Standard">Standard</option>
-                <option value="Guided">Guided</option>
+                <option value="New">New</option>
+                <option value="Partial">Partial</option>
+                <option value="Enhancement">Enhancement</option>
               </Select>
             </div>
           </div>

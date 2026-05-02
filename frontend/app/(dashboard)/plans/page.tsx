@@ -1,16 +1,48 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatePlanForm } from "@/components/plans/create-plan-form";
+import { ExistingPlansList } from "@/components/plans/existing-plans-list";
+import { isApiError } from "@/lib/api/api-error";
+import { planClient } from "@/lib/plans/plan-client";
 import { cn } from "@/lib/utils";
 import { useAuthSession } from "@/lib/auth/use-auth-session";
+import type { PlanSummary } from "@/types/plans";
 
 export default function PlansPage() {
   const { isAuthenticated, isLoading } = useAuthSession();
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+
+  const loadPlans = useCallback(async () => {
+    if (!isAuthenticated) {
+      setPlans([]);
+      setListError(null);
+      return;
+    }
+    setListLoading(true);
+    setListError(null);
+    try {
+      const next = await planClient.getPlans();
+      setPlans(next);
+    } catch (err) {
+      const message = isApiError(err) ? err.message : "Could not load plans.";
+      setListError(message);
+      setPlans([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void loadPlans();
+  }, [loadPlans]);
 
   return (
     <div className="space-y-6">
@@ -54,6 +86,17 @@ export default function PlansPage() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {isLoading ? (
+        <ExistingPlansList plans={[]} isLoading />
+      ) : isAuthenticated ? (
+        <ExistingPlansList
+          plans={plans}
+          isLoading={listLoading}
+          errorMessage={listError}
+          onRetry={loadPlans}
+        />
+      ) : null}
 
       <CreatePlanForm />
     </div>

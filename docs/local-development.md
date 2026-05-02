@@ -154,6 +154,17 @@ With the API running and `NEXT_PUBLIC_API_BASE_URL` pointing at it:
 3. Open the **plan workspace** (`/plans/{planId}`), **select a section**, edit **title** and **content**, **save**.
 4. **Refresh** the workspace page and confirm the section shows the saved title and content after reload.
 
+### Manual UI check (existing plans list)
+
+With the API running and `NEXT_PUBLIC_API_BASE_URL` set:
+
+1. **Login**.
+2. Go to **Plans** (`/plans`).
+3. Confirm **existing tenant plans** appear in **Your workspaces** (or the empty state if none).
+4. **Open an existing plan** via **Open workspace** and confirm the plan workspace loads.
+5. Return to **Plans**, **create a new plan**, and confirm you are **redirected** to the new workspace after creation.
+6. Open **Plans** again and confirm the **new plan** appears in the list.
+
 ### Manual UI check (documents)
 
 With the API running and `NEXT_PUBLIC_API_BASE_URL` set:

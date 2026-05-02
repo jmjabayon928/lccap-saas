@@ -38,13 +38,13 @@ export const MAX_DOCUMENT_UPLOAD_BYTES = 25 * 1024 * 1024;
 export interface DocumentSummary {
   readonly id: string;
   readonly planId: string;
-  readonly fileAssetId: string;
+  readonly fileAssetId: string | null;
   readonly title: string;
   readonly category: string;
   readonly description: string | null;
-  readonly originalFileName: string;
-  readonly contentType: string;
-  readonly sizeBytes: number;
+  readonly originalFileName: string | null;
+  readonly contentType: string | null;
+  readonly sizeBytes: number | null;
   readonly uploadedAtUtc: string | null;
   readonly createdAtUtc: string | null;
 }
@@ -59,11 +59,12 @@ export interface UploadDocumentRequest {
 
 export interface UploadDocumentResult {
   readonly id: string;
-  readonly fileAssetId: string;
-  readonly planId: string;
-  readonly title: string;
-  readonly category: string;
-  readonly originalFileName: string;
-  readonly contentType: string;
-  readonly sizeBytes: number;
+  // Optional fields for backward compatibility or full responses
+  readonly fileAssetId?: string;
+  readonly planId?: string;
+  readonly title?: string;
+  readonly category?: string;
+  readonly originalFileName?: string;
+  readonly contentType?: string;
+  readonly sizeBytes?: number;
 }

@@ -8,6 +8,19 @@ namespace Lccap.Api.Controllers;
 [Route("api/plans")]
 public sealed class PlansController : ControllerBase
 {
+    [HttpGet]
+    public async Task<IActionResult> GetPlans([FromServices] GetPlansQuery query, CancellationToken cancellationToken)
+    {
+        var result = await query.Execute(cancellationToken);
+        return result.StatusCode switch
+        {
+            StatusCodes.Status200OK => Ok(new { plans = result.Plans }),
+            StatusCodes.Status401Unauthorized => Unauthorized(),
+            StatusCodes.Status403Forbidden => Forbid(),
+            _ => StatusCode(result.StatusCode),
+        };
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreatePlan([FromBody] CreatePlanApiRequest request, [FromServices] CreatePlanCommand command, CancellationToken cancellationToken)
     {

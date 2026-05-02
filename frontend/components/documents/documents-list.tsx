@@ -56,8 +56,12 @@ export function DocumentsList({ documents }: DocumentsListProps) {
                       <TableCell>
                         <DocumentCategoryBadge category={d.category} />
                       </TableCell>
-                      <TableCell className="hidden font-mono text-xs text-slate-700 lg:table-cell">{d.originalFileName}</TableCell>
-                      <TableCell className="hidden text-muted-foreground xl:table-cell">{d.contentType}</TableCell>
+                      <TableCell className="hidden font-mono text-xs text-slate-700 lg:table-cell">
+                        {d.originalFileName ?? "—"}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground xl:table-cell">
+                        {d.contentType ?? "—"}
+                      </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">
                         <DocumentSize bytes={d.sizeBytes} />
                       </TableCell>
@@ -80,10 +84,10 @@ export function DocumentsList({ documents }: DocumentsListProps) {
                     <p className="font-medium text-slate-900">{d.title}</p>
                     <DocumentCategoryBadge category={d.category} />
                   </div>
-                  <p className="mt-1 font-mono text-xs text-slate-600">{d.originalFileName}</p>
+                  <p className="mt-1 font-mono text-xs text-slate-600">{d.originalFileName ?? "—"}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <DocumentSize bytes={d.sizeBytes} />
-                    <span>{d.contentType}</span>
+                    <span>{d.contentType ?? "—"}</span>
                     <span>{formatWhen(d.uploadedAtUtc, d.createdAtUtc)}</span>
                   </div>
                 </li>

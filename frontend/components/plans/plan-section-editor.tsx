@@ -73,11 +73,21 @@ export function PlanSectionEditor({ planId, section, onSaved }: PlanSectionEdito
 
     setIsSaving(true);
     try {
-      const updated = await planClient.savePlanSection(planId, section.sectionKey, {
+      const result = await planClient.savePlanSection(planId, section.sectionKey, {
         title: trimmed,
         content,
         sortOrder: section.sortOrder
       });
+
+      // Merge compact response with existing section data
+      const updated: PlanSectionSummary = {
+        ...section,
+        id: result.sectionId, // backend returns sectionId
+        title: trimmed,
+        content,
+        lastEditedAtUtc: result.lastEditedAtUtc
+      };
+
       onSaved(updated);
       setShowSuccess(true);
     } catch (err) {

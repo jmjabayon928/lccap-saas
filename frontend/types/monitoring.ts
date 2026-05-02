@@ -56,4 +56,22 @@ export interface UpdateMonitoringIndicatorRequest {
   readonly responsibleOffice: string | null;
 }
 
-export type SaveMonitoringIndicatorResult = MonitoringIndicatorDetail;
+export interface SaveMonitoringIndicatorResult {
+  readonly id: string;
+  readonly rowVersion?: string;
+  // Optional full indicator fields for backward compatibility
+  readonly planId?: string;
+  readonly name?: string;
+  readonly description?: string | null;
+  readonly unit?: string | null;
+  readonly baselineValue?: number | null;
+  readonly targetValue?: number | null;
+  readonly currentValue?: number | null;
+  readonly progressPercent?: number | null;
+  readonly status?: MonitoringStatus;
+  readonly frequency?: string | null;
+  readonly responsibleOffice?: string | null;
+  readonly lastUpdatedAtUtc?: string | null;
+  readonly createdAtUtc?: string | null;
+  readonly updatedAtUtc?: string | null;
+}

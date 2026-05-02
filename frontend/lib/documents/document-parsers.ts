@@ -38,7 +38,7 @@ function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | nu
 
   const idRaw = raw.id ?? raw.documentId;
   const planId = raw.planId;
-  const fileAssetId = raw.fileAssetId;
+  const fileAssetId = optionalStringOrNull(raw.fileAssetId);
   const title = raw.title;
   const category = raw.category;
   const description = optionalStringOrNull(raw.description);
@@ -51,14 +51,9 @@ function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | nu
   if (
     !isNonEmptyString(idRaw) ||
     !isNonEmptyString(planId) ||
-    !isNonEmptyString(fileAssetId) ||
     !isNonEmptyString(title) ||
     typeof category !== "string" ||
-    !isNonEmptyString(category) ||
-    !isNonEmptyString(originalFileNameRaw) ||
-    typeof contentType !== "string" ||
-    !contentType.trim() ||
-    !isFiniteNumber(sizeBytes)
+    !isNonEmptyString(category)
   ) {
     return null;
   }
@@ -70,9 +65,9 @@ function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | nu
     title,
     category,
     description,
-    originalFileName: originalFileNameRaw,
-    contentType,
-    sizeBytes,
+    originalFileName: typeof originalFileNameRaw === "string" ? originalFileNameRaw : null,
+    contentType: typeof contentType === "string" ? contentType : null,
+    sizeBytes: isFiniteNumber(sizeBytes) ? sizeBytes : null,
     uploadedAtUtc,
     createdAtUtc
   };
@@ -134,29 +129,28 @@ export function parseDocumentsList(payload: unknown): DocumentSummary[] {
 }
 
 export function parseUploadDocumentResult(payload: unknown): UploadDocumentResult {
-  let record: Record<string, unknown> | null = null;
-
-  if (isRecord(payload)) {
-    if (isRecord(payload.document)) {
-      record = payload.document;
-    } else {
-      record = payload;
-    }
-  }
-
-  if (!record) {
+  if (!isRecord(payload)) {
     throw new ApiError("Invalid upload response: expected object", 502, payload);
   }
-  stripIgnoredFields(record);
 
-  const idRaw = record.id ?? record.documentId;
-  const fileAssetId = record.fileAssetId;
-  const planId = record.planId;
-  const title = record.title;
-  const category = record.category;
-  const originalFileNameRaw = record.originalFileName ?? record.fileName;
-  const contentType = record.contentType;
-  const sizeBytes = record.sizeBytes;
+  // 1. Try compact response (actual backend shape)
+  const id = payload.id;
+  if (isNonEmptyString(id)) {
+    return { id };
+  }
+
+  // 2. Try full response (legacy/fallback)
+  const inner = isRecord(payload.document) ? payload.document : payload;
+  stripIgnoredFields(inner);
+
+  const idRaw = inner.id ?? inner.documentId;
+  const fileAssetId = inner.fileAssetId;
+  const planId = inner.planId;
+  const title = inner.title;
+  const category = inner.category;
+  const originalFileNameRaw = inner.originalFileName ?? inner.fileName;
+  const contentType = inner.contentType;
+  const sizeBytes = inner.sizeBytes;
 
   if (
     !isNonEmptyString(idRaw) ||
@@ -175,12 +169,12 @@ export function parseUploadDocumentResult(payload: unknown): UploadDocumentResul
 
   return {
     id: idRaw,
-    fileAssetId,
-    planId,
-    title,
-    category,
-    originalFileName: originalFileNameRaw,
-    contentType,
-    sizeBytes
+    fileAssetId: String(fileAssetId),
+    planId: String(planId),
+    title: String(title),
+    category: String(category),
+    originalFileName: String(originalFileNameRaw),
+    contentType: String(contentType),
+    sizeBytes: Number(sizeBytes)
   };
 }
