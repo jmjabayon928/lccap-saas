@@ -209,6 +209,7 @@ public sealed class AuthTests
             modelBuilder.Ignore<Document>();
             modelBuilder.Ignore<MonitoringIndicator>();
             modelBuilder.Ignore<MonitoringUpdate>();
+            modelBuilder.Ignore<ActionItem>();
 
             _ = modelBuilder.Entity<User>(builder =>
             {

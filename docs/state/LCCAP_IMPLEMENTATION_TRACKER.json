@@ -3,8 +3,8 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-04-29T20:00:00Z",
-      "updated_by": "manual_init",
+      "last_updated_utc": "2026-05-02T13:00:00Z",
+      "updated_by": "documentation_positioning",
       "rules": [
         "Do not overwrite entire file",
         "Update only affected file records",
@@ -15,9 +15,9 @@
   
     "current_state": {
       "phase": "MVP",
-      "active_module": "Frontend",
-      "active_task": "Prepare enterprise frontend foundation with Next.js and shadcn/ui",
-      "status": "next"
+      "active_module": "Infrastructure",
+      "active_task": "Fix runtime readiness blockers (CORS, JsonDocument, Port alignment)",
+      "status": "done"
     },
   
     "files": [
@@ -165,7 +165,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Project overview and setup instructions"
+        "notes": "Project overview and setup; LGU-facing MVP positioning, complementary role vs official/donor systems, MVP non-goals, phase boundaries"
       },
       {
         "id": "FILE-0011",
@@ -3894,7 +3894,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Next.js frontend workspace configuration and scripts. Verified npm install, type-check, lint, and build pass in frontend directory."
+        "notes": "Includes dev, build, start (next start), lint, type-check scripts."
       },
       {
         "id": "FILE-0202",
@@ -3927,10 +3927,10 @@
             "name": "DashboardPage",
             "kind": "component",
             "status": "done",
-            "description": "Renders static enterprise dashboard preview with typed demo data."
+            "description": "Enterprise dashboard preview with useAuthSession gate for unsigned demo banner."
           }
         ],
-        "notes": "Foundation dashboard view for future API integration. Build verification pass completed."
+        "notes": "Plans workspace CTA card; demo login prompt when unsigned; auth foundation banner retained."
       },
       {
         "id": "FILE-0204",
@@ -3948,7 +3948,7 @@
             "description": "Provides responsive sidebar and topbar command-center shell."
           }
         ],
-        "notes": "Shared shell used by all frontend pages."
+        "notes": "Client shell; login route renders without sidebar/topbar chrome."
       },
       {
         "id": "FILE-0205",
@@ -3978,6 +3978,739 @@
         "source": "actual",
         "functions": [],
         "notes": "Dashboard cards for metrics, plan progress, action status, risks, and recent activity."
+      },
+      {
+        "id": "FILE-0207",
+        "path": "frontend/.env.example",
+        "layer": "frontend",
+        "module": "foundation",
+        "file_type": "env_example",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Documents NEXT_PUBLIC_API_BASE_URL for browser-safe API origin; no secrets."
+      },
+      {
+        "id": "FILE-0208",
+        "path": "frontend/lib/config.ts",
+        "layer": "frontend",
+        "module": "foundation",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Reads NEXT_PUBLIC_API_BASE_URL with safe local default."
+      },
+      {
+        "id": "FILE-0209",
+        "path": "frontend/lib/api/endpoints.ts",
+        "layer": "frontend",
+        "module": "api",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Includes uploadDocument, documentsByPlan, plan routes, actionsByPlan, actionById, monitoring routes, createPdfExport, exportById, exportDownload."
+      },
+      {
+        "id": "FILE-0210",
+        "path": "frontend/lib/api/api-error.ts",
+        "layer": "frontend",
+        "module": "api",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Typed ApiError with optional JSON details from non-2xx responses."
+      },
+      {
+        "id": "FILE-0211",
+        "path": "frontend/lib/api/http.ts",
+        "layer": "frontend",
+        "module": "api",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Fetch wrapper with JSON and FormData, Bearer token from auth storage."
+      },
+      {
+        "id": "FILE-0212",
+        "path": "frontend/lib/api/api-client.ts",
+        "layer": "frontend",
+        "module": "api",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "login; plans, documents, action, monitoring, and export clients exported."
+      },
+      {
+        "id": "FILE-0213",
+        "path": "frontend/lib/auth/auth-types.ts",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Login request/response types and defensive parseLoginResponse."
+      },
+      {
+        "id": "FILE-0214",
+        "path": "frontend/lib/auth/auth-storage.ts",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "MVP localStorage session; AUTH_SESSION_STORAGE_KEY exported for cross-tab listeners; SSR guarded."
+      },
+      {
+        "id": "FILE-0215",
+        "path": "frontend/lib/auth/auth-client.ts",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "login, logout, getCurrentSession; logout clears storage only (no redirects)."
+      },
+      {
+        "id": "FILE-0216",
+        "path": "frontend/types/api.ts",
+        "layer": "frontend",
+        "module": "api",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "JsonValue; re-exports plan, document, action, monitoring, and export HTTP types."
+      },
+      {
+        "id": "FILE-0217",
+        "path": "frontend/components/ui/input.tsx",
+        "layer": "frontend",
+        "module": "ui",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Shadcn-style text input primitive."
+      },
+      {
+        "id": "FILE-0218",
+        "path": "frontend/components/ui/label.tsx",
+        "layer": "frontend",
+        "module": "ui",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Accessible form label primitive."
+      },
+      {
+        "id": "FILE-0219",
+        "path": "frontend/components/ui/alert.tsx",
+        "layer": "frontend",
+        "module": "ui",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Alert container with destructive variant for auth errors."
+      },
+      {
+        "id": "FILE-0220",
+        "path": "frontend/components/auth/login-form.tsx",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Login form; clears password from state after success; navigates to dashboard."
+      },
+      {
+        "id": "FILE-0221",
+        "path": "frontend/app/login/page.tsx",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Enterprise split layout login page with security notes."
+      },
+      {
+        "id": "FILE-0222",
+        "path": "frontend/components/layout/topbar.tsx",
+        "layer": "frontend",
+        "module": "layout",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "useAuthSession for session, loading skeleton, logout vs Login link."
+      },
+      {
+        "id": "FILE-0223",
+        "path": "frontend/lib/auth/use-auth-session.ts",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "useAuthSession",
+            "kind": "hook",
+            "status": "done",
+            "description": "Client session state with mount read and cross-tab storage sync."
+          }
+        ],
+        "notes": "Mount-only session read; storage event listener; logout clears local state."
+      },
+      {
+        "id": "FILE-0224",
+        "path": "frontend/types/plans.ts",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "HTTP-oriented plan and section types for API client."
+      },
+      {
+        "id": "FILE-0225",
+        "path": "frontend/lib/plans/plan-parsers.ts",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Includes parsePlanSection and parseSavePlanSectionResult for GET/PUT section payloads."
+      },
+      {
+        "id": "FILE-0226",
+        "path": "frontend/lib/plans/plan-client.ts",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "createPlan, getPlanById, getPlanSections, getPlanSectionByKey, savePlanSection."
+      },
+      {
+        "id": "FILE-0227",
+        "path": "frontend/components/ui/select.tsx",
+        "layer": "frontend",
+        "module": "ui",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Native select styled for forms."
+      },
+      {
+        "id": "FILE-0228",
+        "path": "frontend/components/plans/create-plan-form.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Creates plan via API; navigates to workspace on success."
+      },
+      {
+        "id": "FILE-0229",
+        "path": "frontend/components/plans/plan-summary-card.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Plan title, years, status, seeded-sections note."
+      },
+      {
+        "id": "FILE-0230",
+        "path": "frontend/components/plans/plan-sections-preview.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Selectable section rows/cards; SectionStatusBadge; highlights selection."
+      },
+      {
+        "id": "FILE-0231",
+        "path": "frontend/app/(dashboard)/plans/page.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Plans landing with create form and sign-in guidance."
+      },
+      {
+        "id": "FILE-0232",
+        "path": "frontend/app/(dashboard)/plans/[planId]/page.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area."
+      },
+      {
+        "id": "FILE-0233",
+        "path": "frontend/components/plans/plan-section-editor.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "PUT save with validation; success and typed errors."
+      },
+      {
+        "id": "FILE-0234",
+        "path": "frontend/components/plans/section-status-badge.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Draft status from local content only."
+      },
+      {
+        "id": "FILE-0235",
+        "path": "frontend/components/ui/textarea.tsx",
+        "layer": "frontend",
+        "module": "ui",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Styled textarea for section body editing."
+      },
+      {
+        "id": "FILE-0236",
+        "path": "frontend/types/documents.ts",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Document category union, summary, upload request/result, MVP validation constants."
+      },
+      {
+        "id": "FILE-0237",
+        "path": "frontend/lib/documents/document-parsers.ts",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "List and upload parsers; field fallbacks; strip storage paths; newest-first sort."
+      },
+      {
+        "id": "FILE-0238",
+        "path": "frontend/lib/documents/document-client.ts",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "GET plan documents, POST multipart upload, uploadResultToSummary helper."
+      },
+      {
+        "id": "FILE-0239",
+        "path": "frontend/components/documents/document-upload-form.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Validated upload with category, size, extension checks."
+      },
+      {
+        "id": "FILE-0240",
+        "path": "frontend/components/documents/documents-list.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Responsive table/cards; no download buttons."
+      },
+      {
+        "id": "FILE-0241",
+        "path": "frontend/components/documents/document-category-badge.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Badge styling per category label."
+      },
+      {
+        "id": "FILE-0242",
+        "path": "frontend/components/documents/document-size.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Human-readable byte formatting."
+      },
+      {
+        "id": "FILE-0243",
+        "path": "frontend/components/ui/file-input.tsx",
+        "layer": "frontend",
+        "module": "ui",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Styled file input for uploads."
+      },
+      {
+        "id": "FILE-0244",
+        "path": "frontend/app/(dashboard)/documents/page.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Plan-scoped documents landing with CTA to plans."
+      },
+      {
+        "id": "FILE-0245",
+        "path": "frontend/types/actions.ts",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "ActionType, ActionStatus, summary/detail, create/update/save result types for HTTP API."
+      },
+      {
+        "id": "FILE-0246",
+        "path": "frontend/lib/actions/action-parsers.ts",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Defensive parse for list/detail/save; array and actions/items/action wrappers; actionItemId fallback; newest-first sort."
+      },
+      {
+        "id": "FILE-0247",
+        "path": "frontend/lib/actions/action-client.ts",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "GET list/detail; POST create; PUT update via shared http layer."
+      },
+      {
+        "id": "FILE-0248",
+        "path": "frontend/components/actions/action-type-badge.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Adaptation vs Mitigation climate-friendly badge styling."
+      },
+      {
+        "id": "FILE-0249",
+        "path": "frontend/components/actions/action-status-badge.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Enterprise badge variants per lifecycle status."
+      },
+      {
+        "id": "FILE-0250",
+        "path": "frontend/components/actions/action-budget.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "PHP currency-style display via Intl."
+      },
+      {
+        "id": "FILE-0251",
+        "path": "frontend/components/actions/action-items-list.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Responsive table and cards; selection highlight; empty state."
+      },
+      {
+        "id": "FILE-0252",
+        "path": "frontend/components/actions/action-form.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Create/edit form with validation, typed API errors, success state; no accountId."
+      },
+      {
+        "id": "FILE-0253",
+        "path": "frontend/app/(dashboard)/actions/page.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Plan-scoped actions landing; CTA to Plans; draft-first positioning."
+      },
+      {
+        "id": "FILE-0254",
+        "path": "frontend/types/monitoring.ts",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "MonitoringStatus, summary/detail, create/update/save result types for HTTP API."
+      },
+      {
+        "id": "FILE-0255",
+        "path": "frontend/lib/monitoring/monitoring-parsers.ts",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Defensive parse for list/save; array and indicators/items/indicator wrappers; indicatorId and title fallbacks; newest-first sort."
+      },
+      {
+        "id": "FILE-0256",
+        "path": "frontend/lib/monitoring/monitoring-client.ts",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "GET indicators by plan; POST create; PUT update via shared http layer."
+      },
+      {
+        "id": "FILE-0257",
+        "path": "frontend/components/monitoring/indicator-status-badge.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Enterprise badge variants per monitoring lifecycle status."
+      },
+      {
+        "id": "FILE-0258",
+        "path": "frontend/components/monitoring/indicator-progress.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Progress bar with clamped display; null shows no progress message."
+      },
+      {
+        "id": "FILE-0259",
+        "path": "frontend/components/monitoring/indicator-value-summary.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Compact baseline/current/target with optional unit."
+      },
+      {
+        "id": "FILE-0260",
+        "path": "frontend/components/monitoring/indicators-list.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Responsive table and cards; selection highlight; empty state."
+      },
+      {
+        "id": "FILE-0261",
+        "path": "frontend/components/monitoring/indicator-form.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Create/edit form with validation, typed API errors, success state; no accountId."
+      },
+      {
+        "id": "FILE-0262",
+        "path": "frontend/app/(dashboard)/monitoring/page.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Monitoring landing; plan-scoped CTA to Plans; LGU tracking positioning."
+      },
+      {
+        "id": "FILE-0263",
+        "path": "frontend/types/exports.ts",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "ExportType Pdf; ExportStatus union; CreatePdfExportResult; ExportJobSummary."
+      },
+      {
+        "id": "FILE-0264",
+        "path": "frontend/lib/exports/export-parsers.ts",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "parseCreatePdfExportResult and parseExportJobSummary; wrappers; exportJobId/id; ignores storedPath."
+      },
+      {
+        "id": "FILE-0265",
+        "path": "frontend/lib/exports/export-client.ts",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "createPdfExport POST; getExportJob GET JSON; downloadExport blob via authenticated fetch."
+      },
+      {
+        "id": "FILE-0266",
+        "path": "frontend/components/exports/export-status-badge.tsx",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Badge variants for Queued/Running/Completed/Failed/Cancelled."
+      },
+      {
+        "id": "FILE-0267",
+        "path": "frontend/components/exports/export-readiness-card.tsx",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Draft working package positioning; sections/documents/actions/indicators checklist."
+      },
+      {
+        "id": "FILE-0268",
+        "path": "frontend/components/exports/export-panel.tsx",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Generate PDF, refresh status, download blob with revoked object URL; typed API errors."
+      },
+      {
+        "id": "FILE-0269",
+        "path": "frontend/app/(dashboard)/exports/page.tsx",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Exports landing; plan-scoped draft positioning; CTA to Plans."
+      },
+      {
+        "id": "FILE-0270",
+        "path": "src/Lccap.Api/Options/DemoSeedOptions.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Enabled and Password options for dev-only seeding."
+      },
+      {
+        "id": "FILE-0271",
+        "path": "src/Lccap.Infrastructure/Seed/DemoSeedService.cs",
+        "layer": "infrastructure",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Idempotent demo account and user seeding for dev testing."
+      },
+      {
+        "id": "FILE-0272",
+        "path": "tests/Lccap.Infrastructure.Tests/Seed/DemoSeedServiceTests.cs",
+        "layer": "tests",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Unit tests for DemoSeedService using InMemory provider."
       }
     ]
   }

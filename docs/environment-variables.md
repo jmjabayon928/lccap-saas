@@ -43,13 +43,22 @@ Array-style settings use indexed suffixes: `FileStorage__AllowedExtensions__0`, 
 | `PythonAi__BaseUrl` | Optional until AI integration is active | Planned HTTP client to Python FastAPI service | `http://localhost:8000` | Use internal DNS, TLS, and network policies appropriate to your platform. |
 | `PythonAi__TimeoutSeconds` | Optional | Planned outbound HTTP timeouts | `60` | Set high enough for jobs, low enough to avoid resource exhaustion. |
 
-## Frontend (planned)
+## Demo Seed (Development-only)
 
 | Variable | Required | Used by | Safe local example | Production |
 |----------|----------|---------|--------------------|------------|
-| TBD | — | Next.js and related tooling (not yet in this repository) | e.g. public API base URL for browser calls | Use build-time or runtime config per hosting provider; never embed service secrets in the browser bundle. |
+| `DemoSeed__Enabled` | Optional | Development-only demo data seeding | `true` | **DO NOT USE IN PRODUCTION.** Only active in Development environment. |
+| `DemoSeed__Password` | Required if Enabled | Password for all seeded demo users | `MyLocalSecretPassword` | **Secret:** Do not commit. Only used locally if `DemoSeed__Enabled` is true. |
 
-Document concrete names when the frontend project lands.
+## Frontend (Next.js)
+
+| Variable | Required | Used by | Safe local example | Production |
+|----------|----------|---------|--------------------|------------|
+| `NEXT_PUBLIC_API_BASE_URL` | Recommended for explicit API origin | Browser-side `fetch` in the Next.js app | `http://localhost:5243` | Set to your API public origin (scheme + host + port). **Must** use the `NEXT_PUBLIC_` prefix so Next.js inlines it for client bundles — only values that are safe to disclose belong here. |
+
+**Browser exposure:** Anything prefixed with `NEXT_PUBLIC_` is embedded in client JavaScript. Never use that prefix for secrets (signing keys, database passwords, private API keys). Prefer server-side or edge configuration for sensitive values.
+
+See also [Security notes](security-notes.md) for MVP token storage and future httpOnly session hardening.
 
 ## Production safety notes
 

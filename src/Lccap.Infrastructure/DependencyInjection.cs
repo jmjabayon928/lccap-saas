@@ -24,6 +24,7 @@ public static class DependencyInjection
         _ = services.AddScoped<PasswordHasher>();
         _ = services.AddScoped<JwtTokenGenerator>();
         _ = services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        _ = services.AddScoped<Seed.DemoSeedService>();
 
         _ = services.AddDbContext<LccapDbContext>((serviceProvider, options) =>
         {

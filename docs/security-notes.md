@@ -2,6 +2,10 @@
 
 This document summarizes current MVP security rules and planned hardening. It is not a penetration-test report or formal threat model.
 
+## CORS
+
+Development CORS is configured in `Program.cs` to allow local frontend origins (`http://localhost:3000`, `3001`, `3010`) for MVP velocity. Production environments must explicitly configure allowed origins for the deployed frontend and restrict headers/methods to the minimum required.
+
 ## Tenant isolation via `account_id`
 
 - Each LGU (tenant) is represented as an **Account**; **`account_id` is the tenant boundary**.
@@ -50,3 +54,58 @@ The following are **not** necessarily implemented in the MVP but are expected di
 - **Production secret management** — Key Vault / platform secrets, rotation, and separation of dev/stage/prod credentials.
 
 For environment-specific secret handling, see [Environment variables](environment-variables.md).
+
+## Frontend auth (MVP)
+
+- The Next.js app calls the API using **`NEXT_PUBLIC_API_BASE_URL`** (public origin only; never put secrets in `NEXT_PUBLIC_*` variables).
+- After **login**, the browser stores the JWT in **`localStorage`** for MVP velocity. This is **not** equivalent to httpOnly cookie sessions; XSS within the origin could theoretically access the token. Treat this as a development-oriented tradeoff until hardened.
+- **Cross-tab behavior:** the UI listens for the browser `storage` event on `localStorage` so sign-in or sign-out in **another tab** updates session state in this tab. Same-tab updates still rely on navigation and in-app state; `localStorage` does not fire `storage` in the same document that wrote the value.
+- **Production hardening target (non-exhaustive):** prefer **httpOnly, Secure, SameSite** cookies (or BFF) for session delivery; pair cookie sessions with a deliberate **CSRF** strategy for mutating requests if cookies are used cross-site; deploy a strict **Content-Security-Policy** and other security headers to reduce XSS reach; use **short-lived access tokens** with **refresh token rotation** (or equivalent) where a refresh flow exists — design token lifetimes and revocation with your API team.
+- **Recommended later:** issue short-lived tokens with refresh handled server-side, store session identifiers in **httpOnly, Secure, SameSite** cookies, add **CSP** and XSS defenses, and avoid storing bearer tokens in `localStorage` for production tenant workloads.
+- The frontend must **never** log tokens, show tokens in the UI, or persist passwords client-side.
+
+See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the strategy can be swapped without rewriting API callers.
+
+## Frontend action items (MVP)
+
+- **Client validation is convenience only** — required fields, numeric ranges, and date ordering mirror the API contract but **do not replace** server-side validation, authorization, or tenant rules.
+- **Backend remains the source of truth** for allowed values, persistence, and cross-tenant isolation.
+- **Do not send `accountId`** from the frontend; tenant scope must come from the authenticated session (e.g. JWT), not client-supplied tenant identifiers.
+- **Positioning:** action items support **LGU working preparation** and export-ready draft packaging inside the workspace. They are **not** an official government submission, approval workflow, or replacement for national or agency systems.
+
+## Frontend monitoring indicators (MVP)
+
+- **Client validation is convenience only** — required fields, percent-complete range, and optional numeric fields mirror the API contract but **do not replace** server-side validation, authorization, or tenant rules.
+- **Backend remains the source of truth** for allowed values, persistence, and cross-tenant isolation.
+- **Do not send `accountId`** from the frontend; tenant scope must come from the authenticated session (e.g. JWT), not client-supplied tenant identifiers.
+- **Positioning:** monitoring indicators support **LGU working implementation tracking** and export-ready draft packaging inside the workspace. They are **not** official reporting or submission to government systems, **not** a national dashboard, and **not** an approval workflow.
+
+## Frontend PDF exports (MVP)
+
+- **Draft working outputs only** — generated files are **LGU preparation and export-ready draft packages** from the workspace, **not** official government submissions, certifications, or approval decisions.
+- **Backend controls tenant access** to create, poll, and download exports; the UI does not substitute for server authorization.
+- **Do not send `accountId`** from the frontend; tenant scope must come from the authenticated session (e.g. JWT).
+- **Never display `storedPath` / `stored_path` or other internal storage locations** in the UI; downloads use the API download endpoint only.
+- **Download flow** — the client requests the backend `GET /api/exports/{id}/download` with bearer auth, receives bytes as a `Blob`, triggers a save via a short-lived object URL, then **revokes** that URL after use.
+- **Do not log** tokens, raw blob contents, or sensitive response payloads.
+- **Positioning:** exports **complement existing official systems**; they are **not** a replacement for CCC/DILG/LGA/NICCDIES/PlanSmart/PSF/SHIELD processes or official channels.
+
+## Frontend uploads (MVP)
+
+- **Client checks are convenience only** — extension lists, size caps (e.g. 25 MB in the UI), and category pickers mirror the MVP contract but **do not replace** server validation, quotas, or malware defenses.
+- **Backend remains the source of truth** for allowlists, tenant scope, storage paths, and rejection reasons.
+- **Do not trust file names or client-supplied MIME hints** for security decisions; filenames may be misleading or duplicated.
+- **Never render `storedPath`, `stored_path`, or raw storage URIs** if they appear in responses; the UI must not leak server filesystem layout.
+- Allowed extensions in the frontend follow the same MVP set described for the API (e.g. `.pdf`, Office, common images); production systems may tighten independently.
+
+### Future hardening (directional)
+
+- Content validation beyond extension (magic-bytes / MIME sniffing), antivirus scanning, asynchronous malware pipelines, per-tenant quotas, and **signed URLs** or gateway-controlled downloads from object storage instead of exposing internal paths.
+
+## Demo Seed Security (Development-only)
+
+- **Development-only**: The demo seed service is explicitly restricted to the `Development` environment and must be enabled via configuration.
+- **Credential Safety**: Do not commit real passwords to `appsettings.Development.json`. Use environment variables or local secrets.
+- **Platform Admin**: The platform admin demo user is seeded with `account_id: null` per schema requirements.
+- **Tenant Isolation**: LGU demo users are seeded with their respective `account_id` to support tenant isolation testing.
+- **Not Official**: Demo accounts and users are for development/testing only and do not represent official government entities or approval authorities.

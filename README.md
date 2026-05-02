@@ -7,27 +7,28 @@
 ![Status](https://img.shields.io/badge/Status-MVP%20Development-green)
 ![License](https://img.shields.io/badge/License-Private-lightgrey)
 
-LCCAP SaaS is an enterprise-grade, multi-tenant planning and intelligence platform for **Local Climate Change Action Plan (LCCAP)** formulation, management, monitoring, document handling, action planning, and reporting.
+**LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, and **export-ready draft packages** that teams can refine offline and route through their own official channels. It **complements existing official government and donor systems**—it does not supersede them.
 
-The system is designed for Local Government Units (LGUs), planners, reviewers, national agencies, and climate governance stakeholders who need a structured, auditable, and scalable platform for climate adaptation, mitigation, disaster risk reduction, and monitoring workflows.
+The same workspace treats climate planning as structured, lifecycle-aware preparation rather than a single static file:
 
-Unlike static document-based LCCAP preparation, this platform treats climate planning as a structured, lifecycle-aware workflow:
-
-- Plans are created as governed workspace entities
+- Plans are governed workspace entities
 - Sections are editable and version-ready
-- Supporting documents are managed as FileAssets
-- Actions are tracked as structured climate interventions
+- Supporting documents are organized as evidence-linked FileAssets
+- Actions are structured climate interventions
 - Monitoring indicators are recorded and updated
-- Exports are generated from system data
-- AI features are planned as asynchronous, auditable jobs
+- Exports produce **working outputs** from structured plan data (draft-ready packages, not a substitute for mandated submission portals)
+- AI features are planned as asynchronous, auditable jobs (later phases)
 
-The long-term goal is to evolve from an MVP planning workspace into a full climate intelligence and decision-support platform with spatial analysis, exposure analytics, document intelligence, recommendation engines, and cross-LGU insights.
+Later phases extend capability (evidence indexing, richer exports, interoperability, spatial analytics—see **Phase roadmap**); the **MVP** remains an internal preparation and organization workspace for LGU teams.
 
 ---
 
 ## Table of Contents
 
 - Executive Summary
+- Product positioning & complementary role
+- MVP emphasis & non-goals
+- Phase roadmap
 - Product Overview
 - Target Users
 - Current MVP Status
@@ -54,24 +55,71 @@ Local Climate Change Action Plans require LGUs to gather climate data, assess ri
 
 In many real-world environments, this process is still managed through disconnected Word documents, spreadsheets, PDFs, shared folders, and manual review processes.
 
-LCCAP SaaS provides a structured SaaS platform for:
+LCCAP SaaS provides a structured SaaS **planning workspace** for:
 
-- Creating LCCAP plans
-- Managing plan sections
-- Uploading and organizing supporting documents
+- Creating LCCAP plans and organizing sections
+- Uploading and organizing supporting documents and evidence
 - Defining climate actions
 - Tracking monitoring indicators
-- Generating exportable reports
+- Generating **export-ready draft** outputs for offline refinement and use with official processes
 - Maintaining tenant-scoped data isolation
-- Preparing for future AI-assisted drafting, analysis, and recommendations
+- Preparing for later-phase AI-assisted drafting, analysis, and recommendations
+
+It **complements** official government and donor systems; it does not replace mandated portals, diagnostics, or approvals.
 
 The MVP backend is currently implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, and **PostgreSQL**, with planned frontend development using **Next.js**, **shadcn/ui**, and responsive enterprise dashboard patterns.
 
 ---
 
+## Product positioning & complementary role
+
+LCCAP SaaS is positioned as an **enterprise-grade, LGU-facing LCCAP operating workspace**: a planning workspace that helps teams **prepare better internal working packages**—organized sections, evidence, actions, monitoring, and **export-ready draft outputs**—while **existing official systems remain the authority** for national reporting, donor-specific portals, mandated diagnostics, and approvals.
+
+**Complementary role (non-replacement).** This product is **not** a substitute for, and does not replicate the mandate of, systems and channels such as CCC, DILG, LGA, NICCDIES, PSF-related portals, PlanSmart, UNDP SHIELD, official LGU approval or clearance workflows, general LGU enterprise document management suites, or other official government or donor climate-governance tools. Where those systems define submission, eligibility, or certification, LCCAP SaaS supports **upstream preparation and organization** only.
+
+---
+
+## MVP emphasis & non-goals
+
+### MVP emphasis
+
+- Organizing **LCCAP plan sections** and narrative structure
+- Organizing **supporting documents and evidence** in plan context
+- **Linking** documentation and references relevant to risk and hazard discussion (as structured plan content—not a replacement for official risk diagnostic tools)
+- **Defining climate actions** (adaptation and mitigation) with structured fields
+- **Tracking monitoring indicators** and progress for implementation visibility
+- **Preparing export-ready working outputs** (e.g. PDF drafts) for offline refinement and use with official processes
+- **Complementing** government and donor workflows rather than replacing mandated portals or guidance
+
+### MVP non-goals
+
+- Not an official national or agency **submission** channel for any government or donor program
+- Not a replacement for **NICCDIES** or other mandated national reporting systems
+- Not a replacement for **DILG**, **LGA**, or CCC **guidance, training, or policy interpretation**
+- Not a replacement for **PlanSmart**, **UNDP SHIELD**, or other **official risk diagnostic** or assessment platforms
+- Not a PSF or donor **application portal**; not funding-system-specific eligibility processing
+- Not a **government approval**, certification, or clearance system
+- Not a general-purpose **LGU document management** or records-management platform
+- Not a **national climate dashboard** or cross-country situational picture
+- Not a **full GIS / spatial analytics** platform in MVP (advanced spatial work is explicitly deferred to later phases)
+
+---
+
+## Phase roadmap
+
+Boundaries keep **MVP** narrowly focused on the LGU workspace; **Phase 2** adds preparation depth and richer outputs; **Phase 3** adds interoperability and advanced analytics. Features must not **bleed across phases** without an explicit decision.
+
+| Phase | Focus |
+| --- | --- |
+| **MVP** | LGU-facing operating workspace: plan sections, documents/evidence, action items, monitoring indicators, export-ready draft package |
+| **Phase 2** (later) | Evidence index; review comments; CCET / funding-readiness tagging; PSF proposal **package helper** (preparation aid, not a portal); richer exports; deeper monitoring and operational readiness |
+| **Phase 3** (later) | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports |
+
+---
+
 ## Product Overview
 
-LCCAP SaaS is designed as a **plan-centric climate planning platform**.
+LCCAP SaaS is designed as a **plan-centric, LGU-facing climate planning workspace**.
 
 At the center of the system is the **Plan**, which acts as the aggregate root for the LCCAP workspace.
 
@@ -104,10 +152,11 @@ This architecture enables the system to organize climate planning work around a 
 
 ### Platform-Level Users
 
-- National Government Reviewer
-- Policy / Compliance Officer
 - Platform Administrator
 - Technical Support Operator
+- Product / operations roles (tenant onboarding, configuration—where deployed)
+
+Enterprise deployments may define additional **internal** roles; MVP does **not** imply a national oversight or submission-review role for this product.
 
 ### External / Future Users
 
@@ -421,27 +470,24 @@ This is the core LCCAP planning loop.
 - Swagger/OpenAPI polishing
 - End-to-end smoke scripts
 
-### Phase 2
+### Phase 2 (later)
 
-- GeoJSON map upload and visualization
-- Barangay reference data
-- Critical facilities module
-- Section comments / review notes
-- Improved document intelligence
-- Excel exports
-- Richer dashboard cards
-- Collaboration features
+- Evidence index
+- Review comments
+- CCET / funding-readiness tagging
+- PSF proposal package helper (draft preparation support—not a funding portal)
+- Richer exports
+- Monitoring and operational readiness depth
 
-### Phase 3
+### Phase 3 (later)
 
-- PostGIS spatial analysis
-- Exposure analytics
-- Scenario simulation
-- AI recommendation engine
-- Cross-LGU analytics
-- Advanced observability
-- Security hardening
-- Operational runbooks
+- Interoperability with external systems
+- PostGIS / spatial analytics
+- Exposure summaries
+- Scenario comparison
+- Recommendation engine
+- Integration-ready APIs and exports
+- Advanced observability, security hardening, operational runbooks as needed
 
 ---
 
@@ -746,25 +792,19 @@ Quality rules:
 - Frontend foundation
 - Demo workflow
 
-### Phase 2
+### Phase 2 (later)
 
-- Maps / GeoJSON
-- Barangays
-- Facilities
-- Collaboration
-- Document intelligence
-- Better dashboards
-- Excel exports
-- Health checks and observability improvements
+- Evidence index and review comments
+- CCET / funding-readiness tagging
+- PSF proposal package helper (preparation aid)
+- Richer exports and monitoring / operational readiness features
 
-### Phase 3
+### Phase 3 (later)
 
-- PostGIS spatial analysis
-- Exposure analysis
-- Scenario simulation
-- AI recommendations
-- Cross-LGU benchmarking
-- Funding workflows
+- Interoperability
+- PostGIS / spatial analytics and exposure summaries
+- Scenario comparison and recommendation engine
+- Integration-ready APIs and exports
 - Operational hardening
 
 ---
@@ -781,7 +821,7 @@ Quality rules:
 - Test-first hardening
 - Secure-by-default API behavior
 - Responsive enterprise UI
-- Phase discipline: MVP, Phase 2, and Phase 3 must not be mixed without explicit approval
+- Phase discipline: MVP, Phase 2, and Phase 3 must not be mixed without explicit product approval
 
 ---
 

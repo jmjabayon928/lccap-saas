@@ -4,14 +4,27 @@
 >
 > - **README.md** is optimized for onboarding, product overview, roadmap, setup, and current status.
 > - **ARCHITECTURE.md** is optimized for maintainers: system design, invariants, contracts, database intent, security boundaries, phase discipline, and quality gates.
+>
+> **Documentation-only note:** Product positioning and MVP scope wording may be refined without changing the technical architecture described below. The **system design, layers, and contracts remain as documented** unless a separate engineering change explicitly updates them.
 
 ---
 
 ## 1) System Overview
 
-LCCAP SaaS is a multi-tenant, enterprise-grade climate planning platform for Local Government Units.
+LCCAP SaaS is a multi-tenant, enterprise-grade **LGU-facing LCCAP operating workspace**: it supports preparation and organization of plan content, evidence, actions, monitoring, and export-derived **working outputs**. It **complements existing official government and donor systems** (national reporting tools, mandated diagnostics, donor portals, approval workflows); it is **not** positioned as a replacement for those channels.
 
-The platform helps LGUs create, manage, monitor, and export Local Climate Change Action Plans through structured workflows instead of disconnected files.
+### 1.1 Positioning invariant
+
+- The product is a **tenant-scoped planning workspace**, not an official submission, approval, or national aggregation system.
+- **Exports** are **draft-ready packages** generated from tenant data for LGU-internal use and downstream processes—not a substitute for NICCDIES, PSF portals, or other mandated submission mechanics.
+
+### 1.2 Non-replacement rule
+
+LCCAP SaaS must **not** be described or engineered (in product language) as supplanting CCC, DILG, LGA, NICCDIES, PSF portals, PlanSmart, UNDP SHIELD, official LGU approval processes, general LGU enterprise records platforms, or other official climate-governance systems. **Readiness support** and **evidence organization** live here; authority and program-specific eligibility live in those systems.
+
+### 1.3 MVP scope boundary
+
+**MVP** delivers the core LGU workspace: authentication and tenant context, plans, sections, documents/file assets, action items, monitoring indicators, PDF export jobs, and download—plus the frontend shell to operate them. **Full GIS/spatial analytics**, **national-scale dashboards**, **cross-portal interoperability**, and **integration-style APIs as a product surface** are **out of scope for MVP** (see §14).
 
 The system is designed around a plan-centric architecture:
 
@@ -32,7 +45,7 @@ Plan
   └── Future AI / Maps / Spatial Analytics
 ```
 
-This enables the platform to evolve from an MVP planning workspace into a full climate intelligence system.
+This enables the platform to evolve in **disciplined phases** (deeper preparation tooling, then interoperability and spatial intelligence—see §14) without blurring MVP boundaries.
 
 ---
 
@@ -98,9 +111,13 @@ User request
 
 MVP, Phase 2, and Phase 3 must remain separate.
 
-- MVP should not accidentally include full GIS / PostGIS analytics
-- Phase 2 should not jump into advanced spatial intelligence
-- Phase 3 should not backflow into MVP unless explicitly approved
+- MVP should not accidentally include full GIS / PostGIS analytics or national-scale aggregation products
+- Phase 2 should not jump into advanced spatial intelligence or system-wide interoperability commitments
+- Phase 3 should not backflow into MVP unless explicitly approved at the product level
+
+### 2.7 Interoperability and external integrations (phase placement)
+
+**Tenant-scoped HTTP APIs and exports** exist to serve the MVP workspace. **Broader interoperability** (structured exchange with NICCDIES-class systems, donor portals, or cross-agency buses), **integration-ready public API products**, and **spatial analytics pipelines** are **Phase 3** concerns unless explicitly rescoped—not MVP. Documentation and positioning must keep that boundary visible so implementation scope does not drift.
 
 ---
 
@@ -728,6 +745,8 @@ AI outputs must be:
 
 ## 14) Phase Boundaries
 
+Phase language aligns with product positioning: **MVP** is the LGU operating workspace; **Phase 2** deepens preparation, review, and export richness; **Phase 3** adds interoperability and advanced analytics. Maps/GeoJSON or barangay layers may appear when explicitly scheduled—without collapsing MVP into spatial intelligence.
+
 ### 14.1 MVP
 
 MVP includes:
@@ -739,43 +758,46 @@ MVP includes:
 - File assets
 - Action items
 - Monitoring
-- PDF exports
+- PDF exports (draft-ready working outputs)
 - Download exports
 - Frontend foundation
 - Demo workflow
 
-### 14.2 Phase 2
+Explicitly **not** MVP:
 
-Phase 2 includes:
+- Official national submission or aggregation products
+- Replacement behaviors for NICCDIES, PSF portals, PlanSmart, UNDP SHIELD, DILG/LGA guidance systems, or approval workflows
+- Full GIS / spatial analytics platform
+- **Broad interoperability / integration-ready API product surface** (Phase 3; see §2.7)
 
-- GeoJSON upload
-- Map visualization
-- Barangay reference data
-- Critical facilities
-- Section comments
-- Document summarization
-- Excel exports
-- richer dashboards
+### 14.2 Phase 2 (later)
 
-Explicitly not Phase 2:
+Phase 2 includes (directional):
+
+- Evidence index
+- Review comments
+- CCET / funding-readiness tagging
+- PSF proposal **package helper** (draft preparation support—not a funding portal)
+- Richer exports (e.g. Excel and enhanced layouts)
+- Monitoring and operational readiness depth
+
+Explicitly not Phase 2 unless rescoped:
 
 - PostGIS intersection analytics
-- raster analysis
-- automated hazard exposure computation
-- cross-LGU benchmarking
+- National dashboard or cross-LGU benchmark products
+- Mandated submission channel behavior
 
-### 14.3 Phase 3
+### 14.3 Phase 3 (later)
 
-Phase 3 includes:
+Phase 3 includes (directional):
 
-- PostGIS
-- spatial intersections
-- exposure analytics
-- scenario simulations
-- AI recommendations
-- cross-LGU insights
-- advanced observability
-- operational hardening
+- Interoperability with external systems
+- PostGIS and spatial intersections
+- Exposure summaries and analytics
+- Scenario comparison
+- Recommendation engine
+- Integration-ready APIs and structured exports
+- Advanced observability and operational hardening
 
 ---
 
