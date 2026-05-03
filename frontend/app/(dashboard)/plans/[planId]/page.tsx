@@ -271,6 +271,30 @@ export default function PlanWorkspacePage() {
     });
   }
 
+  function handleDocumentUpdated(updated: DocumentSummary): void {
+    setDocsState((d) => {
+      if (d.status !== "ready") {
+        return d;
+      }
+      const idx = d.items.findIndex((x) => x.id === updated.id);
+      if (idx < 0) {
+        return { status: "ready", items: sortDocumentsNewestFirst([updated, ...d.items]) };
+      }
+      const next = [...d.items];
+      next[idx] = updated;
+      return { status: "ready", items: sortDocumentsNewestFirst(next) };
+    });
+  }
+
+  function handleDocumentArchived(documentId: string): void {
+    setDocsState((d) => {
+      if (d.status !== "ready") {
+        return d;
+      }
+      return { status: "ready", items: d.items.filter((x) => x.id !== documentId) };
+    });
+  }
+
   function handleActionSaved(saved: SaveActionItemResult): void {
     setActionsState((s) => {
       if (s.status !== "ready") {
@@ -426,7 +450,13 @@ export default function PlanWorkspacePage() {
 
             <DocumentUploadForm planId={planId} onUploaded={handleDocumentUploaded} />
 
-            {docsState.status === "ready" ? <DocumentsList documents={docsState.items} /> : null}
+            {docsState.status === "ready" ? (
+              <DocumentsList
+                documents={docsState.items}
+                onDocumentUpdated={handleDocumentUpdated}
+                onDocumentArchived={handleDocumentArchived}
+              />
+            ) : null}
           </section>
 
           <section className="space-y-4" aria-labelledby="plan-actions-heading">

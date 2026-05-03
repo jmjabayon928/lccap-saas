@@ -1164,7 +1164,7 @@
             "description": "Retrieves all documents for a plan."
           }
         ],
-        "notes": ""
+        "notes": "Lists active (non-deleted) plan documents with file metadata join; excludes stored_path from API DTOs."
       },
       {
         "id": "FILE-0053",
@@ -4393,7 +4393,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Responsive table/cards; no download buttons."
+        "notes": "Responsive table/cards; edit metadata and archive actions; no stored path; no download buttons."
       },
       {
         "id": "FILE-0241",
@@ -4746,6 +4746,75 @@
         "source": "actual",
         "functions": [],
         "notes": "Unit tests for DemoSeedService using InMemory provider."
+      },
+      {
+        "id": "FILE-0275",
+        "path": "src/Lccap.Application/Documents/Commands/UpdateDocumentMetadataCommand.cs",
+        "layer": "application",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "ExecuteAsync",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Tenant-scoped metadata update with validation and audit log DocumentMetadataUpdated."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0276",
+        "path": "src/Lccap.Application/Documents/Commands/ArchiveDocumentCommand.cs",
+        "layer": "application",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "ExecuteAsync",
+            "kind": "command_handler",
+            "status": "done",
+            "description": "Soft-delete document row; audit DocumentArchived; does not modify file_assets."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0277",
+        "path": "frontend/components/documents/document-edit-form.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Edit metadata fields; validation aligned with upload title guardrails."
+      },
+      {
+        "id": "FILE-0278",
+        "path": "frontend/components/documents/document-archive-button.tsx",
+        "layer": "frontend",
+        "module": "documents",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Confirm archive; calls DELETE /api/documents/{id}; no permanent-delete copy."
+      },
+      {
+        "id": "FILE-0279",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/DocumentWorkspaceMappingTests.cs",
+        "layer": "tests",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF model checks for audit_logs, document soft-delete and metadata columns."
       }
     ]
   }

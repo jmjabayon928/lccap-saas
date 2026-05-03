@@ -1,11 +1,11 @@
 # LCCAP SaaS — Enterprise Local Climate Action Planning Platform
 
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
-![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791)
-![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-success)
-![AI](https://img.shields.io/badge/AI-Python%20FastAPI-blue)
-![Status](https://img.shields.io/badge/Status-MVP%20E2E%20Validated-green)
-![License](https://img.shields.io/badge/License-Private-lightgrey)
+.NET
+PostgreSQL
+Architecture
+AI
+Status
+License
 
 **LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, and **export-ready draft packages** that teams can refine offline and route through their own official channels. It **complements existing official government and donor systems**—it does not supersede them.
 
@@ -111,11 +111,13 @@ LCCAP SaaS is positioned as an **enterprise-grade, LGU-facing LCCAP operating wo
 
 Boundaries keep **MVP** narrowly focused on the LGU workspace; **Phase 2** adds preparation depth and richer outputs; **Phase 3** adds interoperability and advanced analytics. Features must not **bleed across phases** without an explicit decision.
 
-| Phase | Focus |
-| --- | --- |
-| **MVP** | LGU-facing operating workspace: plan sections, documents/evidence, action items, monitoring indicators, export-ready draft package |
+
+| Phase               | Focus                                                                                                                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MVP**             | LGU-facing operating workspace: plan sections, documents/evidence, action items, monitoring indicators, export-ready draft package                                                              |
 | **Phase 2** (later) | Evidence index; review comments; CCET / funding-readiness tagging; PSF proposal **package helper** (preparation aid, not a portal); richer exports; deeper monitoring and operational readiness |
-| **Phase 3** (later) | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports |
+| **Phase 3** (later) | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports                                     |
+
 
 ---
 
@@ -190,60 +192,66 @@ Login
 
 ### Completed Backend Slices
 
-| Module | Status |
-|---|---|
-| Solution structure | Complete |
-| PostgreSQL baseline schema | Complete |
-| Clean Architecture project setup | Complete |
-| Domain base entities | Complete |
-| EF Core DbContext and mappings | Complete |
-| Auth / JWT bearer authentication | Complete |
-| Current user / tenant context | Complete |
-| Development CORS configuration | Complete |
+
+| Module                             | Status   |
+| ---------------------------------- | -------- |
+| Solution structure                 | Complete |
+| PostgreSQL baseline schema         | Complete |
+| Clean Architecture project setup   | Complete |
+| Domain base entities               | Complete |
+| EF Core DbContext and mappings     | Complete |
+| Auth / JWT bearer authentication   | Complete |
+| Current user / tenant context      | Complete |
+| Development CORS configuration     | Complete |
 | Development-only demo seed service | Complete |
-| Plans API | Complete |
-| Tenant-scoped plans list API | Complete |
-| Default plan section seeding | Complete |
-| Plan Sections API | Complete |
-| Documents API | Complete |
-| Local File Storage Service | Complete |
-| Monitoring API | Complete |
-| Action Items API | Complete |
-| Export Job / PDF generation | Complete |
-| Export download endpoint | Complete |
-| Mapping tests for key entities | Complete |
-| API controller tests | Complete |
+| Plans API                          | Complete |
+| Tenant-scoped plans list API       | Complete |
+| Default plan section seeding       | Complete |
+| Plan Sections API                  | Complete |
+| Documents API                      | Complete |
+| Local File Storage Service         | Complete |
+| Monitoring API                     | Complete |
+| Action Items API                   | Complete |
+| Export Job / PDF generation        | Complete |
+| Export download endpoint           | Complete |
+| Mapping tests for key entities     | Complete |
+| API controller tests               | Complete |
+
 
 ### Completed Frontend Slices
 
-| Module | Status |
-|---|---|
-| Next.js frontend foundation | Complete |
-| Responsive enterprise UI shell | Complete |
-| Tailwind CSS setup | Complete |
-| Local shadcn-style UI primitives | Complete |
+
+| Module                             | Status   |
+| ---------------------------------- | -------- |
+| Next.js frontend foundation        | Complete |
+| Responsive enterprise UI shell     | Complete |
+| Tailwind CSS setup                 | Complete |
+| Local shadcn-style UI primitives   | Complete |
 | Login UI and auth session handling | Complete |
-| API client and typed HTTP layer | Complete |
-| Dashboard preview | Complete |
-| Existing plans list | Complete |
-| Create plan UI | Complete |
-| Plan workspace UI | Complete |
-| Plan sections editor | Complete |
-| Documents upload/list UI | Complete |
-| Action items UI | Complete |
-| Monitoring indicators UI | Complete |
-| PDF export/download UI | Complete |
-| Production-like `npm start` flow | Complete |
+| API client and typed HTTP layer    | Complete |
+| Dashboard preview                  | Complete |
+| Existing plans list                | Complete |
+| Create plan UI                     | Complete |
+| Plan workspace UI                  | Complete |
+| Plan sections editor               | Complete |
+| Documents upload/list UI           | Complete |
+| Action items UI                    | Complete |
+| Monitoring indicators UI           | Complete |
+| PDF export/download UI             | Complete |
+| Production-like `npm start` flow   | Complete |
+
 
 ### Remaining MVP Polish Items
 
-| Module | Status |
-|---|---|
-| Swagger/OpenAPI polish | Planned |
-| README/demo documentation refresh | In progress |
-| UI polish and screenshot capture | Planned |
-| Optional cleanup of local test data | Planned |
-| Broader E2E regression script | Planned |
+
+| Module                              | Status      |
+| ----------------------------------- | ----------- |
+| Swagger/OpenAPI polish              | Planned     |
+| README/demo documentation refresh   | In progress |
+| UI polish and screenshot capture    | Planned     |
+| Optional cleanup of local test data | Planned     |
+| Broader E2E regression script       | Planned     |
+
 
 ---
 
@@ -299,16 +307,18 @@ Plan sections represent editable sections of the LCCAP document.
 
 Default sections are created automatically when a plan is created:
 
-| Order | Section Key | Title |
-|---:|---|---|
-| 10 | executive_summary | Executive Summary |
-| 20 | introduction | Introduction and LGU Profile |
-| 30 | climate_risk_assessment | Climate and Disaster Risk Assessment |
-| 40 | adaptation_actions | Adaptation Actions |
-| 50 | mitigation_actions | Mitigation Actions |
-| 60 | implementation_plan | Implementation Plan |
-| 70 | monitoring_evaluation | Monitoring and Evaluation |
-| 80 | references_annexes | References and Annexes |
+
+| Order | Section Key             | Title                                |
+| ----- | ----------------------- | ------------------------------------ |
+| 10    | executive_summary       | Executive Summary                    |
+| 20    | introduction            | Introduction and LGU Profile         |
+| 30    | climate_risk_assessment | Climate and Disaster Risk Assessment |
+| 40    | adaptation_actions      | Adaptation Actions                   |
+| 50    | mitigation_actions      | Mitigation Actions                   |
+| 60    | implementation_plan     | Implementation Plan                  |
+| 70    | monitoring_evaluation   | Monitoring and Evaluation            |
+| 80    | references_annexes      | References and Annexes               |
+
 
 Current API surface:
 
@@ -904,15 +914,17 @@ All demo users use this local development password when seeded with the instruct
 DemoPassword123!
 ```
 
-| User type | Email | Role | Scope | LGU / Account | Login status |
-|---|---|---|---|---|---|
-| Platform admin | `platform.admin@lccap.local` | `SystemAdmin` | Platform | None | Seeded, but may not log in until platform-user login support is enabled |
-| LGU planner | `naga.planner@lccap.local` | `Planner` | Tenant | Naga City Demo LGU | Use for primary MVP demo |
-| LGU viewer | `naga.viewer@lccap.local` | `Viewer` | Tenant | Naga City Demo LGU | Tenant demo user |
-| LGU planner | `pasig.planner@lccap.local` | `Planner` | Tenant | Pasig City Demo LGU | Tenant demo user |
-| LGU viewer | `pasig.viewer@lccap.local` | `Viewer` | Tenant | Pasig City Demo LGU | Tenant demo user |
-| LGU planner | `quezon.planner@lccap.local` | `Planner` | Tenant | Quezon City Demo LGU | Tenant demo user |
-| LGU viewer | `quezon.viewer@lccap.local` | `Viewer` | Tenant | Quezon City Demo LGU | Tenant demo user |
+
+| User type      | Email                        | Role          | Scope    | LGU / Account        | Login status                                                            |
+| -------------- | ---------------------------- | ------------- | -------- | -------------------- | ----------------------------------------------------------------------- |
+| Platform admin | `platform.admin@lccap.local` | `SystemAdmin` | Platform | None                 | Seeded, but may not log in until platform-user login support is enabled |
+| LGU planner    | `naga.planner@lccap.local`   | `Planner`     | Tenant   | Naga City Demo LGU   | Use for primary MVP demo                                                |
+| LGU viewer     | `naga.viewer@lccap.local`    | `Viewer`      | Tenant   | Naga City Demo LGU   | Tenant demo user                                                        |
+| LGU planner    | `pasig.planner@lccap.local`  | `Planner`     | Tenant   | Pasig City Demo LGU  | Tenant demo user                                                        |
+| LGU viewer     | `pasig.viewer@lccap.local`   | `Viewer`      | Tenant   | Pasig City Demo LGU  | Tenant demo user                                                        |
+| LGU planner    | `quezon.planner@lccap.local` | `Planner`     | Tenant   | Quezon City Demo LGU | Tenant demo user                                                        |
+| LGU viewer     | `quezon.viewer@lccap.local`  | `Viewer`      | Tenant   | Quezon City Demo LGU | Tenant demo user                                                        |
+
 
 Recommended MVP demo login:
 

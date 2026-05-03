@@ -89,12 +89,29 @@ export async function requestFormData(options: RequestFormDataOptions): Promise<
   return parseOkJsonBody(response);
 }
 
+export async function requestVoid(path: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetch(buildUrl(path), {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+      Accept: "application/json"
+    },
+    signal,
+    credentials: "omit"
+  });
+
+  if (!response.ok) {
+    throw await ApiError.fromResponse(response);
+  }
+}
+
 export const http = {
   get: (path: string, signal?: AbortSignal) => requestJson({ method: "GET", path, signal }),
   postJson: (path: string, body: unknown, signal?: AbortSignal) =>
     requestJson({ method: "POST", path, body, signal }),
   putJson: (path: string, body: unknown, signal?: AbortSignal) =>
     requestJson({ method: "PUT", path, body, signal }),
+  deleteVoid: (path: string, signal?: AbortSignal) => requestVoid(path, signal),
   postFormData: (path: string, body: FormData, signal?: AbortSignal) =>
     requestFormData({ method: "POST", path, body, signal }),
   putFormData: (path: string, body: FormData, signal?: AbortSignal) =>

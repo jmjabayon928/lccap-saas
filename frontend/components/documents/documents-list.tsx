@@ -1,11 +1,17 @@
+import { Fragment, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { DocumentArchiveButton } from "@/components/documents/document-archive-button";
 import { DocumentCategoryBadge } from "@/components/documents/document-category-badge";
+import { DocumentEditForm } from "@/components/documents/document-edit-form";
 import { DocumentSize } from "@/components/documents/document-size";
 import type { DocumentSummary } from "@/types/documents";
 
 interface DocumentsListProps {
   readonly documents: DocumentSummary[];
+  readonly onDocumentUpdated: (updated: DocumentSummary) => void;
+  readonly onDocumentArchived: (documentId: string) => void;
 }
 
 function formatWhen(uploadedAtUtc: string | null, createdAtUtc: string | null): string {
@@ -23,7 +29,20 @@ function formatWhen(uploadedAtUtc: string | null, createdAtUtc: string | null): 
   }).format(d);
 }
 
-export function DocumentsList({ documents }: DocumentsListProps) {
+function rowTitle(d: DocumentSummary): string {
+  const t = d.title?.trim();
+  if (t) {
+    return t;
+  }
+  if (d.originalFileName?.trim()) {
+    return d.originalFileName.trim();
+  }
+  return "—";
+}
+
+export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived }: DocumentsListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   return (
     <Card className="border-border shadow-sm">
       <CardHeader>
@@ -47,28 +66,67 @@ export function DocumentsList({ documents }: DocumentsListProps) {
                     <TableHead className="hidden xl:table-cell">Type</TableHead>
                     <TableHead className="w-24">Size</TableHead>
                     <TableHead className="hidden lg:table-cell lg:w-44">Uploaded</TableHead>
+                    <TableHead className="w-40 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {documents.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell className="max-w-[200px] font-medium text-slate-900 lg:max-w-xs">{d.title}</TableCell>
-                      <TableCell>
-                        <DocumentCategoryBadge category={d.category} />
-                      </TableCell>
-                      <TableCell className="hidden font-mono text-xs text-slate-700 lg:table-cell">
-                        {d.originalFileName ?? "—"}
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground xl:table-cell">
-                        {d.contentType ?? "—"}
-                      </TableCell>
-                      <TableCell className="tabular-nums text-muted-foreground">
-                        <DocumentSize bytes={d.sizeBytes} />
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground lg:table-cell">
-                        {formatWhen(d.uploadedAtUtc, d.createdAtUtc)}
-                      </TableCell>
-                    </TableRow>
+                    <Fragment key={d.id}>
+                      <TableRow>
+                        <TableCell className="max-w-[200px] font-medium text-slate-900 lg:max-w-xs">
+                          {rowTitle(d)}
+                        </TableCell>
+                        <TableCell>
+                          <DocumentCategoryBadge category={d.category} />
+                        </TableCell>
+                        <TableCell className="hidden font-mono text-xs text-slate-700 lg:table-cell">
+                          {d.originalFileName ?? "—"}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground xl:table-cell">
+                          {d.contentType ?? "—"}
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          <DocumentSize bytes={d.sizeBytes} />
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground lg:table-cell">
+                          {formatWhen(d.uploadedAtUtc, d.createdAtUtc)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setEditingId(editingId === d.id ? null : d.id)}
+                            >
+                              {editingId === d.id ? "Close" : "Edit"}
+                            </Button>
+                            <DocumentArchiveButton
+                              documentId={d.id}
+                              documentLabel={rowTitle(d)}
+                              onArchived={() => {
+                                setEditingId((cur) => (cur === d.id ? null : cur));
+                                onDocumentArchived(d.id);
+                              }}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {editingId === d.id ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="bg-slate-50/50 p-3">
+                            <DocumentEditForm
+                              document={d}
+                              onSaved={(updated) => {
+                                onDocumentUpdated(updated);
+                                setEditingId(null);
+                              }}
+                              onCancel={() => setEditingId(null)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -81,7 +139,7 @@ export function DocumentsList({ documents }: DocumentsListProps) {
                   className="rounded-lg border border-border bg-white px-3 py-3 text-sm shadow-sm"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-medium text-slate-900">{d.title}</p>
+                    <p className="font-medium text-slate-900">{rowTitle(d)}</p>
                     <DocumentCategoryBadge category={d.category} />
                   </div>
                   <p className="mt-1 font-mono text-xs text-slate-600">{d.originalFileName ?? "—"}</p>
@@ -90,6 +148,31 @@ export function DocumentsList({ documents }: DocumentsListProps) {
                     <span>{d.contentType ?? "—"}</span>
                     <span>{formatWhen(d.uploadedAtUtc, d.createdAtUtc)}</span>
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setEditingId(editingId === d.id ? null : d.id)}>
+                      {editingId === d.id ? "Close edit" : "Edit"}
+                    </Button>
+                    <DocumentArchiveButton
+                      documentId={d.id}
+                      documentLabel={rowTitle(d)}
+                      onArchived={() => {
+                        setEditingId((cur) => (cur === d.id ? null : cur));
+                        onDocumentArchived(d.id);
+                      }}
+                    />
+                  </div>
+                  {editingId === d.id ? (
+                    <div className="mt-3">
+                      <DocumentEditForm
+                        document={d}
+                        onSaved={(updated) => {
+                          onDocumentUpdated(updated);
+                          setEditingId(null);
+                        }}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

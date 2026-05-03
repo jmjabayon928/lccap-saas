@@ -33,28 +33,64 @@ function stripIgnoredFields(record: Record<string, unknown>): void {
   delete record.stored_path;
 }
 
+function parseTagsField(raw: Record<string, unknown>): string[] {
+  const direct = raw.tags;
+  if (Array.isArray(direct)) {
+    const out: string[] = [];
+    for (const el of direct) {
+      if (typeof el === "string") {
+        const t = el.trim();
+        if (t.length > 0) {
+          out.push(t);
+        }
+      }
+    }
+    return out;
+  }
+
+  const tagsJson = raw.tagsJson;
+  if (typeof tagsJson === "string" && tagsJson.trim().length > 0) {
+    try {
+      const parsed: unknown = JSON.parse(tagsJson);
+      if (Array.isArray(parsed)) {
+        const out: string[] = [];
+        for (const el of parsed) {
+          if (typeof el === "string") {
+            const t = el.trim();
+            if (t.length > 0) {
+              out.push(t);
+            }
+          }
+        }
+        return out;
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
 function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | null {
   stripIgnoredFields(raw);
 
   const idRaw = raw.id ?? raw.documentId;
   const planId = raw.planId;
   const fileAssetId = optionalStringOrNull(raw.fileAssetId);
-  const title = raw.title;
+  const title = optionalStringOrNull(raw.title);
   const category = raw.category;
   const description = optionalStringOrNull(raw.description);
+  const documentDate = optionalIsoOrNull(raw.documentDate);
+  const sourceAgency = optionalStringOrNull(raw.sourceAgency);
+  const tags = parseTagsField(raw);
   const originalFileNameRaw = raw.originalFileName ?? raw.fileName;
   const contentType = raw.contentType;
   const sizeBytes = raw.sizeBytes;
-  const uploadedAtUtc = optionalIsoOrNull(raw.uploadedAtUtc);
+  const uploadedAtUtc = optionalIsoOrNull(raw.uploadedAtUtc ?? raw.fileCreatedAtUtc);
   const createdAtUtc = optionalIsoOrNull(raw.createdAtUtc);
 
-  if (
-    !isNonEmptyString(idRaw) ||
-    !isNonEmptyString(planId) ||
-    !isNonEmptyString(title) ||
-    typeof category !== "string" ||
-    !isNonEmptyString(category)
-  ) {
+  if (!isNonEmptyString(idRaw) || !isNonEmptyString(planId) || typeof category !== "string" || !isNonEmptyString(category)) {
     return null;
   }
 
@@ -65,6 +101,9 @@ function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | nu
     title,
     category,
     description,
+    documentDate,
+    sourceAgency,
+    tags,
     originalFileName: typeof originalFileNameRaw === "string" ? originalFileNameRaw : null,
     contentType: typeof contentType === "string" ? contentType : null,
     sizeBytes: isFiniteNumber(sizeBytes) ? sizeBytes : null,
@@ -156,7 +195,8 @@ export function parseUploadDocumentResult(payload: unknown): UploadDocumentResul
     !isNonEmptyString(idRaw) ||
     !isNonEmptyString(fileAssetId) ||
     !isNonEmptyString(planId) ||
-    !isNonEmptyString(title) ||
+    typeof title !== "string" ||
+    !title.trim() ||
     typeof category !== "string" ||
     !isNonEmptyString(category) ||
     !isNonEmptyString(originalFileNameRaw) ||

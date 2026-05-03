@@ -52,4 +52,34 @@ public sealed class Document : BaseEntity
     public User? UpdatedByUser { get; set; }
 
     public User? DeletedByUser { get; set; }
+
+    public void UpdateMetadata(
+        string category,
+        string? title,
+        string? description,
+        DateOnly? documentDate,
+        string? sourceAgency,
+        JsonDocument tagsJson,
+        DateTimeOffset updatedAtUtc,
+        Guid? updatedByUserId)
+    {
+        Category = category;
+        Title = title;
+        Description = description;
+        DocumentDate = documentDate;
+        SourceAgency = sourceAgency;
+        TagsJson.Dispose();
+        TagsJson = tagsJson;
+        UpdatedAtUtc = updatedAtUtc;
+        UpdatedByUserId = updatedByUserId;
+    }
+
+    public void Archive(DateTimeOffset archivedAtUtc, Guid deletedByUserId, Guid? updatedByUserId)
+    {
+        IsDeleted = true;
+        DeletedAtUtc = archivedAtUtc;
+        DeletedByUserId = deletedByUserId;
+        UpdatedAtUtc = archivedAtUtc;
+        UpdatedByUserId = updatedByUserId;
+    }
 }

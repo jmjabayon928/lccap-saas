@@ -10,6 +10,7 @@ public interface ILccapDbContext
     DbSet<ActionItem> ActionItems { get; }
     DbSet<FileAsset> FileAssets { get; }
     DbSet<Document> Documents { get; }
+    DbSet<AuditLog> AuditLogs { get; }
     DbSet<ExportJob> ExportJobs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

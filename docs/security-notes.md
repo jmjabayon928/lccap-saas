@@ -98,7 +98,15 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Never render `storedPath`, `stored_path`, or raw storage URIs** if they appear in responses; the UI must not leak server filesystem layout.
 - Allowed extensions in the frontend follow the same MVP set described for the API (e.g. `.pdf`, Office, common images); production systems may tighten independently.
 
-### Future hardening (directional)
+## Document metadata and archive (MVP)
+
+- **`PUT /api/documents/{id}/metadata`** updates catalog fields only; it does not replace the uploaded file bytes.
+- **`DELETE /api/documents/{id}`** archives the **document** row (soft delete: `is_deleted` and related columns). It is **not** implemented as a physical purge of tenant files in this MVP slice.
+- **`file_assets`** rows are **not** soft-deleted by archive in this slice; blobs remain in tenant-scoped storage until any future lifecycle or purge process.
+- **Audit** — successful metadata updates and archives write **`audit_logs`** rows (`DocumentMetadataUpdated`, `DocumentArchived`) with tenant and user linkage and JSON snapshots for accountability.
+- **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
+
+## Frontend uploads — hardening (directional)
 
 - Content validation beyond extension (magic-bytes / MIME sniffing), antivirus scanning, asynchronous malware pipelines, per-tenant quotas, and **signed URLs** or gateway-controlled downloads from object storage instead of exposing internal paths.
 

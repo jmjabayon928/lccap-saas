@@ -32,6 +32,8 @@ public static class DependencyInjection
         _ = services.AddScoped<GetPlanByIdQuery>();
         _ = services.AddScoped<GetPlansQuery>();
         _ = services.AddScoped<UploadDocumentCommand>();
+        _ = services.AddScoped<UpdateDocumentMetadataCommand>();
+        _ = services.AddScoped<ArchiveDocumentCommand>();
         _ = services.AddScoped<CreateExportJobCommand>();
         _ = services.AddScoped<DownloadExportQuery>();
         _ = services.AddScoped<GetDocumentsByPlanQuery>();

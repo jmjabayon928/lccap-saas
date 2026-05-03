@@ -20,6 +20,12 @@ const api = {
   uploadDocument: () => `/api/documents/upload`,
   documentsByPlan: (planId: string) => `/api/plans/${encodeURIComponent(planId)}/documents`,
 
+  /** PUT /api/documents/{documentId}/metadata */
+  updateDocumentMetadata: (documentId: string) =>
+    `/api/documents/${encodeURIComponent(documentId)}/metadata`,
+  /** DELETE /api/documents/{documentId} — archives (soft delete) document row */
+  archiveDocument: (documentId: string) => `/api/documents/${encodeURIComponent(documentId)}`,
+
   /** GET/POST /api/plans/{planId}/actions */
   actionsByPlan: (planId: string) => `/api/plans/${encodeURIComponent(planId)}/actions`,
   /** GET/PUT /api/actions/{actionItemId} */

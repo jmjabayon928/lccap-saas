@@ -39,14 +39,26 @@ export interface DocumentSummary {
   readonly id: string;
   readonly planId: string;
   readonly fileAssetId: string | null;
-  readonly title: string;
+  readonly title: string | null;
   readonly category: string;
   readonly description: string | null;
+  readonly documentDate: string | null;
+  readonly sourceAgency: string | null;
+  readonly tags: readonly string[];
   readonly originalFileName: string | null;
   readonly contentType: string | null;
   readonly sizeBytes: number | null;
   readonly uploadedAtUtc: string | null;
   readonly createdAtUtc: string | null;
+}
+
+export interface UpdateDocumentMetadataRequest {
+  readonly category: DocumentCategory;
+  readonly title: string | null;
+  readonly description: string | null;
+  readonly documentDate: string | null;
+  readonly sourceAgency: string | null;
+  readonly tags: readonly string[];
 }
 
 export interface UploadDocumentRequest {

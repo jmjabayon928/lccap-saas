@@ -268,6 +268,7 @@ public sealed class ExportControllerTests
         public DbSet<ActionItem> ActionItems => new TestAsyncDbSet<ActionItem>([]);
         public DbSet<FileAsset> FileAssets => new TestAsyncDbSet<FileAsset>([]);
         public DbSet<Document> Documents => new TestAsyncDbSet<Document>([]);
+        public DbSet<AuditLog> AuditLogs => new TestAsyncDbSet<AuditLog>([]);
         public DbSet<ExportJob> ExportJobs { get; }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);

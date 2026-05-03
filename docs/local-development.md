@@ -175,6 +175,9 @@ With the API running and `NEXT_PUBLIC_API_BASE_URL` set:
 4. Confirm the file appears in the **Attached documents** list without refreshing (or refresh to verify persistence).
 5. Try a **disallowed extension** (e.g. rename or pick `.exe` if the picker allows) — the UI should block before upload.
 6. Try a file **larger than 25 MB** — the frontend validation should block before upload.
+7. **Edit metadata** — use **Edit** on a row; change title, category, description, source agency, document date, and tags; **Save**, then **refresh** and confirm values persist.
+8. **Archive** — use **Archive**, confirm in the prompt; the row should leave the active list immediately; **refresh** and confirm it does not reappear in **Attached documents** (the underlying file record is retained server-side for accountability).
+9. Confirm **upload** still works for a new file after an archive, and other workspace flows you rely on still behave normally.
 
 ### Manual UI check (action items)
 
