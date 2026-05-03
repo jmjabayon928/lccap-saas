@@ -579,6 +579,8 @@ public sealed class DocumentsControllerTests
 
         public DbSet<ActionItem> ActionItems => null!;
 
+        public DbSet<MonitoringIndicator> MonitoringIndicators => null!;
+
         public DbSet<PlanSection> PlanSections => null!;
 
         public DbSet<ExportJob> ExportJobs => null!;

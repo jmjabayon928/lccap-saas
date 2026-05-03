@@ -1,13 +1,12 @@
 import { endpoints } from "@/lib/api/endpoints";
 import { http } from "@/lib/api/http";
 import {
-  parseMonitoringIndicatorsList,
-  parseSaveMonitoringIndicatorResult
+  parseMonitoringIndicator,
+  parseMonitoringIndicatorsList
 } from "@/lib/monitoring/monitoring-parsers";
 import type {
   CreateMonitoringIndicatorRequest,
   MonitoringIndicatorSummary,
-  SaveMonitoringIndicatorResult,
   UpdateMonitoringIndicatorRequest
 } from "@/types/monitoring";
 
@@ -17,16 +16,20 @@ export const monitoringClient = {
     return parseMonitoringIndicatorsList(data);
   },
 
-  async createIndicator(request: CreateMonitoringIndicatorRequest): Promise<SaveMonitoringIndicatorResult> {
+  async createIndicator(request: CreateMonitoringIndicatorRequest): Promise<MonitoringIndicatorSummary> {
     const data = await http.postJson(endpoints.monitoringIndicators(), request);
-    return parseSaveMonitoringIndicatorResult(data);
+    return parseMonitoringIndicator(data);
   },
 
   async updateIndicator(
     indicatorId: string,
     request: UpdateMonitoringIndicatorRequest
-  ): Promise<SaveMonitoringIndicatorResult> {
+  ): Promise<MonitoringIndicatorSummary> {
     const data = await http.putJson(endpoints.monitoringIndicatorById(indicatorId), request);
-    return parseSaveMonitoringIndicatorResult(data);
+    return parseMonitoringIndicator(data);
+  },
+
+  async archiveIndicator(indicatorId: string): Promise<void> {
+    await http.deleteVoid(endpoints.archiveMonitoringIndicator(indicatorId));
   }
 } as const;

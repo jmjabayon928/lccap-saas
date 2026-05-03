@@ -1,17 +1,23 @@
 "use client";
 
+import { Fragment, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { ActionArchiveButton } from "@/components/actions/action-archive-button";
 import { ActionBudget } from "@/components/actions/action-budget";
+import { ActionEditForm } from "@/components/actions/action-edit-form";
 import { ActionStatusBadge } from "@/components/actions/action-status-badge";
 import { ActionTypeBadge } from "@/components/actions/action-type-badge";
 import { cn } from "@/lib/utils";
-import type { ActionItemSummary } from "@/types/actions";
+import type { ActionItemSummary, SaveActionItemResult } from "@/types/actions";
 
 interface ActionItemsListProps {
   readonly items: ActionItemSummary[];
   readonly selectedId: string | null;
   readonly onSelect: (actionId: string) => void;
+  readonly onActionUpdated: (updated: SaveActionItemResult) => void;
+  readonly onActionArchived: (actionItemId: string) => void;
 }
 
 function formatTimeline(start: string | null, end: string | null): string {
@@ -36,7 +42,15 @@ function formatTimeline(start: string | null, end: string | null): string {
   return a || b;
 }
 
-export function ActionItemsList({ items, selectedId, onSelect }: ActionItemsListProps) {
+export function ActionItemsList({
+  items,
+  selectedId,
+  onSelect,
+  onActionUpdated,
+  onActionArchived
+}: ActionItemsListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   return (
     <Card className="border-border shadow-sm">
       <CardHeader>
@@ -63,48 +77,84 @@ export function ActionItemsList({ items, selectedId, onSelect }: ActionItemsList
                     <TableHead className="w-32">Status</TableHead>
                     <TableHead className="w-36 text-right">Budget</TableHead>
                     <TableHead className="hidden min-w-[200px] xl:table-cell">Timeline</TableHead>
+                    <TableHead className="w-44 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item) => {
                     const isSelected = item.id === selectedId;
                     return (
-                      <TableRow
-                        key={item.id}
-                        data-state={isSelected ? "selected" : undefined}
-                        className={cn(
-                          "cursor-pointer transition-colors",
-                          isSelected ? "bg-emerald-50/90 hover:bg-emerald-50" : "hover:bg-slate-50"
-                        )}
-                        onClick={() => onSelect(item.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            onSelect(item.id);
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-pressed={isSelected}
-                      >
-                        <TableCell className="max-w-[220px] font-medium text-slate-900 xl:max-w-xs">{item.title}</TableCell>
-                        <TableCell>
-                          <ActionTypeBadge actionType={item.actionType} />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{item.sector}</TableCell>
-                        <TableCell className="hidden text-muted-foreground xl:table-cell">
-                          {item.responsibleOffice?.trim() ? item.responsibleOffice : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <ActionStatusBadge status={item.status} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <ActionBudget budgetAmount={item.budgetAmount} />
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground xl:table-cell">
-                          {formatTimeline(item.timelineStartUtc, item.timelineEndUtc)}
-                        </TableCell>
-                      </TableRow>
+                      <Fragment key={item.id}>
+                        <TableRow
+                          data-state={isSelected ? "selected" : undefined}
+                          className={cn(
+                            "cursor-pointer transition-colors",
+                            isSelected ? "bg-emerald-50/90 hover:bg-emerald-50" : "hover:bg-slate-50"
+                          )}
+                          onClick={() => onSelect(item.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onSelect(item.id);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-pressed={isSelected}
+                        >
+                          <TableCell className="max-w-[220px] font-medium text-slate-900 xl:max-w-xs">{item.title}</TableCell>
+                          <TableCell>
+                            <ActionTypeBadge actionType={item.actionType} />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{item.sector}</TableCell>
+                          <TableCell className="hidden text-muted-foreground xl:table-cell">
+                            {item.responsibleOffice?.trim() ? item.responsibleOffice : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <ActionStatusBadge status={item.status} />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <ActionBudget budgetAmount={item.budgetAmount} />
+                          </TableCell>
+                          <TableCell className="hidden text-muted-foreground xl:table-cell">
+                            {formatTimeline(item.timelineStartUtc, item.timelineEndUtc)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                              >
+                                {editingId === item.id ? "Close" : "Edit"}
+                              </Button>
+                              <ActionArchiveButton
+                                actionItemId={item.id}
+                                actionLabel={item.title}
+                                onArchived={() => {
+                                  setEditingId((cur) => (cur === item.id ? null : cur));
+                                  onActionArchived(item.id);
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {editingId === item.id ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="bg-slate-50/50 p-3">
+                              <ActionEditForm
+                                action={item}
+                                onSaved={(updated) => {
+                                  onActionUpdated(updated);
+                                  setEditingId(null);
+                                }}
+                                onCancel={() => setEditingId(null)}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                      </Fragment>
                     );
                   })}
                 </TableBody>
@@ -115,13 +165,13 @@ export function ActionItemsList({ items, selectedId, onSelect }: ActionItemsList
               {items.map((item) => {
                 const isSelected = item.id === selectedId;
                 return (
-                  <li key={item.id}>
+                  <li key={item.id} className="rounded-lg border border-border bg-white text-sm shadow-sm">
                     <button
                       type="button"
                       onClick={() => onSelect(item.id)}
                       className={cn(
-                        "w-full rounded-lg border px-3 py-3 text-left text-sm shadow-sm transition-colors",
-                        isSelected ? "border-emerald-300 bg-emerald-50/90" : "border-border bg-white hover:bg-slate-50"
+                        "w-full px-3 py-3 text-left transition-colors",
+                        isSelected ? "bg-emerald-50/90" : "hover:bg-slate-50"
                       )}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -142,6 +192,38 @@ export function ActionItemsList({ items, selectedId, onSelect }: ActionItemsList
                         <ActionBudget budgetAmount={item.budgetAmount} />
                       </div>
                     </button>
+                    <div className="border-t border-border px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                        >
+                          {editingId === item.id ? "Close edit" : "Edit"}
+                        </Button>
+                        <ActionArchiveButton
+                          actionItemId={item.id}
+                          actionLabel={item.title}
+                          onArchived={() => {
+                            setEditingId((cur) => (cur === item.id ? null : cur));
+                            onActionArchived(item.id);
+                          }}
+                        />
+                      </div>
+                      {editingId === item.id ? (
+                        <div className="mt-3">
+                          <ActionEditForm
+                            action={item}
+                            onSaved={(updated) => {
+                              onActionUpdated(updated);
+                              setEditingId(null);
+                            }}
+                            onCancel={() => setEditingId(null)}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}

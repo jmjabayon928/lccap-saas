@@ -86,6 +86,7 @@ function sortNewestFirst(items: MonitoringIndicatorSummary[]): MonitoringIndicat
 function parseIndicatorRecord(raw: Record<string, unknown>): MonitoringIndicatorDetail {
   const idRaw = raw.id ?? raw.indicatorId;
   const planIdRaw = raw.planId;
+  const actionItemIdRaw = raw.actionItemId;
   const nameRaw = raw.name ?? raw.title;
   const status = parseMonitoringStatus(raw.status);
   const description = raw.description;
@@ -99,6 +100,7 @@ function parseIndicatorRecord(raw: Record<string, unknown>): MonitoringIndicator
   const lastUpdatedAtUtc = optionalIsoOrNull(raw.lastUpdatedAtUtc);
   const createdAtUtc = optionalIsoOrNull(raw.createdAtUtc);
   const updatedAtUtc = optionalIsoOrNull(raw.updatedAtUtc);
+  const rowVersionRaw = raw.rowVersion ?? raw.rowVersionBase64;
 
   if (!isNonEmptyString(idRaw)) {
     throw new ApiError("Invalid monitoring indicator: missing identifier", 502, raw);
@@ -108,6 +110,9 @@ function parseIndicatorRecord(raw: Record<string, unknown>): MonitoringIndicator
   }
   if (!isNonEmptyString(nameRaw)) {
     throw new ApiError("Invalid monitoring indicator: missing name", 502, raw);
+  }
+  if (typeof rowVersionRaw !== "string" || !rowVersionRaw.trim()) {
+    throw new ApiError("Invalid monitoring indicator: missing rowVersion", 502, raw);
   }
   if (!status) {
     throw new ApiError("Invalid monitoring indicator: missing or invalid status", 502, raw);
@@ -126,10 +131,14 @@ function parseIndicatorRecord(raw: Record<string, unknown>): MonitoringIndicator
   const frequencyOut = typeof frequency === "string" ? frequency : null;
   const responsibleOfficeOut =
     typeof responsibleOffice === "string" ? responsibleOffice : null;
+  const actionItemIdOut =
+    typeof actionItemIdRaw === "string" && isNonEmptyString(actionItemIdRaw) ? actionItemIdRaw : null;
 
   return {
     id: idRaw,
     planId: planIdRaw,
+    actionItemId: actionItemIdOut,
+    rowVersion: rowVersionRaw.trim(),
     name: nameRaw,
     description: descriptionOut,
     unit: unitOut,
@@ -197,7 +206,14 @@ export function parseSaveMonitoringIndicatorResult(payload: unknown): SaveMonito
     throw new ApiError("Invalid monitoring indicator response: expected object", 502, payload);
   }
 
-  // 1. Try compact response (actual backend shape)
+  if (isNonEmptyString(payload.id) && isNonEmptyString(payload.planId)) {
+    try {
+      return parseMonitoringIndicator(payload);
+    } catch {
+      // fall through to compact handling
+    }
+  }
+
   const id = payload.id;
   if (isNonEmptyString(id)) {
     return {
@@ -206,10 +222,5 @@ export function parseSaveMonitoringIndicatorResult(payload: unknown): SaveMonito
     };
   }
 
-  // 2. Try full indicator object (fallback/legacy)
-  try {
-    return parseMonitoringIndicator(payload);
-  } catch {
-    throw new ApiError("Invalid monitoring indicator response: malformed fields", 502, payload);
-  }
+  throw new ApiError("Invalid monitoring indicator response: malformed fields", 502, payload);
 }

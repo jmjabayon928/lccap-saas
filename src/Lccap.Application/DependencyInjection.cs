@@ -7,7 +7,6 @@ using Lccap.Application.Documents.Queries;
 using Lccap.Application.Export.Commands;
 using Lccap.Application.Export.Queries;
 using Lccap.Application.Monitoring.Commands;
-using Lccap.Application.Monitoring.Queries;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
 using Lccap.Application.Sections.Commands;
@@ -25,8 +24,8 @@ public static class DependencyInjection
         _ = services.AddSingleton<IClock, SystemClock>();
         _ = services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         _ = services.AddScoped<CreateIndicatorCommand>();
-        _ = services.AddScoped<UpdateIndicatorCommand>();
-        _ = services.AddScoped<GetIndicatorsQuery>();
+        _ = services.AddScoped<UpdateMonitoringIndicatorCommand>();
+        _ = services.AddScoped<ArchiveMonitoringIndicatorCommand>();
         _ = services.AddScoped<CreatePlanCommand>();
         _ = services.AddScoped<UpdatePlanCommand>();
         _ = services.AddScoped<GetPlanByIdQuery>();
@@ -42,6 +41,7 @@ public static class DependencyInjection
         _ = services.AddScoped<GetPlanSectionByKeyQuery>();
         _ = services.AddScoped<CreateActionItemCommand>();
         _ = services.AddScoped<UpdateActionItemCommand>();
+        _ = services.AddScoped<ArchiveActionItemCommand>();
         _ = services.AddScoped<GetActionItemsByPlanQuery>();
         _ = services.AddScoped<GetActionItemByIdQuery>();
     }

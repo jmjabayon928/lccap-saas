@@ -116,6 +116,12 @@ export function IndicatorForm({ planId, selectedIndicator, onSaved, onCancelEdit
     if (!name.trim()) {
       return "Name is required.";
     }
+    if (name.trim().length > 250) {
+      return "Name must be 250 characters or fewer.";
+    }
+    if (unit.trim().length > 80) {
+      return "Unit must be 80 characters or fewer.";
+    }
     if (!MONITORING_STATUSES.includes(status)) {
       return "Status must be a supported monitoring status.";
     }
@@ -179,6 +185,9 @@ export function IndicatorForm({ planId, selectedIndicator, onSaved, onCancelEdit
   }
 
   function buildUpdateRequest(): UpdateMonitoringIndicatorRequest {
+    if (!selectedIndicator) {
+      throw new Error("MISSING_INDICATOR");
+    }
     const nums = buildNumericPayload();
     return {
       name: name.trim(),
@@ -190,7 +199,8 @@ export function IndicatorForm({ planId, selectedIndicator, onSaved, onCancelEdit
       progressPercent: nums.progressPercent,
       status,
       frequency: frequency.trim() ? frequency : null,
-      responsibleOffice: responsibleOffice.trim() ? responsibleOffice : null
+      responsibleOffice: responsibleOffice.trim() ? responsibleOffice : null,
+      rowVersion: selectedIndicator.rowVersion
     };
   }
 
@@ -217,30 +227,13 @@ export function IndicatorForm({ planId, selectedIndicator, onSaved, onCancelEdit
 
     setSubmitting(true);
     try {
-      const snapshot = isEdit ? updateReq : createReq;
-      const now = new Date().toISOString();
-
       if (isEdit && selectedIndicator) {
-        const result = await monitoringClient.updateIndicator(selectedIndicator.id, updateReq);
-        const updated: MonitoringIndicatorSummary = {
-          ...selectedIndicator,
-          ...snapshot,
-          id: result.id,
-          updatedAtUtc: now,
-          lastUpdatedAtUtc: now
-        };
+        const updated = await monitoringClient.updateIndicator(selectedIndicator.id, updateReq);
         onSaved(updated);
         applyFromIndicator(updated);
         setSuccessMessage("Indicator updated.");
       } else {
-        const result = await monitoringClient.createIndicator(createReq);
-        const created: MonitoringIndicatorSummary = {
-          ...createReq,
-          id: result.id,
-          createdAtUtc: now,
-          updatedAtUtc: now,
-          lastUpdatedAtUtc: now
-        };
+        const created = await monitoringClient.createIndicator(createReq);
         onSaved(created);
         applyFromIndicator(null);
         setSuccessMessage("Indicator created.");

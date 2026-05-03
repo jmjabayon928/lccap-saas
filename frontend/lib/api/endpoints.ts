@@ -30,9 +30,14 @@ const api = {
   actionsByPlan: (planId: string) => `/api/plans/${encodeURIComponent(planId)}/actions`,
   /** GET/PUT /api/actions/{actionItemId} */
   actionById: (actionItemId: string) => `/api/actions/${encodeURIComponent(actionItemId)}`,
+  /** DELETE /api/actions/{actionItemId} — archives (soft delete) action row */
+  archiveAction: (actionItemId: string) => `/api/actions/${encodeURIComponent(actionItemId)}`,
 
   monitoringIndicators: () => `/api/monitoring/indicators`,
   monitoringIndicatorById: (indicatorId: string) =>
+    `/api/monitoring/indicators/${encodeURIComponent(indicatorId)}`,
+  /** DELETE — archives (soft delete) monitoring indicator row */
+  archiveMonitoringIndicator: (indicatorId: string) =>
     `/api/monitoring/indicators/${encodeURIComponent(indicatorId)}`,
   indicatorsByPlan: (planId: string) => `/api/monitoring/plans/${encodeURIComponent(planId)}/indicators`,
 

@@ -266,6 +266,7 @@ public sealed class ExportControllerTests
         public DbSet<Plan> Plans => new TestAsyncDbSet<Plan>([]);
         public DbSet<PlanSection> PlanSections => new TestAsyncDbSet<PlanSection>([]);
         public DbSet<ActionItem> ActionItems => new TestAsyncDbSet<ActionItem>([]);
+        public DbSet<MonitoringIndicator> MonitoringIndicators => new TestAsyncDbSet<MonitoringIndicator>([]);
         public DbSet<FileAsset> FileAssets => new TestAsyncDbSet<FileAsset>([]);
         public DbSet<Document> Documents => new TestAsyncDbSet<Document>([]);
         public DbSet<AuditLog> AuditLogs => new TestAsyncDbSet<AuditLog>([]);

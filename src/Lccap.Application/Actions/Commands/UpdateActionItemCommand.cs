@@ -1,11 +1,19 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lccap.Application.Actions.Commands;
 
 public class UpdateActionItemCommand
 {
+    private static readonly JsonSerializerOptions AuditJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private static readonly HashSet<string> AllowedActionTypes = new(StringComparer.Ordinal)
     {
         "Adaptation",
@@ -31,7 +39,7 @@ public class UpdateActionItemCommand
         _currentUserContext = currentUserContext;
     }
 
-    public async Task<UpdateActionItemOutcome> ExecuteAsync(
+    public virtual async Task<UpdateActionItemOutcome> ExecuteAsync(
         Guid actionItemId,
         UpdateActionItemRequest request,
         CancellationToken cancellationToken = default)
@@ -55,11 +63,18 @@ public class UpdateActionItemCommand
         }
 
         var accountId = _currentUserContext.AccountId.Value;
-        var entity = await _dbContext.ActionItems.SingleOrDefaultAsync(
-            x => x.Id == actionItemId && x.AccountId == accountId && !x.IsDeleted,
-            cancellationToken);
+        var entity = await _dbContext.ActionItems
+            .Include(x => x.Plan)
+            .SingleOrDefaultAsync(
+                x => x.Id == actionItemId && x.AccountId == accountId && !x.IsDeleted,
+                cancellationToken);
 
         if (entity is null)
+        {
+            return UpdateActionItemOutcome.ItemMissingOutcome();
+        }
+
+        if (entity.Plan.IsDeleted || entity.Plan.AccountId != accountId)
         {
             return UpdateActionItemOutcome.ItemMissingOutcome();
         }
@@ -70,28 +85,117 @@ public class UpdateActionItemCommand
         }
 
         var budget = request.BudgetAmount ?? 0m;
-        var status = string.IsNullOrWhiteSpace(request.Status) ? "Planned" : request.Status!.Trim();
+        var status = request.Status!.Trim();
+
+        var oldSnapshot = BuildFieldSnapshot(
+            entity.Title,
+            entity.Description,
+            entity.ActionType,
+            entity.Sector,
+            entity.ResponsibleOffice,
+            entity.BudgetAmount,
+            entity.FundingSource,
+            entity.TimelineStartUtc,
+            entity.TimelineEndUtc,
+            entity.Kpi,
+            entity.PriorityScore,
+            entity.Status);
 
         entity.UpdateDetails(
-            request.Title!,
-            request.Description,
+            request.Title!.Trim(),
+            NormalizeOptional(request.Description),
             request.ActionType!.Trim(),
             request.Sector!.Trim(),
-            request.ResponsibleOffice,
+            NormalizeOptional(request.ResponsibleOffice),
             budget,
-            request.FundingSource,
+            NormalizeOptional(request.FundingSource),
             request.TimelineStartUtc,
             request.TimelineEndUtc,
-            request.Kpi,
+            NormalizeOptional(request.Kpi),
             request.PriorityScore,
             status,
-            request.MetadataJson ?? JsonDocument.Parse("{}"),
             _currentUserContext.UserId.Value,
             DateTimeOffset.UtcNow);
 
+        var newSnapshot = BuildFieldSnapshot(
+            entity.Title,
+            entity.Description,
+            entity.ActionType,
+            entity.Sector,
+            entity.ResponsibleOffice,
+            entity.BudgetAmount,
+            entity.FundingSource,
+            entity.TimelineStartUtc,
+            entity.TimelineEndUtc,
+            entity.Kpi,
+            entity.PriorityScore,
+            entity.Status);
+
+        var metadata = JsonSerializer.SerializeToDocument(new { planId = entity.PlanId }, AuditJsonOptions);
+
+        var audit = new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            UserId = _currentUserContext.UserId,
+            EntityName = "ActionItem",
+            EntityId = entity.Id,
+            Action = "ActionItemUpdated",
+            OldValuesJson = oldSnapshot,
+            NewValuesJson = newSnapshot,
+            MetadataJson = metadata,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+
+        _ = _dbContext.AuditLogs.Add(audit);
         _ = await _dbContext.SaveChangesAsync(cancellationToken);
 
         return UpdateActionItemOutcome.OkResult(new ActionItemDto(entity));
+    }
+
+    private static JsonDocument BuildFieldSnapshot(
+        string title,
+        string? description,
+        string actionType,
+        string sector,
+        string? responsibleOffice,
+        decimal budgetAmount,
+        string? fundingSource,
+        DateTimeOffset? timelineStartUtc,
+        DateTimeOffset? timelineEndUtc,
+        string? kpi,
+        decimal? priorityScore,
+        string status)
+    {
+        return JsonSerializer.SerializeToDocument(
+            new
+            {
+                title,
+                description,
+                actionType,
+                sector,
+                responsibleOffice,
+                budgetAmount,
+                fundingSource,
+                timelineStartUtc,
+                timelineEndUtc,
+                kpi,
+                priorityScore,
+                status,
+            },
+            AuditJsonOptions);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var t = value.Trim();
+        return t.Length == 0 ? null : t;
     }
 
     private static List<string> ValidateActionFields(UpdateActionItemRequest request)
@@ -102,6 +206,10 @@ public class UpdateActionItemCommand
         {
             errors.Add("Title must not be blank.");
         }
+        else if (request.Title.Trim().Length > 250)
+        {
+            errors.Add("Title must be 250 characters or fewer.");
+        }
 
         if (string.IsNullOrWhiteSpace(request.ActionType) || !AllowedActionTypes.Contains(request.ActionType.Trim()))
         {
@@ -111,6 +219,20 @@ public class UpdateActionItemCommand
         if (string.IsNullOrWhiteSpace(request.Sector))
         {
             errors.Add("Sector must not be blank.");
+        }
+        else if (request.Sector.Trim().Length > 100)
+        {
+            errors.Add("Sector must be 100 characters or fewer.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ResponsibleOffice) && request.ResponsibleOffice.Trim().Length > 150)
+        {
+            errors.Add("Responsible office must be 150 characters or fewer.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.FundingSource) && request.FundingSource.Trim().Length > 150)
+        {
+            errors.Add("Funding source must be 150 characters or fewer.");
         }
 
         var budget = request.BudgetAmount ?? 0m;
@@ -126,9 +248,22 @@ public class UpdateActionItemCommand
             errors.Add("Timeline start cannot be after timeline end.");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Status) && !AllowedStatuses.Contains(request.Status.Trim()))
+        if (string.IsNullOrWhiteSpace(request.Status))
+        {
+            errors.Add("Status must not be blank.");
+        }
+        else if (!AllowedStatuses.Contains(request.Status.Trim()))
         {
             errors.Add("Status is invalid.");
+        }
+
+        if (request.PriorityScore.HasValue)
+        {
+            var p = request.PriorityScore.Value;
+            if (p < 0m || p > 100m)
+            {
+                errors.Add("Priority score must be between 0 and 100 when provided.");
+            }
         }
 
         return errors;

@@ -109,6 +109,31 @@ public sealed class ActionItemsController : ControllerBase
         return Ok(outcome.Item);
     }
 
+    [HttpDelete("actions/{actionItemId:guid}")]
+    public async Task<IActionResult> Archive(
+        Guid actionItemId,
+        [FromServices] ArchiveActionItemCommand command,
+        CancellationToken cancellationToken)
+    {
+        var outcome = await command.ExecuteAsync(actionItemId, cancellationToken);
+        if (outcome.Success)
+        {
+            return NoContent();
+        }
+
+        if (outcome.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (outcome.UnauthorizedAccount)
+        {
+            return BadRequest(new { error = "Authenticated account and user are required." });
+        }
+
+        return BadRequest(new { error = "Archive failed." });
+    }
+
     [HttpGet("plans/{planId:guid}/actions")]
     public async Task<IActionResult> ListForPlan(
         Guid planId,

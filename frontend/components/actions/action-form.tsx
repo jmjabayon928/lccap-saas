@@ -160,8 +160,8 @@ export function ActionForm({ planId, selectedAction, onSaved, onCancelEdit }: Ac
     }
     if (priorityScore.trim()) {
       const p = Number(priorityScore);
-      if (!Number.isFinite(p) || p < 0) {
-        return "Priority score must be a number greater than or equal to zero.";
+      if (!Number.isFinite(p) || p < 0 || p > 100) {
+        return "Priority score must be between 0 and 100 when provided.";
       }
     }
     return null;
@@ -213,7 +213,10 @@ export function ActionForm({ planId, selectedAction, onSaved, onCancelEdit }: Ac
     setSubmitting(true);
     try {
       if (isEdit && selectedAction) {
-        const saved = await actionClient.updateActionItem(selectedAction.id, request);
+        const saved = await actionClient.updateActionItem(selectedAction.id, {
+          ...request,
+          rowVersion: selectedAction.rowVersion
+        });
         onSaved(saved);
         setSuccessMessage("Action updated.");
       } else {

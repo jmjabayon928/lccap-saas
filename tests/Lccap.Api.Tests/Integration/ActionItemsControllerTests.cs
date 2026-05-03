@@ -301,6 +301,355 @@ public sealed class ActionItemsControllerTests
         _ = Assert.IsType<NotFoundResult>(result);
     }
 
+    [Fact]
+    public async Task Update_action_item_updates_allowed_fields_and_returns_updated_action()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(
+            plan.Id,
+            ValidCreateBody(title: "Alpha"),
+            new CreateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+        var result = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "Beta",
+                "D",
+                "Mitigation",
+                "Energy",
+                "Office A",
+                50m,
+                "GAA",
+                null,
+                null,
+                "KPI text",
+                5m,
+                "OnTrack",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ActionItemDto>(ok.Value);
+        Assert.Equal("Beta", dto.Title);
+        Assert.Equal("OnTrack", dto.Status);
+        var reloaded = await db.ActionItems.SingleAsync(a => a.Id == persisted.Id);
+        Assert.Equal("Mitigation", reloaded.ActionType);
+        Assert.Equal(5m, reloaded.PriorityScore);
+    }
+
+    [Fact]
+    public async Task Update_action_item_rejects_invalid_action_type()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        var result = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "T",
+                null,
+                "Solar",
+                "Water",
+                null,
+                0m,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "Planned",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_action_item_rejects_invalid_status()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        var result = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "T",
+                null,
+                "Adaptation",
+                "Water",
+                null,
+                0m,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "UnknownStatus",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_action_item_rejects_negative_budget()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        var result = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "T",
+                null,
+                "Adaptation",
+                "Water",
+                null,
+                -1m,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "Planned",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_action_item_rejects_invalid_timeline()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        var start = new DateTimeOffset(2028, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var end = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var result = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "T",
+                null,
+                "Adaptation",
+                "Water",
+                null,
+                0m,
+                null,
+                start,
+                end,
+                null,
+                null,
+                "Planned",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_action_item_rejects_deleted_action()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+        persisted.IsDeleted = true;
+        _ = await db.SaveChangesAsync();
+
+        var result = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "T",
+                null,
+                "Adaptation",
+                "Water",
+                null,
+                0m,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "Planned",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Archive_action_item_sets_soft_delete_fields()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(title: "To archive"), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        var result = await new ActionItemsController().Archive(
+            persisted.Id,
+            new ArchiveActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<NoContentResult>(result);
+        var reloaded = await db.ActionItems.SingleAsync(a => a.Id == persisted.Id);
+        Assert.True(reloaded.IsDeleted);
+        Assert.NotNull(reloaded.DeletedAtUtc);
+        Assert.Equal(userId, reloaded.DeletedByUserId);
+    }
+
+    [Fact]
+    public async Task Archive_action_item_hides_action_from_plan_actions_list()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(title: "Gone"), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        _ = await new ActionItemsController().Archive(
+            persisted.Id,
+            new ArchiveActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        var listOutcome = await new GetActionItemsByPlanQuery(db, ctx).ExecuteAsync(plan.Id, CancellationToken.None);
+        Assert.True(listOutcome.IsSuccess);
+        Assert.NotNull(listOutcome.Items);
+        Assert.Empty(listOutcome.Items);
+    }
+
+    [Fact]
+    public async Task Archive_action_item_rejects_cross_tenant_action()
+    {
+        using var db = CreateDbContext();
+        var ownerAccount = Guid.NewGuid();
+        var otherAccount = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, ownerAccount);
+        var ownerCtx = new TestCurrentUserContext(ownerAccount, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ownerCtx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        var ctx = new TestCurrentUserContext(otherAccount, userId, true);
+        var result = await new ActionItemsController().Archive(
+            persisted.Id,
+            new ArchiveActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_action_item_writes_audit_log_with_old_and_new_values()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(title: "Old title"), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        _ = await new ActionItemsController().Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "New title",
+                null,
+                "Adaptation",
+                "Water",
+                null,
+                0m,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "InProgress",
+                null,
+                persisted.RowVersion.ToArray()),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        var log = await db.AuditLogs.SingleAsync(
+            a => a.EntityId == persisted.Id && a.Action == "ActionItemUpdated");
+        Assert.Equal(accountId, log.AccountId);
+        Assert.Equal(userId, log.UserId);
+        Assert.Equal("ActionItem", log.EntityName);
+        Assert.Equal("Old title", log.OldValuesJson!.RootElement.GetProperty("title").GetString());
+        Assert.Equal("New title", log.NewValuesJson!.RootElement.GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task Archive_action_item_writes_audit_log()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        _ = await new ActionItemsController().Create(plan.Id, ValidCreateBody(), new CreateActionItemCommand(db, ctx), CancellationToken.None);
+        var persisted = await db.ActionItems.SingleAsync(a => a.PlanId == plan.Id);
+
+        _ = await new ActionItemsController().Archive(
+            persisted.Id,
+            new ArchiveActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        var log = await db.AuditLogs.SingleAsync(
+            a => a.EntityId == persisted.Id && a.Action == "ActionItemArchived");
+        Assert.Equal(accountId, log.AccountId);
+        Assert.Equal(userId, log.UserId);
+        Assert.Equal("ActionItem", log.EntityName);
+        Assert.True(log.NewValuesJson!.RootElement.GetProperty("isDeleted").GetBoolean());
+    }
+
     private static CreateActionItemApiRequest ValidCreateBody(
         string title = "Action title",
         string actionType = "Adaptation",

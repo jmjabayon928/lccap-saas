@@ -32,5 +32,9 @@ export const actionClient = {
   async updateActionItem(actionItemId: string, request: UpdateActionItemRequest): Promise<SaveActionItemResult> {
     const data = await http.putJson(endpoints.actionById(actionItemId), request);
     return parseSaveActionItemResult(data);
+  },
+
+  async archiveActionItem(actionItemId: string): Promise<void> {
+    await http.deleteVoid(endpoints.archiveAction(actionItemId));
   }
 } as const;

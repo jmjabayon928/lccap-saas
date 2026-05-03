@@ -188,8 +188,10 @@ With the API running and `NEXT_PUBLIC_API_BASE_URL` set:
 3. **Create or open** a plan from **Plans**.
 4. On the **plan workspace** (`/plans/{planId}`), under **Actions**, add an **Adaptation** action (title, sector, budget, etc.) and save.
 5. Add a **Mitigation** action and confirm both appear in the **Action items** list without a full page reload.
-6. Select an action, **edit** status or other fields, save, and confirm the row updates in place.
-7. **Refresh** the workspace page and confirm actions reload from the API.
+6. In the **Action items** list, use **Edit** on a row; change title, status, budget, timeline, KPI, and other fields; **Save**, then confirm the row updates in place (and the side form stays in sync if that action was selected).
+7. **Refresh** the workspace page and confirm edited values reload from the API.
+8. Use **Archive** on an action item; confirm the prompt; the row should leave the active list immediately; **refresh** and confirm it does not reappear in the list (the row is retained server-side as archived).
+9. Under **Export draft PDF package**, run **Generate PDF draft** (and download when complete) to confirm export still works after edits and an archive.
 
 ### Manual UI check (monitoring indicators)
 
@@ -198,9 +200,11 @@ With the API running and `NEXT_PUBLIC_API_BASE_URL` set:
 1. Run the backend API, then `cd frontend` → `npm run build` → `npm start` (use another port if 3000 is busy, e.g. `$env:PORT='3010'; npm start` on Windows PowerShell).
 2. **Login**.
 3. **Create or open** a plan from **Plans** and open the **plan workspace**.
-4. Under **Monitoring indicators**, create an indicator (name, optional numeric fields, status). Confirm it appears in the list without a full page reload.
-5. **Update** progress and status on that indicator; confirm the row updates in place.
-6. **Refresh** the workspace page and confirm indicators reload from the API.
+4. Under **Monitoring indicators**, create an indicator (name, optional numeric fields, progress, frequency, responsible office, status). Confirm it appears in the list without a full page reload.
+5. In the **Monitoring indicators** list, use **Edit** on a row; change name, status, baseline, current, target, progress, frequency, and responsible office; **Save**, then confirm the row updates in place (and the side form stays in sync if that indicator was selected).
+6. **Refresh** the workspace page and confirm edited values reload from the API.
+7. Use **Archive** on an indicator; confirm the prompt; the row should leave the active list immediately; **refresh** and confirm it does not reappear in the list (the row is retained server-side as archived).
+8. Under **Export draft PDF package**, run **Generate PDF draft** (and download when complete) to confirm export still works after monitoring edits and an archive.
 
 ### Manual UI check (export PDF draft package)
 

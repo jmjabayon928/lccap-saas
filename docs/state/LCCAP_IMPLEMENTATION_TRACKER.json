@@ -755,10 +755,16 @@
             "name": "UpdateDetails",
             "kind": "domain_method",
             "status": "done",
-            "description": "Updates action title, description, type, sector, responsible office, budget, timeline, and KPI."
+            "description": "Updates action title, description, type, sector, responsible office, budget, timeline, KPI, priority, status, and audit timestamps; does not change account_id or plan_id."
+          },
+          {
+            "name": "Archive",
+            "kind": "domain_method",
+            "status": "done",
+            "description": "Soft-deletes action item (is_deleted, deleted_at, deleted_by, updated_at/by)."
           }
         ],
-        "notes": "Planned core MVP action entity."
+        "notes": "Core MVP action entity; update and archive for workspace accountability."
       },
       {
         "id": "FILE-0035",
@@ -773,10 +779,16 @@
             "name": "UpdateDefinition",
             "kind": "domain_method",
             "status": "done",
-            "description": "Updates indicator name, description, baseline, target, and unit."
+            "description": "Updates indicator name, description, baseline, target, unit, status, metadata_json, and audit timestamps."
+          },
+          {
+            "name": "Archive",
+            "kind": "domain_method",
+            "status": "done",
+            "description": "Soft-deletes indicator (is_deleted, deleted_at, deleted_by, updated_at/by)."
           }
         ],
-        "notes": "Planned monitoring entity; schema already exists."
+        "notes": "Monitoring indicator entity; update with metadata and archive for workspace accountability."
       },
       {
         "id": "FILE-0036",
@@ -1186,21 +1198,21 @@
       },
       {
         "id": "FILE-0054",
-        "path": "src/Lccap.Application/Monitoring/Commands/UpdateIndicatorCommand.cs",
+        "path": "src/Lccap.Application/Monitoring/Commands/UpdateMonitoringIndicatorCommand.cs",
         "layer": "application",
         "module": "monitoring",
         "file_type": "csharp",
         "status": "done",
-        "source": "planned_phase_2",
+        "source": "actual",
         "functions": [
           {
-            "name": "Execute",
+            "name": "ExecuteAsync",
             "kind": "command_handler",
             "status": "done",
-            "description": "Updates monitoring indicator."
+            "description": "Tenant-scoped update with validation; merges workspace fields into metadata_json; audit MonitoringIndicatorUpdated; row_version concurrency."
           }
         ],
-        "notes": ""
+        "notes": "Replaces former UpdateIndicatorCommand in-place validator; EF persistence and audit."
       },
       {
         "id": "FILE-0055",
@@ -4514,7 +4526,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Responsive table and cards; selection highlight; empty state."
+        "notes": "Responsive table and cards; selection highlight; inline edit and archive; empty state."
       },
       {
         "id": "FILE-0252",
@@ -4613,7 +4625,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Responsive table and cards; selection highlight; empty state."
+        "notes": "Responsive table and cards; selection highlight; inline edit and archive; empty state."
       },
       {
         "id": "FILE-0261",
@@ -4815,6 +4827,116 @@
         "source": "actual",
         "functions": [],
         "notes": "EF model checks for audit_logs, document soft-delete and metadata columns."
+      },
+      {
+        "id": "FILE-0280",
+        "path": "src/Lccap.Application/Actions/Commands/UpdateActionItemCommand.cs",
+        "layer": "application",
+        "module": "actions",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Tenant-scoped update with validation; audit ActionItemUpdated; concurrency via row_version."
+      },
+      {
+        "id": "FILE-0281",
+        "path": "src/Lccap.Application/Actions/Commands/ArchiveActionItemCommand.cs",
+        "layer": "application",
+        "module": "actions",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Soft-delete action item; audit ActionItemArchived; no hard delete."
+      },
+      {
+        "id": "FILE-0282",
+        "path": "frontend/components/actions/action-edit-form.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Inline edit for plan action items; PUT with rowVersion; validation aligned with API."
+      },
+      {
+        "id": "FILE-0283",
+        "path": "frontend/components/actions/action-archive-button.tsx",
+        "layer": "frontend",
+        "module": "actions",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Confirm archive; DELETE archives only; parent removes row from active list."
+      },
+      {
+        "id": "FILE-0284",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/ActionItemWorkspaceMappingTests.cs",
+        "layer": "tests",
+        "module": "actions",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping checks for action_items soft-delete and editable columns; audit_logs DbSet present."
+      },
+      {
+        "id": "FILE-0285",
+        "path": "src/Lccap.Application/Monitoring/Commands/ArchiveMonitoringIndicatorCommand.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Soft-delete monitoring indicator; audit MonitoringIndicatorArchived; does not modify monitoring_updates rows."
+      },
+      {
+        "id": "FILE-0286",
+        "path": "src/Lccap.Application/Monitoring/MonitoringIndicatorMetadataHelper.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Parse and merge metadata_json for workspace-only fields without schema changes."
+      },
+      {
+        "id": "FILE-0287",
+        "path": "frontend/components/monitoring/indicator-edit-form.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Inline list edit for indicators; PUT with rowVersion; validation aligned with API."
+      },
+      {
+        "id": "FILE-0288",
+        "path": "frontend/components/monitoring/indicator-archive-button.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Confirm archive; DELETE archives only; parent removes row from active list."
+      },
+      {
+        "id": "FILE-0289",
+        "path": "tests/Lccap.Infrastructure.Tests/Persistence/MonitoringWorkspaceMappingTests.cs",
+        "layer": "tests",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping checks for monitoring_indicators soft-delete and editable columns; MonitoringUpdate FK; audit_logs."
       }
     ]
   }

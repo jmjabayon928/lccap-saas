@@ -70,7 +70,6 @@ public sealed class ActionItem : BaseEntity
         string? kpi,
         decimal? priorityScore,
         string status,
-        JsonDocument metadataJson,
         Guid updatedByUserId,
         DateTimeOffset updatedAtUtc)
     {
@@ -86,8 +85,16 @@ public sealed class ActionItem : BaseEntity
         Kpi = kpi;
         PriorityScore = priorityScore;
         Status = status;
-        MetadataJson = metadataJson;
         UpdatedAtUtc = updatedAtUtc;
         UpdatedByUserId = updatedByUserId;
+    }
+
+    public void Archive(DateTimeOffset archivedAtUtc, Guid deletedByUserId)
+    {
+        IsDeleted = true;
+        DeletedAtUtc = archivedAtUtc;
+        DeletedByUserId = deletedByUserId;
+        UpdatedAtUtc = archivedAtUtc;
+        UpdatedByUserId = deletedByUserId;
     }
 }

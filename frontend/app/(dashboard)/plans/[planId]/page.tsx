@@ -310,6 +310,16 @@ export default function PlanWorkspacePage() {
     });
   }
 
+  function handleActionArchived(actionItemId: string): void {
+    setActionsState((s) => {
+      if (s.status !== "ready") {
+        return s;
+      }
+      return { status: "ready", items: s.items.filter((x) => x.id !== actionItemId) };
+    });
+    setSelectedActionId((prev) => (prev === actionItemId ? null : prev));
+  }
+
   function handleIndicatorSaved(saved: MonitoringIndicatorSummary): void {
     setMonitoringState((s) => {
       if (s.status !== "ready") {
@@ -323,6 +333,16 @@ export default function PlanWorkspacePage() {
       }
       return { status: "ready", items: sortIndicatorsNewestFirst([saved, ...s.items]) };
     });
+  }
+
+  function handleIndicatorArchived(indicatorId: string): void {
+    setMonitoringState((s) => {
+      if (s.status !== "ready") {
+        return s;
+      }
+      return { status: "ready", items: s.items.filter((x) => x.id !== indicatorId) };
+    });
+    setSelectedIndicatorId((prev) => (prev === indicatorId ? null : prev));
   }
 
   const selectedActionForForm =
@@ -504,6 +524,8 @@ export default function PlanWorkspacePage() {
                   items={actionsState.items}
                   selectedId={selectedActionId}
                   onSelect={(id) => setSelectedActionId(id)}
+                  onActionUpdated={handleActionSaved}
+                  onActionArchived={handleActionArchived}
                 />
               </div>
             ) : null}
@@ -560,6 +582,8 @@ export default function PlanWorkspacePage() {
                   indicators={monitoringState.items}
                   selectedId={selectedIndicatorId}
                   onSelect={(id) => setSelectedIndicatorId(id)}
+                  onIndicatorUpdated={handleIndicatorSaved}
+                  onIndicatorArchived={handleIndicatorArchived}
                 />
               </div>
             ) : null}

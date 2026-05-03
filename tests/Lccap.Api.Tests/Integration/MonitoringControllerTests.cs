@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Monitoring.Commands;
@@ -6,6 +7,7 @@ using Lccap.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Lccap.Api.Tests.Integration;
 
@@ -45,6 +47,9 @@ public sealed class MonitoringControllerTests
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(StatusCodes.Status200OK, ok.StatusCode ?? StatusCodes.Status200OK);
         Assert.Equal(1, await dbContext.MonitoringIndicators.CountAsync());
+        var body = Assert.IsType<MonitoringController.IndicatorResponse>(ok.Value);
+        Assert.Equal("Households reached", body.Name);
+        Assert.False(string.IsNullOrEmpty(body.RowVersion));
     }
 
     [Fact]
@@ -84,7 +89,7 @@ public sealed class MonitoringControllerTests
     }
 
     [Fact]
-    public async Task UpdateIndicator_WithinSameAccount_Succeeds()
+    public async Task Update_monitoring_indicator_updates_allowed_fields_and_returns_updated_indicator()
     {
         var accountId = Guid.NewGuid();
         var planId = Guid.NewGuid();
@@ -112,7 +117,7 @@ public sealed class MonitoringControllerTests
         currentUser.AccountId = accountId;
         currentUser.UserId = Guid.NewGuid();
         currentUser.IsAuthenticated = true;
-        var command = new UpdateIndicatorCommand();
+        var updateCommand = new UpdateMonitoringIndicatorCommand(dbContext, currentUser);
 
         var result = await controller.UpdateIndicator(
             indicatorId,
@@ -123,16 +128,21 @@ public sealed class MonitoringControllerTests
                 2m,
                 "pct",
                 "OnTrack",
-                currentVersion),
-            command,
-            dbContext,
+                null,
+                null,
+                null,
+                null,
+                RowVersion: currentVersion),
+            updateCommand,
             currentUser,
             CancellationToken.None);
 
-        Assert.IsType<OkObjectResult>(result);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<MonitoringController.IndicatorResponse>(ok.Value);
+        Assert.Equal("After", body.Name);
+        Assert.Equal("OnTrack", body.Status);
         var updated = await dbContext.MonitoringIndicators.SingleAsync(x => x.Id == indicatorId);
         Assert.Equal("After", updated.Name);
-        Assert.Equal("OnTrack", updated.Status);
     }
 
     [Fact]
@@ -267,6 +277,410 @@ public sealed class MonitoringControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    [Fact]
+    public async Task Update_monitoring_indicator_rejects_blank_name()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var row = await db.MonitoringIndicators.SingleAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true };
+        var cmd = new UpdateMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).UpdateIndicator(
+            id,
+            new MonitoringController.UpdateIndicatorRequest("   ", null, null, null, null, "NotStarted", RowVersion: Convert.ToBase64String(row.RowVersion)),
+            cmd,
+            ctx,
+            CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_monitoring_indicator_rejects_invalid_status()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var row = await db.MonitoringIndicators.SingleAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true };
+        var cmd = new UpdateMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).UpdateIndicator(
+            id,
+            new MonitoringController.UpdateIndicatorRequest("N", null, null, null, null, "Bad", RowVersion: Convert.ToBase64String(row.RowVersion)),
+            cmd,
+            ctx,
+            CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_monitoring_indicator_rejects_invalid_progress_percent_if_supported()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var row = await db.MonitoringIndicators.SingleAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true };
+        var cmd = new UpdateMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).UpdateIndicator(
+            id,
+            new MonitoringController.UpdateIndicatorRequest(
+                "N",
+                null,
+                null,
+                null,
+                null,
+                "NotStarted",
+                null,
+                101m,
+                null,
+                null,
+                RowVersion: Convert.ToBase64String(row.RowVersion)),
+            cmd,
+            ctx,
+            CancellationToken.None);
+
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("Progress", bad.Value?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Update_monitoring_indicator_rejects_cross_tenant_indicator()
+    {
+        await using var db = CreateDbContext();
+        var owner = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, owner, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = owner,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var row = await db.MonitoringIndicators.SingleAsync();
+        var ctx = new TestCurrentUserContext { AccountId = other, UserId = Guid.NewGuid(), IsAuthenticated = true };
+        var cmd = new UpdateMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).UpdateIndicator(
+            id,
+            new MonitoringController.UpdateIndicatorRequest("X", null, null, null, null, "NotStarted", RowVersion: Convert.ToBase64String(row.RowVersion)),
+            cmd,
+            ctx,
+            CancellationToken.None);
+
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_monitoring_indicator_rejects_deleted_indicator()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = true,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var row = await db.MonitoringIndicators.SingleAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true };
+        var cmd = new UpdateMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).UpdateIndicator(
+            id,
+            new MonitoringController.UpdateIndicatorRequest("X", null, null, null, null, "NotStarted", RowVersion: Convert.ToBase64String(row.RowVersion)),
+            cmd,
+            ctx,
+            CancellationToken.None);
+
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Archive_monitoring_indicator_sets_soft_delete_fields()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Arch",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = userId, IsAuthenticated = true };
+        var archive = new ArchiveMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).ArchiveIndicator(id, archive, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+        var reloaded = await db.MonitoringIndicators.SingleAsync(x => x.Id == id);
+        Assert.True(reloaded.IsDeleted);
+        Assert.NotNull(reloaded.DeletedAtUtc);
+        Assert.Equal(userId, reloaded.DeletedByUserId);
+    }
+
+    [Fact]
+    public async Task Archive_monitoring_indicator_hides_indicator_from_plan_indicators_list()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Gone",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = userId, IsAuthenticated = true };
+        var archive = new ArchiveMonitoringIndicatorCommand(db, ctx);
+
+        _ = await CreateController(out var _).ArchiveIndicator(id, archive, CancellationToken.None);
+
+        var list = await CreateController(out var _).GetIndicators(planId, db, ctx, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(list);
+        var payload = Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(ok.Value);
+        Assert.Empty(payload);
+    }
+
+    [Fact]
+    public async Task Archive_monitoring_indicator_rejects_cross_tenant_indicator()
+    {
+        await using var db = CreateDbContext();
+        var owner = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, owner, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = owner,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var ctx = new TestCurrentUserContext { AccountId = other, UserId = userId, IsAuthenticated = true };
+        var archive = new ArchiveMonitoringIndicatorCommand(db, ctx);
+
+        var result = await CreateController(out var _).ArchiveIndicator(id, archive, CancellationToken.None);
+
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Archive_monitoring_indicator_does_not_delete_monitoring_updates()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var indicatorId = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "With update",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        var updateId = Guid.NewGuid();
+        db.MonitoringUpdates.Add(new MonitoringUpdate
+        {
+            Id = updateId,
+            AccountId = accountId,
+            MonitoringIndicatorId = indicatorId,
+            PeriodLabel = "Q1",
+            Status = "NotStarted",
+            ReportedAtUtc = DateTimeOffset.UtcNow,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        });
+        await db.SaveChangesAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = userId, IsAuthenticated = true };
+        var archive = new ArchiveMonitoringIndicatorCommand(db, ctx);
+
+        _ = await CreateController(out var _).ArchiveIndicator(indicatorId, archive, CancellationToken.None);
+
+        Assert.Equal(1, await db.MonitoringUpdates.CountAsync(u => u.Id == updateId));
+    }
+
+    [Fact]
+    public async Task Update_monitoring_indicator_writes_audit_log_with_old_and_new_values()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Old",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var row = await db.MonitoringIndicators.SingleAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = userId, IsAuthenticated = true };
+        var cmd = new UpdateMonitoringIndicatorCommand(db, ctx);
+
+        _ = await CreateController(out var _).UpdateIndicator(
+            id,
+            new MonitoringController.UpdateIndicatorRequest("New", null, null, null, null, "InProgress", RowVersion: Convert.ToBase64String(row.RowVersion)),
+            cmd,
+            ctx,
+            CancellationToken.None);
+
+        var log = await db.AuditLogs.SingleAsync(a => a.EntityId == id && a.Action == "MonitoringIndicatorUpdated");
+        Assert.Equal(accountId, log.AccountId);
+        Assert.Equal(userId, log.UserId);
+        Assert.Equal("MonitoringIndicator", log.EntityName);
+        Assert.Equal("Old", log.OldValuesJson!.RootElement.GetProperty("name").GetString());
+        Assert.Equal("New", log.NewValuesJson!.RootElement.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task Archive_monitoring_indicator_writes_audit_log()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await SeedPlanAsync(db, accountId, planId);
+        var id = Guid.NewGuid();
+        db.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = id,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "N",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await db.SaveChangesAsync();
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = userId, IsAuthenticated = true };
+        var archive = new ArchiveMonitoringIndicatorCommand(db, ctx);
+
+        _ = await CreateController(out var _).ArchiveIndicator(id, archive, CancellationToken.None);
+
+        var log = await db.AuditLogs.SingleAsync(a => a.EntityId == id && a.Action == "MonitoringIndicatorArchived");
+        Assert.Equal(accountId, log.AccountId);
+        Assert.Equal(userId, log.UserId);
+        Assert.Equal("MonitoringIndicator", log.EntityName);
+        Assert.True(log.NewValuesJson!.RootElement.GetProperty("isDeleted").GetBoolean());
+    }
+
     private static MonitoringController CreateController(out TestCurrentUserContext currentUser)
     {
         currentUser = new TestCurrentUserContext();
@@ -276,9 +690,9 @@ public sealed class MonitoringControllerTests
     private static LccapDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<LccapDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .UseInMemoryDatabase($"monitoring-tests-{Guid.NewGuid():N}")
             .Options;
-        return new TestLccapDbContext(options);
+        return new MonitoringControllerTestDbContext(options);
     }
 
     private static async Task SeedPlanAsync(LccapDbContext dbContext, Guid accountId, Guid planId)
@@ -309,49 +723,28 @@ public sealed class MonitoringControllerTests
         public bool IsAuthenticated { get; set; }
     }
 
-    private sealed class TestLccapDbContext : LccapDbContext
+    private sealed class MonitoringControllerTestDbContext : LccapDbContext
     {
-        public TestLccapDbContext(DbContextOptions<LccapDbContext> options)
+        public MonitoringControllerTestDbContext(DbContextOptions<LccapDbContext> options)
             : base(options)
         {
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Ignore<Account>();
-            modelBuilder.Ignore<User>();
-            modelBuilder.Ignore<TenantSetting>();
-            modelBuilder.Ignore<AuditLog>();
-            modelBuilder.Ignore<Role>();
-            modelBuilder.Ignore<Permission>();
-            modelBuilder.Ignore<UserRole>();
-            modelBuilder.Ignore<RolePermission>();
-            modelBuilder.Ignore<PlanSection>();
-            modelBuilder.Ignore<FileAsset>();
-            modelBuilder.Ignore<Document>();
-            modelBuilder.Ignore<MonitoringUpdate>();
-            modelBuilder.Ignore<ActionItem>();
+            base.OnModelCreating(modelBuilder);
 
-            _ = modelBuilder.Entity<Plan>(builder =>
-            {
-                _ = builder.HasKey(e => e.Id);
-                _ = builder.Property(e => e.Id);
-                _ = builder.Property(e => e.AccountId).IsRequired();
-                _ = builder.Property(e => e.Title).IsRequired();
-                _ = builder.Property(e => e.StartYear).IsRequired();
-                _ = builder.Property(e => e.EndYear).IsRequired();
-                _ = builder.Property(e => e.Status).IsRequired();
-                _ = builder.Property(e => e.TemplateMode).IsRequired();
-                _ = builder.Property(e => e.VersionNumber).IsRequired();
-                _ = builder.Property(e => e.IsDeleted).IsRequired();
-                _ = builder.Property(e => e.RowVersion).IsConcurrencyToken();
-            });
+            var jsonConverter = new ValueConverter<JsonDocument?, string?>(
+                value => value == null ? null : value.RootElement.GetRawText(),
+                value => value == null ? null : JsonDocument.Parse(value, new JsonDocumentOptions()));
 
-            _ = modelBuilder.Entity<MonitoringIndicator>(builder =>
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
-                _ = builder.HasKey(e => e.Id);
-                _ = builder.Property(e => e.RowVersion).IsConcurrencyToken();
-            });
+                foreach (var property in entityType.GetProperties().Where(p => p.ClrType == typeof(JsonDocument)))
+                {
+                    property.SetValueConverter(jsonConverter);
+                }
+            }
         }
     }
 }

@@ -106,6 +106,22 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Audit** — successful metadata updates and archives write **`audit_logs`** rows (`DocumentMetadataUpdated`, `DocumentArchived`) with tenant and user linkage and JSON snapshots for accountability.
 - **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
 
+## Action items — update, archive, and audit (MVP)
+
+- **`PUT /api/actions/{actionItemId}`** updates allowed catalog-style fields on the **action item** row only; `account_id` and `plan_id` are not accepted from the client.
+- **`DELETE /api/actions/{actionItemId}`** archives the **action item** row only (soft delete: `is_deleted` and related columns). There is **no** hard delete or purge in this MVP slice.
+- **Active lists** — plan-scoped action lists return only rows where `is_deleted` is false; archived rows stay out of the LGU workspace list.
+- **Audit** — successful updates and archives write **`audit_logs`** rows (`ActionItemUpdated`, `ActionItemArchived`) with tenant and user linkage and JSON snapshots for accountability.
+- **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
+
+## Monitoring indicators — update, archive, and audit (MVP)
+
+- **`PUT /api/monitoring/indicators/{indicatorId}`** updates allowed fields on the **monitoring indicator** row; extended workspace fields that are not table columns are stored in **`metadata_json`** using the existing app convention (`currentValue`, `progressPercent`, `frequency`, `responsibleOffice`). `account_id` and `plan_id` are not accepted from the client.
+- **`DELETE /api/monitoring/indicators/{indicatorId}`** archives the **monitoring indicator** row only (soft delete: `is_deleted` and related columns). It is **not** a physical purge; **`monitoring_updates`** rows are not modified or hard-deleted by this handler.
+- **Active lists** — plan-scoped indicator lists return only rows where `is_deleted` is false.
+- **Audit** — successful updates and archives write **`audit_logs`** rows (`MonitoringIndicatorUpdated`, `MonitoringIndicatorArchived`) with tenant and user linkage and JSON snapshots for accountability.
+- **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
+
 ## Frontend uploads — hardening (directional)
 
 - Content validation beyond extension (magic-bytes / MIME sniffing), antivirus scanning, asynchronous malware pipelines, per-tenant quotas, and **signed URLs** or gateway-controlled downloads from object storage instead of exposing internal paths.

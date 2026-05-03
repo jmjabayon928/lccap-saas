@@ -58,6 +58,7 @@ public sealed class MonitoringIndicator : BaseEntity
         decimal? targetValue,
         string? unit,
         string status,
+        string metadataJson,
         Guid? updatedByUserId,
         DateTimeOffset updatedAtUtc)
     {
@@ -71,14 +72,26 @@ public sealed class MonitoringIndicator : BaseEntity
             throw new ArgumentException("Indicator status is invalid.", nameof(status));
         }
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(metadataJson);
+
         Name = name.Trim();
         Description = description;
         BaselineValue = baselineValue;
         TargetValue = targetValue;
         Unit = unit;
         Status = status;
+        MetadataJson = metadataJson;
         UpdatedByUserId = updatedByUserId;
         UpdatedAtUtc = updatedAtUtc;
+    }
+
+    public void Archive(DateTimeOffset atUtc, Guid deletedByUserId)
+    {
+        IsDeleted = true;
+        DeletedAtUtc = atUtc;
+        DeletedByUserId = deletedByUserId;
+        UpdatedAtUtc = atUtc;
+        UpdatedByUserId = deletedByUserId;
     }
 
     public static bool IsValidStatus(string status)

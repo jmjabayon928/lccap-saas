@@ -1,8 +1,8 @@
-using Lccap.Application.Monitoring.Commands;
+using System.Security.Cryptography;
 using Lccap.Application.Common.Interfaces;
-using Lccap.Application.Monitoring.Queries;
+using Lccap.Application.Monitoring;
+using Lccap.Application.Monitoring.Commands;
 using Lccap.Domain.Entities;
-using Lccap.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,7 +16,7 @@ public sealed class MonitoringController : ControllerBase
     public async Task<IActionResult> CreateIndicator(
         [FromBody] CreateIndicatorRequest request,
         [FromServices] CreateIndicatorCommand command,
-        [FromServices] LccapDbContext dbContext,
+        [FromServices] ILccapDbContext dbContext,
         [FromServices] ICurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
@@ -28,6 +28,11 @@ public sealed class MonitoringController : ControllerBase
         if (!IsValidStatus(request.Status))
         {
             return BadRequest("Indicator status is invalid.");
+        }
+
+        if (request.ProgressPercent is < 0m or > 100m)
+        {
+            return BadRequest("Progress percent must be between 0 and 100 when provided.");
         }
 
         var accountId = currentUser.AccountId;
@@ -62,6 +67,13 @@ public sealed class MonitoringController : ControllerBase
             return NotFound("Plan not found for the current account.");
         }
 
+        var mergedMetadata = MonitoringIndicatorMetadataHelper.Merge(
+            normalized.MetadataJson,
+            request.CurrentValue,
+            request.ProgressPercent,
+            request.Frequency,
+            request.ResponsibleOffice);
+
         var indicator = new MonitoringIndicator
         {
             AccountId = normalized.AccountId,
@@ -73,24 +85,25 @@ public sealed class MonitoringController : ControllerBase
             TargetValue = normalized.TargetValue,
             Unit = normalized.Unit,
             Status = normalized.Status,
-            MetadataJson = normalized.MetadataJson,
+            MetadataJson = mergedMetadata,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedByUserId = currentUser.UserId,
-            IsDeleted = false
+            IsDeleted = false,
+            RowVersion = new byte[8]
         };
+        RandomNumberGenerator.Fill(indicator.RowVersion);
 
         _ = dbContext.MonitoringIndicators.Add(indicator);
         _ = await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(new { indicator.Id, RowVersion = Convert.ToBase64String(indicator.RowVersion) });
+        return Ok(ToIndicatorResponse(indicator));
     }
 
     [HttpPut("indicators/{indicatorId:guid}")]
     public async Task<IActionResult> UpdateIndicator(
         Guid indicatorId,
         [FromBody] UpdateIndicatorRequest request,
-        [FromServices] UpdateIndicatorCommand command,
-        [FromServices] LccapDbContext dbContext,
+        [FromServices] UpdateMonitoringIndicatorCommand command,
         [FromServices] ICurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
@@ -104,7 +117,10 @@ public sealed class MonitoringController : ControllerBase
             return BadRequest("Indicator status is invalid.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.RowVersionBase64))
+        var rowVersionText = !string.IsNullOrWhiteSpace(request.RowVersion)
+            ? request.RowVersion
+            : request.RowVersionBase64;
+        if (string.IsNullOrWhiteSpace(rowVersionText))
         {
             return BadRequest("Row version is required.");
         }
@@ -112,72 +128,70 @@ public sealed class MonitoringController : ControllerBase
         byte[] rowVersion;
         try
         {
-            rowVersion = Convert.FromBase64String(request.RowVersionBase64);
+            rowVersion = Convert.FromBase64String(rowVersionText);
         }
         catch (FormatException)
         {
             return BadRequest("Row version is invalid.");
         }
 
-        var accountId = currentUser.AccountId;
-        if (accountId is null)
+        if (currentUser.AccountId is null || currentUser.UserId is null)
         {
             return Unauthorized("Authenticated account context is required.");
         }
 
-        var normalized = command.Execute(
-            new UpdateIndicatorCommand.Request(
-                accountId.Value,
+        var outcome = await command.ExecuteAsync(
+            new UpdateMonitoringIndicatorCommand.Request(
                 indicatorId,
                 request.Name,
                 request.Description,
+                request.Unit,
                 request.BaselineValue,
                 request.TargetValue,
-                request.Unit,
+                request.CurrentValue,
+                request.ProgressPercent,
+                request.Frequency,
+                request.ResponsibleOffice,
                 request.Status,
-                currentUser.UserId,
-                rowVersion));
+                rowVersion),
+            cancellationToken);
 
-        var indicator = await dbContext.MonitoringIndicators
-            .FirstOrDefaultAsync(
-                i => i.Id == indicatorId
-                    && i.AccountId == accountId.Value
-                    && !i.IsDeleted,
-                cancellationToken);
-
-        if (indicator is null)
+        return outcome.Outcome switch
         {
-            return NotFound("Indicator not found for the current account.");
-        }
+            UpdateMonitoringIndicatorCommand.Outcome.Success when outcome.Indicator is not null =>
+                Ok(ToIndicatorResponse(outcome.Indicator)),
+            UpdateMonitoringIndicatorCommand.Outcome.NotFound => NotFound("Indicator not found for the current account."),
+            UpdateMonitoringIndicatorCommand.Outcome.Unauthorized =>
+                Unauthorized("Authenticated account context is required."),
+            UpdateMonitoringIndicatorCommand.Outcome.Concurrency =>
+                BadRequest("Indicator was updated by another request."),
+            UpdateMonitoringIndicatorCommand.Outcome.ValidationFailed =>
+                BadRequest(outcome.ValidationMessage ?? "Validation failed."),
+            _ => BadRequest("Could not update indicator."),
+        };
+    }
 
-        dbContext.Entry(indicator).Property(i => i.RowVersion).OriginalValue = normalized.RowVersion;
-
-        indicator.UpdateDefinition(
-            normalized.Name,
-            normalized.Description,
-            normalized.BaselineValue,
-            normalized.TargetValue,
-            normalized.Unit,
-            normalized.Status,
-            normalized.UserId,
-            DateTimeOffset.UtcNow);
-
-        try
+    [HttpDelete("indicators/{indicatorId:guid}")]
+    public async Task<IActionResult> ArchiveIndicator(
+        Guid indicatorId,
+        [FromServices] ArchiveMonitoringIndicatorCommand command,
+        CancellationToken cancellationToken)
+    {
+        var outcome = await command.ExecuteAsync(indicatorId, cancellationToken);
+        return outcome.Outcome switch
         {
-            _ = await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return BadRequest("Indicator was updated by another request.");
-        }
-
-        return Ok(new { RowVersion = Convert.ToBase64String(indicator.RowVersion) });
+            ArchiveMonitoringIndicatorCommand.Outcome.Success => NoContent(),
+            ArchiveMonitoringIndicatorCommand.Outcome.NotFound => NotFound("Indicator not found for the current account."),
+            ArchiveMonitoringIndicatorCommand.Outcome.Unauthorized =>
+                Unauthorized("Authenticated account context is required."),
+            _ => NotFound("Indicator not found for the current account."),
+        };
     }
 
     [HttpGet("plans/{planId:guid}/indicators")]
     public async Task<IActionResult> GetIndicators(
         Guid planId,
-        [FromServices] LccapDbContext dbContext,
+        [FromServices] ILccapDbContext dbContext,
         [FromServices] ICurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
@@ -200,47 +214,42 @@ public sealed class MonitoringController : ControllerBase
             return NotFound("Plan not found for the current account.");
         }
 
-        var results = await dbContext.MonitoringIndicators
+        var rows = await dbContext.MonitoringIndicators
             .AsNoTracking()
             .Where(i => i.AccountId == accountId.Value && i.PlanId == planId && !i.IsDeleted)
             .OrderBy(i => i.Name)
-            .Select(i => new GetIndicatorsQuery.Result(
-                i.Id,
-                i.AccountId,
-                i.PlanId,
-                i.ActionItemId,
-                i.Name,
-                i.Description,
-                i.BaselineValue,
-                i.TargetValue,
-                i.Unit,
-                i.Status,
-                i.MetadataJson,
-                i.CreatedAtUtc,
-                i.UpdatedAtUtc,
-                i.RowVersion))
             .ToListAsync(cancellationToken);
 
-        return Ok(results.Select(r => new IndicatorResponse(
-            r.Id,
-            r.AccountId,
-            r.PlanId,
-            r.ActionItemId,
-            r.Name,
-            r.Description,
-            r.BaselineValue,
-            r.TargetValue,
-            r.Unit,
-            r.Status,
-            r.MetadataJson,
-            r.CreatedAtUtc,
-            r.UpdatedAtUtc,
-            Convert.ToBase64String(r.RowVersion))));
+        return Ok(rows.Select(ToIndicatorResponse));
     }
 
     private static bool IsValidStatus(string status)
     {
         return status is "NotStarted" or "InProgress" or "OnTrack" or "Delayed" or "Completed";
+    }
+
+    private static IndicatorResponse ToIndicatorResponse(MonitoringIndicator i)
+    {
+        var m = MonitoringIndicatorMetadataHelper.Parse(i.MetadataJson);
+        return new IndicatorResponse(
+            i.Id,
+            i.AccountId,
+            i.PlanId,
+            i.ActionItemId,
+            i.Name,
+            i.Description,
+            i.BaselineValue,
+            i.TargetValue,
+            i.Unit,
+            i.Status,
+            i.MetadataJson,
+            m.CurrentValue,
+            m.ProgressPercent,
+            m.Frequency,
+            m.ResponsibleOffice,
+            i.CreatedAtUtc,
+            i.UpdatedAtUtc,
+            RowVersion: Convert.ToBase64String(i.RowVersion));
     }
 
     public sealed record CreateIndicatorRequest(
@@ -252,7 +261,11 @@ public sealed class MonitoringController : ControllerBase
         decimal? TargetValue,
         string? Unit,
         string Status,
-        string? MetadataJson);
+        string? MetadataJson,
+        decimal? CurrentValue = null,
+        decimal? ProgressPercent = null,
+        string? Frequency = null,
+        string? ResponsibleOffice = null);
 
     public sealed record UpdateIndicatorRequest(
         string Name,
@@ -261,7 +274,12 @@ public sealed class MonitoringController : ControllerBase
         decimal? TargetValue,
         string? Unit,
         string Status,
-        string RowVersionBase64);
+        decimal? CurrentValue = null,
+        decimal? ProgressPercent = null,
+        string? Frequency = null,
+        string? ResponsibleOffice = null,
+        string? RowVersion = null,
+        string? RowVersionBase64 = null);
 
     public sealed record IndicatorResponse(
         Guid Id,
@@ -275,7 +293,11 @@ public sealed class MonitoringController : ControllerBase
         string? Unit,
         string Status,
         string MetadataJson,
+        decimal? CurrentValue,
+        decimal? ProgressPercent,
+        string? Frequency,
+        string? ResponsibleOffice,
         DateTimeOffset CreatedAtUtc,
         DateTimeOffset? UpdatedAtUtc,
-        string RowVersionBase64);
+        string RowVersion);
 }

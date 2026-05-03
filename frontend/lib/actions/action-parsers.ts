@@ -90,8 +90,16 @@ function parseActionRecord(raw: Record<string, unknown>): ActionItemDetail | nul
   const statusRaw = raw.status;
   const createdAtUtc = nullableString(raw.createdAtUtc);
   const updatedAtUtc = nullableString(raw.updatedAtUtc);
+  const rowVersionRaw = raw.rowVersion;
 
-  if (!isNonEmptyString(idRaw) || !isNonEmptyString(planId) || !isNonEmptyString(title) || !isNonEmptyString(sector)) {
+  if (
+    !isNonEmptyString(idRaw) ||
+    !isNonEmptyString(planId) ||
+    !isNonEmptyString(title) ||
+    !isNonEmptyString(sector) ||
+    typeof rowVersionRaw !== "string" ||
+    !rowVersionRaw.trim()
+  ) {
     return null;
   }
   if (!isFiniteNumber(budgetAmount) || budgetAmount < 0) {
@@ -107,13 +115,14 @@ function parseActionRecord(raw: Record<string, unknown>): ActionItemDetail | nul
     return null;
   }
 
-  if (priorityScore !== null && priorityScore < 0) {
+  if (priorityScore !== null && (priorityScore < 0 || priorityScore > 100)) {
     return null;
   }
 
   return {
     id: idRaw,
     planId,
+    rowVersion: rowVersionRaw.trim(),
     title,
     description,
     actionType,
