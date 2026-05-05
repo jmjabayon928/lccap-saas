@@ -13,13 +13,13 @@
       ]
     },
   
-    "current_state": {
-      "phase": "MVP",
-      "active_module": "Infrastructure",
-      "active_task": "Fix runtime readiness blockers (CORS, JsonDocument, Port alignment)",
-      "status": "done"
-    },
-  
+  "current_state": {
+    "phase": "MVP",
+    "active_module": "Audit",
+    "active_task": "Audit Log Viewer for LGU Admin",
+    "status": "done"
+  },
+
     "files": [
       {
         "id": "FILE-0001",
@@ -1052,6 +1052,29 @@
           }
         ],
         "notes": "Default implementation; may use HttpContext in API layer."
+      },
+      {
+        "id": "FILE-0100",
+        "path": "src/Lccap.Application/Common/Concurrency/RowVersionHelper.cs",
+        "layer": "application",
+        "module": "common",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "IsMissingOrEmpty",
+            "kind": "method",
+            "status": "done",
+            "description": "Checks if row version is null or empty"
+          },
+          {
+            "name": "NewRowVersion",
+            "kind": "method",
+            "status": "done",
+            "description": "Generates a new random 8-byte row version"
+          }
+        ]
       },
       {
         "id": "FILE-0048",
@@ -4328,7 +4351,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "PUT save with validation; success and typed errors."
+        "notes": "PUT save with validation; success and typed errors; integrates revision history and restore."
       },
       {
         "id": "FILE-0234",
@@ -4937,6 +4960,259 @@
         "source": "actual",
         "functions": [],
         "notes": "EF mapping checks for monitoring_indicators soft-delete and editable columns; MonitoringUpdate FK; audit_logs."
+      },
+      {
+        "id": "FILE-0290",
+        "path": "src/Lccap.Application/Plans/Commands/ArchivePlanCommand.cs",
+        "layer": "application",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Soft-delete plan; audit PlanArchived; hides from active lists."
+      },
+      {
+        "id": "FILE-0291",
+        "path": "frontend/components/plans/plan-metadata-edit-form.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Edit plan metadata; PUT with rowVersion; handles null rowVersion with user-facing refresh error."
+      },
+      {
+        "id": "FILE-0292",
+        "path": "frontend/components/plans/plan-archive-button.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Confirm archive; DELETE archives only; requires ARCHIVE confirmation text."
+      },
+      {
+        "id": "FILE-0293",
+        "path": "frontend/components/plans/existing-plans-list.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Fetch full plan detail before opening edit form to ensure latest rowVersion concurrency token."
+      },
+      {
+        "id": "FILE-0294",
+        "path": "frontend/components/plans/plan-summary-card.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Workspace plan summary; handles legacy records missing rowVersion by prompting for refresh."
+      },
+      {
+        "id": "FILE-0295",
+        "path": "src/Lccap.Application/Sections/Queries/GetPlanSectionHistoryQuery.cs",
+        "layer": "application",
+        "module": "plan_sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Fetch section revision history from audit_logs; tenant-scoped; newest first."
+      },
+      {
+        "id": "FILE-0296",
+        "path": "src/Lccap.Application/Sections/Commands/RestorePlanSectionCommand.cs",
+        "layer": "application",
+        "module": "plan_sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Restore section title/content from audit log snapshot; tenant-scoped; writes PlanSectionRestored audit log."
+      },
+      {
+        "id": "FILE-0297",
+        "path": "frontend/components/plans/section-history-panel.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Sheet panel showing section revision history; newest first; restore trigger."
+      },
+      {
+        "id": "FILE-0298",
+        "path": "frontend/components/plans/section-restore-button.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Confirmation dialog for section restore; optional reason; triggers API restore."
+      },
+      {
+        "id": "FILE-0299",
+        "path": "src/Lccap.Application/Sections/Commands/SavePlanSectionCommand.cs",
+        "layer": "application",
+        "module": "plan_sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Save section content; tenant-scoped; writes PlanSectionUpdated audit log; skips no-op saves."
+      },
+      {
+        "id": "FILE-0300",
+        "path": "src/Lccap.Api/Auth/WorkspaceRoles.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Role constants for LGU workspace (Admin, Planner, Reviewer, Viewer, etc.)."
+      },
+      {
+        "id": "FILE-0301",
+        "path": "src/Lccap.Api/Auth/WorkspaceAuthorizationPolicy.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Centralized RBAC policy logic for Read, CreateOrEdit, Restore, Export, and Archive."
+      },
+      {
+        "id": "FILE-0302",
+        "path": "src/Lccap.Api/Auth/RequireWorkspaceRoleAttribute.cs",
+        "layer": "api",
+        "module": "auth",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Authorization filter attribute for declarative RBAC enforcement in controllers."
+      },
+      {
+        "id": "FILE-0303",
+        "path": "src/Lccap.Application/Audit/Queries/GetAuditLogsQuery.cs",
+        "layer": "application",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Paged audit log query; tenant-scoped; newest first; includes user summary."
+      },
+      {
+        "id": "FILE-0304",
+        "path": "src/Lccap.Api/Controllers/AuditLogsController.cs",
+        "layer": "api",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Audit log API; Admin/Reviewer only; tenant-scoped."
+      },
+      {
+        "id": "FILE-0305",
+        "path": "tests/Lccap.Api.Tests/Integration/AuditLogsControllerTests.cs",
+        "layer": "test",
+        "module": "audit",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Integration tests for audit log RBAC, tenant scoping, and filtering."
+      },
+      {
+        "id": "FILE-0306",
+        "path": "frontend/types/audit.ts",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Types for audit log items, paged results, and filters."
+      },
+      {
+        "id": "FILE-0307",
+        "path": "frontend/lib/audit/audit-parsers.ts",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Parsers for audit log API responses; validates required fields; handles JSON safely."
+      },
+      {
+        "id": "FILE-0308",
+        "path": "frontend/lib/audit/audit-client.ts",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Client for audit log API; handles query parameters."
+      },
+      {
+        "id": "FILE-0309",
+        "path": "frontend/app/(dashboard)/audit/page.tsx",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Audit history page; Admin/Reviewer only; shows list and filters."
+      },
+      {
+        "id": "FILE-0310",
+        "path": "frontend/components/audit/audit-log-list.tsx",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Table showing audit records; timestamp, action, entity, user."
+      },
+      {
+        "id": "FILE-0311",
+        "path": "frontend/components/audit/audit-log-filters.tsx",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Filters for audit history; entity, action, date range."
+      },
+      {
+        "id": "FILE-0312",
+        "path": "frontend/components/audit/audit-log-detail.tsx",
+        "layer": "frontend",
+        "module": "audit",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Detail view for an audit record; shows old/new values and metadata."
       }
     ]
   }

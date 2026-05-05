@@ -82,6 +82,7 @@ public sealed class CreatePlanCommand
             UpdatedByUserId = _currentUserContext.UserId,
             IsDeleted = false,
         };
+        plan.EnsureRowVersion();
 
         _ = _dbContext.Plans.Add(plan);
         AddDefaultPlanSectionsIfMissing(plan, now);

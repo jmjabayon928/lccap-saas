@@ -111,9 +111,12 @@ function parseIndicatorRecord(raw: Record<string, unknown>): MonitoringIndicator
   if (!isNonEmptyString(nameRaw)) {
     throw new ApiError("Invalid monitoring indicator: missing name", 502, raw);
   }
-  if (typeof rowVersionRaw !== "string" || !rowVersionRaw.trim()) {
-    throw new ApiError("Invalid monitoring indicator: missing rowVersion", 502, raw);
+
+  let rowVersion: string | null = null;
+  if (typeof rowVersionRaw === "string" && rowVersionRaw.trim()) {
+    rowVersion = rowVersionRaw.trim();
   }
+
   if (!status) {
     throw new ApiError("Invalid monitoring indicator: missing or invalid status", 502, raw);
   }
@@ -138,7 +141,7 @@ function parseIndicatorRecord(raw: Record<string, unknown>): MonitoringIndicator
     id: idRaw,
     planId: planIdRaw,
     actionItemId: actionItemIdOut,
-    rowVersion: rowVersionRaw.trim(),
+    rowVersion,
     name: nameRaw,
     description: descriptionOut,
     unit: unitOut,

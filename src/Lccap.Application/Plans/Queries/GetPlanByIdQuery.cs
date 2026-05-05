@@ -27,13 +27,22 @@ public sealed class GetPlanByIdQuery
             return GetPlanByIdResult.Forbidden();
         }
 
-        var plan = await _dbContext.Plans.AsNoTracking().SingleOrDefaultAsync(
-            p => p.Id == planId && p.AccountId == _currentUserContext.AccountId.Value && !p.IsDeleted,
+        var plan = await _dbContext.Plans.SingleOrDefaultAsync(
+            p => p.Id == planId && p.AccountId == _currentUserContext.AccountId.Value && !p.IsDeleted && p.Status != "Archived",
             cancellationToken);
 
-        return plan is null
-            ? GetPlanByIdResult.NotFound()
-            : GetPlanByIdResult.Success(new PlanDto(plan));
+        if (plan is null)
+        {
+            return GetPlanByIdResult.NotFound();
+        }
+
+        if (plan.RowVersion == null || plan.RowVersion.Length == 0)
+        {
+            plan.EnsureRowVersion();
+            _ = await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return GetPlanByIdResult.Success(new PlanDto(plan));
     }
 }
 

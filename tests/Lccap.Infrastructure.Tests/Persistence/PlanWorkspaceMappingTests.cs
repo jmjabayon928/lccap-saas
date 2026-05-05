@@ -26,6 +26,7 @@ public class PlanWorkspaceMappingTests
         Assert.Equal("documents", ctx.Model.FindEntityType(typeof(Document))!.GetTableName());
         Assert.Equal("export_jobs", ctx.Model.FindEntityType(typeof(ExportJob))!.GetTableName());
         Assert.Equal("action_items", ctx.Model.FindEntityType(typeof(ActionItem))!.GetTableName());
+        Assert.Equal("audit_logs", ctx.Model.FindEntityType(typeof(AuditLog))!.GetTableName());
     }
 
     [Fact]
@@ -41,6 +42,7 @@ public class PlanWorkspaceMappingTests
                      typeof(Document),
                      typeof(ExportJob),
                      typeof(ActionItem),
+                     typeof(AuditLog),
                  })
         {
             var rv = ctx.Model.FindEntityType(clrType)!.FindProperty(nameof(BaseEntity.RowVersion));
@@ -66,6 +68,18 @@ public class PlanWorkspaceMappingTests
         Assert.Equal(
             "jsonb",
             ctx.Model.FindEntityType(typeof(Document))!.FindProperty(nameof(Document.TagsJson))!.GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(AuditLog))!.FindProperty(nameof(AuditLog.OldValuesJson))!.GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(AuditLog))!.FindProperty(nameof(AuditLog.NewValuesJson))!.GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(AuditLog))!.FindProperty(nameof(AuditLog.MetadataJson))!.GetRelationalTypeMapping()?.StoreType);
     }
 
     [Fact]
@@ -140,6 +154,7 @@ public class PlanWorkspaceMappingTests
         Assert.NotNull(ctx.Model.FindEntityType(typeof(Document)));
         Assert.NotNull(ctx.Model.FindEntityType(typeof(FileAsset)));
         Assert.NotNull(ctx.Model.FindEntityType(typeof(ExportJob)));
+        Assert.NotNull(ctx.Model.FindEntityType(typeof(AuditLog)));
     }
 
     [Fact]
@@ -189,6 +204,10 @@ public class PlanWorkspaceMappingTests
         Assert.NotNull(fileAssetRv);
         Assert.True(documentRv!.IsConcurrencyToken);
         Assert.True(fileAssetRv!.IsConcurrencyToken);
+
+        var auditLogRv = ctx.Model.FindEntityType(typeof(AuditLog))!.FindProperty(nameof(AuditLog.RowVersion));
+        Assert.NotNull(auditLogRv);
+        Assert.True(auditLogRv!.IsConcurrencyToken);
     }
 
     [Fact]

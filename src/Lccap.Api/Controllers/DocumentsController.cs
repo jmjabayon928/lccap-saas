@@ -1,3 +1,5 @@
+using Lccap.Api.Auth;
+using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Documents.Commands;
 using Lccap.Application.Documents.Queries;
 using Microsoft.AspNetCore.Http;
@@ -12,23 +14,32 @@ public sealed class DocumentsController : ControllerBase
     private readonly GetDocumentsByPlanQuery _getDocumentsByPlanQuery;
     private readonly UpdateDocumentMetadataCommand _updateDocumentMetadataCommand;
     private readonly ArchiveDocumentCommand _archiveDocumentCommand;
+    private readonly ICurrentUserContext _currentUser;
 
     public DocumentsController(
         UploadDocumentCommand uploadDocumentCommand,
         GetDocumentsByPlanQuery getDocumentsByPlanQuery,
         UpdateDocumentMetadataCommand updateDocumentMetadataCommand,
-        ArchiveDocumentCommand archiveDocumentCommand)
+        ArchiveDocumentCommand archiveDocumentCommand,
+        ICurrentUserContext currentUser)
     {
         _uploadDocumentCommand = uploadDocumentCommand;
         _getDocumentsByPlanQuery = getDocumentsByPlanQuery;
         _updateDocumentMetadataCommand = updateDocumentMetadataCommand;
         _archiveDocumentCommand = archiveDocumentCommand;
+        _currentUser = currentUser;
     }
 
     [HttpPost("api/documents/upload")]
     [Consumes("multipart/form-data")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> Upload([FromForm] UploadDocumentFormRequest request, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         ArgumentNullException.ThrowIfNull(request);
 
         var file = request.File;
@@ -58,18 +69,30 @@ public sealed class DocumentsController : ControllerBase
     }
 
     [HttpGet("api/plans/{planId:guid}/documents")]
+    [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetByPlan([FromRoute] Guid planId, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var documents = await _getDocumentsByPlanQuery.ExecuteAsync(planId, cancellationToken);
         return Ok(documents);
     }
 
     [HttpPut("api/documents/{documentId:guid}/metadata")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> UpdateMetadata(
         [FromRoute] Guid documentId,
         [FromBody] UpdateDocumentMetadataApiRequest? body,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         if (body is null)
         {
             return BadRequest(new { error = "Request body is required." });
@@ -105,8 +128,14 @@ public sealed class DocumentsController : ControllerBase
     }
 
     [HttpDelete("api/documents/{documentId:guid}")]
+    [RequireWorkspaceRole("Archive")]
     public async Task<IActionResult> Archive([FromRoute] Guid documentId, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanArchive(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var result = await _archiveDocumentCommand.ExecuteAsync(documentId, cancellationToken);
 
         if (result.Success)

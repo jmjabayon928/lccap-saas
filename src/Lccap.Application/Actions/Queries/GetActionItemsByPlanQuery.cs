@@ -39,6 +39,21 @@ public class GetActionItemsByPlanQuery
             .ThenBy(x => x.Title)
             .ToListAsync(cancellationToken);
 
+        var repaired = false;
+        foreach (var entity in entities)
+        {
+            if (entity.RowVersion == null || entity.RowVersion.Length == 0)
+            {
+                entity.EnsureRowVersion();
+                repaired = true;
+            }
+        }
+
+        if (repaired)
+        {
+            _ = await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         var items = entities.Select(x => new ActionItemDto(x)).ToList();
 
         return GetActionItemsByPlanOutcome.Found(items);

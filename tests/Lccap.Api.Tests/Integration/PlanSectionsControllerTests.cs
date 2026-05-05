@@ -1,4 +1,6 @@
+using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
+using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Sections.Commands;
 using Lccap.Application.Sections.Queries;
 using Microsoft.AspNetCore.Mvc;
@@ -130,15 +132,102 @@ public sealed class PlanSectionsControllerTests
         Assert.Equal(editedAt, payload.LastEditedAtUtc);
     }
 
+    [Fact]
+    public async Task GetHistory_ReturnsHistoryEntries()
+    {
+        var planId = Guid.NewGuid();
+        var sectionId = Guid.NewGuid();
+        var history = new List<PlanSectionHistoryDto>
+        {
+            new(Guid.NewGuid(), sectionId, planId, "hazards", "PlanSectionUpdated", "Title", "Content", DateTimeOffset.UtcNow, Guid.NewGuid(), true)
+        };
+        var controller = CreateController(getHistoryResult: GetPlanSectionHistoryResult.Ok(history));
+
+        var result = await controller.GetHistory(planId, "hazards", CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = ok.Value?.GetType().GetProperty("history")?.GetValue(ok.Value) as List<PlanSectionHistoryDto>;
+        Assert.NotNull(payload);
+        Assert.Single(payload);
+    }
+
+    [Fact]
+    public async Task RestoreSection_ReturnsOkOnSuccess()
+    {
+        var planId = Guid.NewGuid();
+        var sectionId = Guid.NewGuid();
+        var editedBy = Guid.NewGuid();
+        var editedAt = DateTimeOffset.UtcNow;
+        var controller = CreateController(restoreResult: RestorePlanSectionResult.Ok(sectionId, editedBy, editedAt));
+
+        var result = await controller.Restore(planId, "hazards", new RestorePlanSectionBody(Guid.NewGuid(), "Reason"), CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<SavePlanSectionResponse>(ok.Value);
+        Assert.Equal(sectionId, payload.SectionId);
+        Assert.Equal(editedBy, payload.LastEditedByUserId);
+    }
+
+    [Fact]
+    public async Task Viewer_can_read_section_history()
+    {
+        var controller = CreateController(
+            role: WorkspaceRoles.Viewer,
+            getHistoryResult: GetPlanSectionHistoryResult.Ok(new()));
+
+        var result = await controller.GetHistory(Guid.NewGuid(), "hazards", CancellationToken.None);
+
+        _ = Assert.IsType<OkObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Viewer_cannot_save_section()
+    {
+        var controller = CreateController(role: WorkspaceRoles.Viewer);
+
+        var result = await controller.Save(Guid.NewGuid(), "hazards", new SavePlanSectionBody("T", "C", 1), CancellationToken.None);
+
+        _ = Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task Viewer_cannot_restore_section()
+    {
+        var controller = CreateController(role: WorkspaceRoles.Viewer);
+
+        var result = await controller.Restore(Guid.NewGuid(), "hazards", new RestorePlanSectionBody(Guid.NewGuid(), "R"), CancellationToken.None);
+
+        _ = Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task Planner_can_save_and_restore_section()
+    {
+        var controller = CreateController(role: WorkspaceRoles.Planner);
+
+        var saveResult = await controller.Save(Guid.NewGuid(), "hazards", new SavePlanSectionBody("T", "C", 1), CancellationToken.None);
+        _ = Assert.IsType<OkObjectResult>(saveResult);
+
+        var restoreResult = await controller.Restore(Guid.NewGuid(), "hazards", new RestorePlanSectionBody(Guid.NewGuid(), "R"), CancellationToken.None);
+        _ = Assert.IsType<OkObjectResult>(restoreResult);
+    }
+
     private static PlanSectionsController CreateController(
         SavePlanSectionResult? saveResult = null,
         GetPlanSectionsResult? getSectionsResult = null,
-        GetPlanSectionByKeyResult? getByKeyResult = null)
+        GetPlanSectionByKeyResult? getByKeyResult = null,
+        GetPlanSectionHistoryResult? getHistoryResult = null,
+        RestorePlanSectionResult? restoreResult = null,
+        string role = WorkspaceRoles.Admin)
     {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, role);
         return new PlanSectionsController(
             new FakeSavePlanSectionCommand(saveResult ?? SavePlanSectionResult.Ok(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow)),
             new FakeGetPlanSectionsQuery(getSectionsResult ?? GetPlanSectionsResult.Ok([])),
-            new FakeGetPlanSectionByKeyQuery(getByKeyResult ?? GetPlanSectionByKeyResult.Missing()));
+            new FakeGetPlanSectionByKeyQuery(getByKeyResult ?? GetPlanSectionByKeyResult.Missing()),
+            new FakeGetPlanSectionHistoryQuery(getHistoryResult ?? GetPlanSectionHistoryResult.Ok(new())),
+            new FakeRestorePlanSectionCommand(restoreResult ?? RestorePlanSectionResult.Ok(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow)),
+            ctx);
     }
 
     private sealed class FakeSavePlanSectionCommand : SavePlanSectionCommand
@@ -181,5 +270,52 @@ public sealed class PlanSectionsControllerTests
 
         public override Task<GetPlanSectionByKeyResult> ExecuteAsync(Guid planId, string sectionKey, CancellationToken cancellationToken = default)
             => Task.FromResult(_result);
+    }
+
+    private sealed class FakeGetPlanSectionHistoryQuery : GetPlanSectionHistoryQuery
+    {
+        private readonly GetPlanSectionHistoryResult _result;
+
+        public FakeGetPlanSectionHistoryQuery(GetPlanSectionHistoryResult result)
+            : base(null!, null!)
+        {
+            _result = result;
+        }
+
+        public override Task<GetPlanSectionHistoryResult> ExecuteAsync(Guid planId, string sectionKey, CancellationToken cancellationToken = default)
+            => Task.FromResult(_result);
+    }
+
+    private sealed class FakeRestorePlanSectionCommand : RestorePlanSectionCommand
+    {
+        private readonly RestorePlanSectionResult _result;
+
+        public FakeRestorePlanSectionCommand(RestorePlanSectionResult result)
+            : base(null!, null!)
+        {
+            _result = result;
+        }
+
+        public override Task<RestorePlanSectionResult> ExecuteAsync(RestorePlanSectionRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(_result);
+    }
+
+    private sealed class TestCurrentUserContext : ICurrentUserContext
+    {
+        public TestCurrentUserContext(Guid? accountId, Guid? userId, bool isAuthenticated, string? role = null)
+        {
+            AccountId = accountId;
+            UserId = userId;
+            IsAuthenticated = isAuthenticated;
+            Role = role;
+        }
+
+        public Guid? UserId { get; }
+
+        public Guid? AccountId { get; }
+
+        public string? Role { get; }
+
+        public bool IsAuthenticated { get; }
     }
 }

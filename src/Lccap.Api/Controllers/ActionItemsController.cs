@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Lccap.Api.Auth;
+using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Actions.Commands;
 using Lccap.Application.Actions.Queries;
 using Microsoft.AspNetCore.Mvc;
@@ -9,13 +11,26 @@ namespace Lccap.Api.Controllers;
 [Route("api")]
 public sealed class ActionItemsController : ControllerBase
 {
+    private readonly ICurrentUserContext _currentUser;
+
+    public ActionItemsController(ICurrentUserContext currentUser)
+    {
+        _currentUser = currentUser;
+    }
+
     [HttpPost("plans/{planId:guid}/actions")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> Create(
         Guid planId,
         [FromBody] CreateActionItemApiRequest body,
         [FromServices] CreateActionItemCommand command,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         JsonDocument? metadata = null;
         if (!string.IsNullOrWhiteSpace(body.MetadataJson))
         {
@@ -57,12 +72,18 @@ public sealed class ActionItemsController : ControllerBase
     }
 
     [HttpPut("actions/{actionItemId:guid}")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> Update(
         Guid actionItemId,
         [FromBody] UpdateActionItemApiRequest body,
         [FromServices] UpdateActionItemCommand command,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         JsonDocument? updateMetadata = null;
         if (!string.IsNullOrWhiteSpace(body.MetadataJson))
         {
@@ -110,11 +131,17 @@ public sealed class ActionItemsController : ControllerBase
     }
 
     [HttpDelete("actions/{actionItemId:guid}")]
+    [RequireWorkspaceRole("Archive")]
     public async Task<IActionResult> Archive(
         Guid actionItemId,
         [FromServices] ArchiveActionItemCommand command,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanArchive(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var outcome = await command.ExecuteAsync(actionItemId, cancellationToken);
         if (outcome.Success)
         {
@@ -135,11 +162,17 @@ public sealed class ActionItemsController : ControllerBase
     }
 
     [HttpGet("plans/{planId:guid}/actions")]
+    [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> ListForPlan(
         Guid planId,
         [FromServices] GetActionItemsByPlanQuery query,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var outcome = await query.ExecuteAsync(planId, cancellationToken);
         if (outcome.ForbiddenAccess)
         {
@@ -156,11 +189,17 @@ public sealed class ActionItemsController : ControllerBase
 
     [HttpGet("actions/{actionItemId:guid}")]
     [ActionName(nameof(GetById))]
+    [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetById(
         Guid actionItemId,
         [FromServices] GetActionItemByIdQuery query,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var outcome = await query.ExecuteAsync(actionItemId, cancellationToken);
         if (outcome.ForbiddenAccess)
         {

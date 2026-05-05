@@ -84,10 +84,7 @@ public class CreateActionItemCommand
             CreatedByUserId = _currentUserContext.UserId,
             IsDeleted = false,
         };
-
-        var rowVersion = new byte[8];
-        Random.Shared.NextBytes(rowVersion);
-        item.RowVersion = rowVersion;
+        item.EnsureRowVersion();
 
         _ = _dbContext.ActionItems.Add(item);
         _ = await _dbContext.SaveChangesAsync(cancellationToken);

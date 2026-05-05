@@ -1,3 +1,4 @@
+using Lccap.Api.Auth;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Export.Commands;
 using Lccap.Application.Export.Queries;
@@ -27,8 +28,14 @@ public class ExportController : ControllerBase
     }
 
     [HttpPost("plans/{planId:guid}/exports/pdf")]
+    [RequireWorkspaceRole("Export")]
     public async Task<IActionResult> CreatePdfExport(Guid planId, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanExport(_currentUserContext.Role))
+        {
+            return Forbid();
+        }
+
         var result = await _createExportJobCommand.ExecuteAsync(
             new CreateExportJobRequest(planId, "Pdf"),
             cancellationToken);
@@ -49,8 +56,14 @@ public class ExportController : ControllerBase
     }
 
     [HttpGet("exports/{exportJobId:guid}")]
+    [RequireWorkspaceRole("Export")]
     public Task<IActionResult> GetExportJob(Guid exportJobId, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanExport(_currentUserContext.Role))
+        {
+            return Task.FromResult<IActionResult>(Forbid());
+        }
+
         if (!_currentUserContext.AccountId.HasValue)
         {
             return Task.FromResult<IActionResult>(NotFound());
@@ -75,10 +88,15 @@ public class ExportController : ControllerBase
     }
 
     [HttpGet("exports/{exportJobId:guid}/download")]
+    [RequireWorkspaceRole("Export")]
     public async Task<IActionResult> DownloadExport(Guid exportJobId, CancellationToken cancellationToken)
     {
-        var result = await _downloadExportQuery.ExecuteAsync(exportJobId, cancellationToken);
+        if (!WorkspaceAuthorizationPolicy.CanExport(_currentUserContext.Role))
+        {
+            return Forbid();
+        }
 
+        var result = await _downloadExportQuery.ExecuteAsync(exportJobId, cancellationToken);
         if (result.ForbiddenAccess)
         {
             return Forbid();

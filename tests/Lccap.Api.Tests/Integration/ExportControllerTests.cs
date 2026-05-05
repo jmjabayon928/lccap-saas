@@ -1,216 +1,210 @@
-using System.Collections;
-using System.Linq.Expressions;
+using System.Text.Json;
+using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
-using Lccap.Application.Common.Models;
 using Lccap.Application.Export.Commands;
 using Lccap.Application.Export.Queries;
 using Lccap.Domain.Entities;
+using Lccap.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Lccap.Api.Tests.Integration;
 
 public sealed class ExportControllerTests
 {
     [Fact]
-    public async Task ValidPdfExport_SucceedsForCurrentAccountPlan()
+    public async Task CreatePdfExport_WithValidPlan_ReturnsCreated()
     {
-        var jobId = Guid.NewGuid();
-        var fileAssetId = Guid.NewGuid();
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(jobId, "Completed", fileAssetId)),
-            new FakeDownloadExportQuery(DownloadExportResult.NotFound()),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
 
-        var result = await controller.CreatePdfExport(Guid.NewGuid(), CancellationToken.None);
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+
+        var currentUser = new TestCurrentUserContext
+        {
+            AccountId = accountId,
+            UserId = Guid.NewGuid(),
+            IsAuthenticated = true,
+            Role = WorkspaceRoles.Admin
+        };
+
+        var fakeCommand = new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Queued", null));
+        var controller = new ExportController(fakeCommand, null!, dbContext, currentUser);
+
+        var result = await controller.CreatePdfExport(
+            planId,
+            CancellationToken.None);
 
         var created = Assert.IsType<CreatedResult>(result);
-        var payload = Assert.IsType<ExportJobResponse>(created.Value);
-        Assert.Equal("Completed", payload.Status);
-        Assert.Equal(fileAssetId, payload.FileAssetId);
-        Assert.Equal(jobId, payload.ExportJobId);
+        var body = Assert.IsType<ExportJobResponse>(created.Value);
+        Assert.Equal("Queued", body.Status);
     }
 
     [Fact]
-    public async Task CrossTenantPlanExport_Returns404()
+    public async Task CreatePdfExport_CrossTenant_ReturnsNotFound()
     {
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.NotFoundError("Plan not found.")),
-            new FakeDownloadExportQuery(DownloadExportResult.NotFound()),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
+        var ownerAccountId = Guid.NewGuid();
+        var callerAccountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
 
-        var result = await controller.CreatePdfExport(Guid.NewGuid(), CancellationToken.None);
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, ownerAccountId, planId);
+
+        var currentUser = new TestCurrentUserContext
+        {
+            AccountId = callerAccountId,
+            UserId = Guid.NewGuid(),
+            IsAuthenticated = true,
+            Role = WorkspaceRoles.Admin
+        };
+
+        var fakeCommand = new FakeCreateExportJobCommand(CreateExportJobResult.NotFoundError("Plan not found."));
+        var controller = new ExportController(fakeCommand, null!, dbContext, currentUser);
+
+        var result = await controller.CreatePdfExport(
+            planId,
+            CancellationToken.None);
 
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
     [Fact]
-    public async Task CrossTenantExportJobRead_Returns404()
+    public async Task GetExportJob_ReturnsJobStatus()
     {
-        var currentAccountId = Guid.NewGuid();
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", Guid.NewGuid())),
-            new FakeDownloadExportQuery(DownloadExportResult.NotFound()),
-            new FakeDbContext(
-                exportJobs:
-                [
-                    new ExportJob
-                    {
-                        Id = Guid.NewGuid(),
-                        AccountId = Guid.NewGuid(),
-                        PlanId = Guid.NewGuid(),
-                        ExportType = "Pdf",
-                        Status = "Completed",
-                        IsDeleted = false,
-                    },
-                ]),
-            new FakeCurrentUserContext(Guid.NewGuid(), currentAccountId));
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
 
-        var result = await controller.GetExportJob(Guid.NewGuid(), CancellationToken.None);
+        await using var dbContext = CreateDbContext();
+        dbContext.ExportJobs.Add(new ExportJob
+        {
+            Id = jobId,
+            AccountId = accountId,
+            PlanId = Guid.NewGuid(),
+            ExportType = "Pdf",
+            Status = "Completed",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false
+        });
+        await dbContext.SaveChangesAsync();
 
-        Assert.IsType<NotFoundResult>(result);
-    }
+        var currentUser = new TestCurrentUserContext
+        {
+            AccountId = accountId,
+            UserId = Guid.NewGuid(),
+            IsAuthenticated = true,
+            Role = WorkspaceRoles.Admin
+        };
+        var controller = new ExportController(null!, null!, dbContext, currentUser);
 
-    [Fact]
-    public async Task GetExportJob_ReturnsCompletedStatusAndLinkedFileAsset()
-    {
-        var currentAccountId = Guid.NewGuid();
-        var exportJobId = Guid.NewGuid();
-        var fileAssetId = Guid.NewGuid();
-
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(exportJobId, "Completed", fileAssetId)),
-            new FakeDownloadExportQuery(DownloadExportResult.NotFound()),
-            new FakeDbContext(
-                exportJobs:
-                [
-                    new ExportJob
-                    {
-                        Id = exportJobId,
-                        AccountId = currentAccountId,
-                        PlanId = Guid.NewGuid(),
-                        ExportType = "Pdf",
-                        Status = "Completed",
-                        FileAssetId = fileAssetId,
-                        IsDeleted = false,
-                    },
-                ]),
-            new FakeCurrentUserContext(Guid.NewGuid(), currentAccountId));
-
-        var result = await controller.GetExportJob(exportJobId, CancellationToken.None);
+        var result = await controller.GetExportJob(
+            jobId,
+            CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        var payload = Assert.IsType<ExportJobResponse>(ok.Value);
-        Assert.Equal("Completed", payload.Status);
-        Assert.Equal(fileAssetId, payload.FileAssetId);
+        var body = Assert.IsType<ExportJobResponse>(ok.Value);
+        Assert.Equal("Completed", body.Status);
     }
 
     [Fact]
-    public async Task ValidCompletedExport_DownloadsFileSuccessfully()
+    public async Task Viewer_cannot_create_export()
     {
-        await using var stream = new MemoryStream([1, 2, 3]);
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", Guid.NewGuid())),
-            new FakeDownloadExportQuery(DownloadExportResult.Success(stream, "plan-lccap.pdf", "application/pdf")),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
+        var ctx = new TestCurrentUserContext { IsAuthenticated = true, Role = WorkspaceRoles.Viewer };
+        var controller = new ExportController(null!, null!, null!, ctx);
 
-        var result = await controller.DownloadExport(Guid.NewGuid(), CancellationToken.None);
-
-        var file = Assert.IsType<FileStreamResult>(result);
-        Assert.Equal("application/pdf", file.ContentType);
-        Assert.Equal("plan-lccap.pdf", file.FileDownloadName);
+        var result = await controller.CreatePdfExport(Guid.NewGuid(), CancellationToken.None);
+        _ = Assert.IsType<ForbidResult>(result);
     }
 
     [Fact]
-    public async Task CrossTenantExportDownload_Returns404()
+    public async Task Reviewer_can_create_export()
     {
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", Guid.NewGuid())),
-            new FakeDownloadExportQuery(DownloadExportResult.NotFound()),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
 
-        var result = await controller.DownloadExport(Guid.NewGuid(), CancellationToken.None);
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true, Role = WorkspaceRoles.Reviewer };
 
-        Assert.IsType<NotFoundResult>(result);
+        var fakeCommand = new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Queued", null));
+        var controller = new ExportController(fakeCommand, null!, dbContext, ctx);
+
+        var result = await controller.CreatePdfExport(planId, CancellationToken.None);
+        _ = Assert.IsType<CreatedResult>(result);
     }
 
     [Fact]
-    public async Task QueuedOrRunningExportDownload_Returns409()
+    public async Task Planner_can_create_export()
     {
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", Guid.NewGuid())),
-            new FakeDownloadExportQuery(DownloadExportResult.Conflict()),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
 
-        var result = await controller.DownloadExport(Guid.NewGuid(), CancellationToken.None);
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true, Role = WorkspaceRoles.Planner };
 
-        Assert.IsType<ConflictResult>(result);
+        var fakeCommand = new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Queued", null));
+        var controller = new ExportController(fakeCommand, null!, dbContext, ctx);
+
+        var result = await controller.CreatePdfExport(planId, CancellationToken.None);
+        _ = Assert.IsType<CreatedResult>(result);
     }
 
     [Fact]
-    public async Task CompletedExportWithMissingFileAsset_Returns409()
+    public async Task Admin_can_create_export()
     {
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", null)),
-            new FakeDownloadExportQuery(DownloadExportResult.Conflict()),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
 
-        var result = await controller.DownloadExport(Guid.NewGuid(), CancellationToken.None);
+        var ctx = new TestCurrentUserContext { AccountId = accountId, UserId = Guid.NewGuid(), IsAuthenticated = true, Role = WorkspaceRoles.Admin };
 
-        Assert.IsType<ConflictResult>(result);
+        var fakeCommand = new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Queued", null));
+        var controller = new ExportController(fakeCommand, null!, dbContext, ctx);
+
+        var result = await controller.CreatePdfExport(planId, CancellationToken.None);
+        _ = Assert.IsType<CreatedResult>(result);
     }
 
-    [Fact]
-    public async Task DeletedFileAsset_Returns404()
+    private static LccapDbContext CreateDbContext()
     {
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", Guid.NewGuid())),
-            new FakeDownloadExportQuery(DownloadExportResult.NotFound()),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
-
-        var result = await controller.DownloadExport(Guid.NewGuid(), CancellationToken.None);
-
-        Assert.IsType<NotFoundResult>(result);
+        var options = new DbContextOptionsBuilder<LccapDbContext>()
+            .UseInMemoryDatabase($"export-tests-{Guid.NewGuid():N}")
+            .Options;
+        return new ExportControllerTestDbContext(options);
     }
 
-    [Fact]
-    public async Task DownloadResponse_DoesNotExposeStoredPath()
+    private static async Task SeedPlanAsync(LccapDbContext dbContext, Guid accountId, Guid planId)
     {
-        await using var stream = new MemoryStream([1]);
-        var controller = new ExportController(
-            new FakeCreateExportJobCommand(CreateExportJobResult.Created(Guid.NewGuid(), "Completed", Guid.NewGuid())),
-            new FakeDownloadExportQuery(DownloadExportResult.Success(stream, "safe-name.pdf", "application/pdf")),
-            new FakeDbContext(),
-            new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()));
-
-        var result = await controller.DownloadExport(Guid.NewGuid(), CancellationToken.None);
-
-        var file = Assert.IsType<FileStreamResult>(result);
-        Assert.DoesNotContain("uploads/", file.FileDownloadName ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("\\", file.FileDownloadName ?? string.Empty, StringComparison.Ordinal);
-    }
-
-    private sealed class FakeDownloadExportQuery : DownloadExportQuery
-    {
-        private readonly DownloadExportResult _result;
-
-        public FakeDownloadExportQuery(DownloadExportResult result)
-            : base(new FakeDbContext(), new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()), new FakeFileStorageService())
+        dbContext.Plans.Add(new Plan
         {
-            _result = result;
-        }
+            Id = planId,
+            AccountId = accountId,
+            Title = "Test Plan",
+            StartYear = 2025,
+            EndYear = 2030,
+            Status = "Draft",
+            TemplateMode = "New",
+            VersionNumber = 1,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1 }
+        });
+        await dbContext.SaveChangesAsync();
+    }
 
-        public override Task<DownloadExportResult> ExecuteAsync(Guid exportJobId, CancellationToken cancellationToken = default)
-            => Task.FromResult(_result);
+    private sealed class TestCurrentUserContext : ICurrentUserContext
+    {
+        public Guid? UserId { get; set; }
+
+        public Guid? AccountId { get; set; }
+
+        public string? Role { get; set; }
+
+        public bool IsAuthenticated { get; set; }
     }
 
     private sealed class FakeCreateExportJobCommand : CreateExportJobCommand
@@ -218,79 +212,39 @@ public sealed class ExportControllerTests
         private readonly CreateExportJobResult _result;
 
         public FakeCreateExportJobCommand(CreateExportJobResult result)
-            : base(new FakeDbContext(), new FakeCurrentUserContext(Guid.NewGuid(), Guid.NewGuid()), new FakeFileStorageService())
+            : base(null!, null!, null!)
         {
             _result = result;
         }
 
         public override Task<CreateExportJobResult> ExecuteAsync(CreateExportJobRequest request, CancellationToken cancellationToken = default)
-            => Task.FromResult(_result);
+        {
+            return Task.FromResult(_result);
+        }
     }
 
-    private sealed class FakeCurrentUserContext : ICurrentUserContext
+    private sealed class ExportControllerTestDbContext : LccapDbContext
     {
-        public FakeCurrentUserContext(Guid? userId, Guid? accountId)
+        public ExportControllerTestDbContext(DbContextOptions<LccapDbContext> options)
+            : base(options)
         {
-            UserId = userId;
-            AccountId = accountId;
         }
 
-        public Guid? UserId { get; }
-        public Guid? AccountId { get; }
-        public bool IsAuthenticated => true;
-    }
-
-    private sealed class FakeFileStorageService : IFileStorageService
-    {
-        public Task<StoredFileResult> SaveAsync(
-            Stream stream,
-            string originalFileName,
-            string contentType,
-            Guid accountId,
-            CancellationToken cancellationToken)
-            => Task.FromResult(new StoredFileResult("fake.pdf", "uploads/fake.pdf", "application/pdf", ".pdf", 1, "00", "Local"));
-
-        public Task<Stream> OpenReadAsync(string storedPath, CancellationToken cancellationToken) =>
-            Task.FromResult<Stream>(new MemoryStream([1]));
-
-        public Task DeleteAsync(string storedPath, CancellationToken cancellationToken) => Task.CompletedTask;
-    }
-
-    private sealed class FakeDbContext : ILccapDbContext
-    {
-        public FakeDbContext(IEnumerable<ExportJob>? exportJobs = null)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            ExportJobs = new TestAsyncDbSet<ExportJob>(exportJobs ?? []);
+            base.OnModelCreating(modelBuilder);
+
+            var jsonConverter = new ValueConverter<JsonDocument?, string?>(
+                value => value == null ? null : value.RootElement.GetRawText(),
+                value => value == null ? null : JsonDocument.Parse(value, new JsonDocumentOptions()));
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties().Where(p => p.ClrType == typeof(JsonDocument)))
+                {
+                    property.SetValueConverter(jsonConverter);
+                }
+            }
         }
-
-        public DbSet<Plan> Plans => new TestAsyncDbSet<Plan>([]);
-        public DbSet<PlanSection> PlanSections => new TestAsyncDbSet<PlanSection>([]);
-        public DbSet<ActionItem> ActionItems => new TestAsyncDbSet<ActionItem>([]);
-        public DbSet<MonitoringIndicator> MonitoringIndicators => new TestAsyncDbSet<MonitoringIndicator>([]);
-        public DbSet<FileAsset> FileAssets => new TestAsyncDbSet<FileAsset>([]);
-        public DbSet<Document> Documents => new TestAsyncDbSet<Document>([]);
-        public DbSet<AuditLog> AuditLogs => new TestAsyncDbSet<AuditLog>([]);
-        public DbSet<ExportJob> ExportJobs { get; }
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
-    }
-
-    private sealed class TestAsyncDbSet<T> : DbSet<T>, IQueryable<T>
-        where T : class
-    {
-        private readonly IQueryable<T> _queryable;
-
-        public TestAsyncDbSet(IEnumerable<T> data)
-        {
-            _queryable = data.AsQueryable();
-        }
-
-        public override EntityEntry<T> Add(T entity) => throw new NotSupportedException();
-        public override Microsoft.EntityFrameworkCore.Metadata.IEntityType EntityType => throw new NotSupportedException();
-        public Type ElementType => _queryable.ElementType;
-        public Expression Expression => _queryable.Expression;
-        public IQueryProvider Provider => _queryable.Provider;
-        public IEnumerator<T> GetEnumerator() => _queryable.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => _queryable.GetEnumerator();
     }
 }

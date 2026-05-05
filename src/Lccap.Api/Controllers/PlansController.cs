@@ -1,3 +1,5 @@
+using Lccap.Api.Auth;
+using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +10,22 @@ namespace Lccap.Api.Controllers;
 [Route("api/plans")]
 public sealed class PlansController : ControllerBase
 {
+    private readonly ICurrentUserContext _currentUser;
+
+    public PlansController(ICurrentUserContext currentUser)
+    {
+        _currentUser = currentUser;
+    }
+
     [HttpGet]
+    [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetPlans([FromServices] GetPlansQuery query, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var result = await query.Execute(cancellationToken);
         return result.StatusCode switch
         {
@@ -22,8 +37,14 @@ public sealed class PlansController : ControllerBase
     }
 
     [HttpPost]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> CreatePlan([FromBody] CreatePlanApiRequest request, [FromServices] CreatePlanCommand command, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var result = await command.Execute(
             new CreatePlanRequest(
                 request.Title,
@@ -48,8 +69,14 @@ public sealed class PlansController : ControllerBase
     }
 
     [HttpPut("{planId:guid}")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> UpdatePlan(Guid planId, [FromBody] UpdatePlanApiRequest request, [FromServices] UpdatePlanCommand command, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var result = await command.Execute(
             planId,
             new UpdatePlanRequest(
@@ -77,9 +104,35 @@ public sealed class PlansController : ControllerBase
         };
     }
 
+    [HttpDelete("{planId:guid}")]
+    [RequireWorkspaceRole("Archive")]
+    public async Task<IActionResult> ArchivePlan(Guid planId, [FromServices] ArchivePlanCommand command, CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanArchive(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var result = await command.Execute(planId, cancellationToken);
+        return result.StatusCode switch
+        {
+            StatusCodes.Status204NoContent => NoContent(),
+            StatusCodes.Status401Unauthorized => Unauthorized(),
+            StatusCodes.Status403Forbidden => Forbid(),
+            StatusCodes.Status404NotFound => NotFound(),
+            _ => StatusCode(result.StatusCode),
+        };
+    }
+
     [HttpGet("{planId:guid}")]
+    [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetPlanById(Guid planId, [FromServices] GetPlanByIdQuery query, CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var result = await query.Execute(planId, cancellationToken);
         return result.StatusCode switch
         {

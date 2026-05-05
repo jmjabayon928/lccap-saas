@@ -49,4 +49,36 @@ public sealed class Plan : BaseEntity
     public User? UpdatedByUser { get; set; }
 
     public User? DeletedByUser { get; set; }
+
+    public void UpdateMetadata(
+        string title,
+        int startYear,
+        int endYear,
+        string status,
+        string templateMode,
+        int versionNumber,
+        string? description,
+        DateTimeOffset updatedAtUtc,
+        Guid updatedByUserId)
+    {
+        Title = title;
+        StartYear = startYear;
+        EndYear = endYear;
+        Status = status;
+        TemplateMode = templateMode;
+        VersionNumber = versionNumber;
+        Description = description;
+        UpdatedAtUtc = updatedAtUtc;
+        UpdatedByUserId = updatedByUserId;
+    }
+
+    public void Archive(DateTimeOffset archivedAtUtc, Guid archivedByUserId)
+    {
+        Status = "Archived";
+        IsDeleted = true;
+        DeletedAtUtc = archivedAtUtc;
+        DeletedByUserId = archivedByUserId;
+        UpdatedAtUtc = archivedAtUtc;
+        UpdatedByUserId = archivedByUserId;
+    }
 }

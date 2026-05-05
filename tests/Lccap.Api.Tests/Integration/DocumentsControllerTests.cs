@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Common.Models;
@@ -18,11 +19,8 @@ public sealed class DocumentsControllerTests
     [Fact]
     public async Task ValidUploadSucceeds()
     {
-        var controller = new DocumentsController(
-            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
-            new FakeGetDocumentsByPlanQuery(Array.Empty<DocumentListItem>()),
-            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+        var controller = CreateController(
+            uploadResult: UploadDocumentResult.Created(Guid.NewGuid()));
 
         var result = await controller.Upload(
             new UploadDocumentFormRequest { PlanId = Guid.NewGuid(), Category = "Reference", Title = "Doc", File = new FakeFormFile("a.pdf", "application/pdf", 100) },
@@ -34,11 +32,8 @@ public sealed class DocumentsControllerTests
     [Fact]
     public async Task MissingFileReturns400()
     {
-        var controller = new DocumentsController(
-            new FakeUploadDocumentCommand(UploadDocumentResult.ValidationError("File is required.")),
-            new FakeGetDocumentsByPlanQuery(Array.Empty<DocumentListItem>()),
-            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+        var controller = CreateController(
+            uploadResult: UploadDocumentResult.ValidationError("File is required."));
 
         var result = await controller.Upload(
             new UploadDocumentFormRequest { PlanId = Guid.NewGuid(), Category = "Reference", Title = "Doc", File = null },
@@ -50,11 +45,8 @@ public sealed class DocumentsControllerTests
     [Fact]
     public async Task CrossTenantPlanUploadReturns404()
     {
-        var controller = new DocumentsController(
-            new FakeUploadDocumentCommand(UploadDocumentResult.PlanNotFound("Plan not found.")),
-            new FakeGetDocumentsByPlanQuery(Array.Empty<DocumentListItem>()),
-            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+        var controller = CreateController(
+            uploadResult: UploadDocumentResult.PlanNotFound("Plan not found."));
 
         var result = await controller.Upload(
             new UploadDocumentFormRequest { PlanId = Guid.NewGuid(), Category = "Reference", Title = "Doc", File = new FakeFormFile("a.pdf", "application/pdf", 100) },
@@ -75,11 +67,7 @@ public sealed class DocumentsControllerTests
                 title: "Doc A"),
         };
 
-        var controller = new DocumentsController(
-            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
-            new FakeGetDocumentsByPlanQuery(expected),
-            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+        var controller = CreateController(getDocumentsResult: expected);
 
         var result = await controller.GetByPlan(planId, CancellationToken.None);
 
@@ -98,11 +86,7 @@ public sealed class DocumentsControllerTests
             ListItem(Guid.NewGuid(), planId, "Doc"),
         };
 
-        var controller = new DocumentsController(
-            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
-            new FakeGetDocumentsByPlanQuery(items),
-            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+        var controller = CreateController(getDocumentsResult: items);
 
         var result = await controller.GetByPlan(planId, CancellationToken.None);
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -114,11 +98,8 @@ public sealed class DocumentsControllerTests
     [Fact]
     public async Task InvalidExtensionReturns400()
     {
-        var controller = new DocumentsController(
-            new FakeUploadDocumentCommand(UploadDocumentResult.ValidationError("File type is not allowed.")),
-            new FakeGetDocumentsByPlanQuery(Array.Empty<DocumentListItem>()),
-            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+        var controller = CreateController(
+            uploadResult: UploadDocumentResult.ValidationError("File type is not allowed."));
 
         var result = await controller.Upload(
             new UploadDocumentFormRequest { PlanId = Guid.NewGuid(), Category = "Reference", Title = "Doc", File = new FakeFormFile("bad.exe", "application/octet-stream", 100) },
@@ -133,14 +114,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, _, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new UpdateDocumentMetadataCommand(db, ctx),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
 
         var body = new UpdateDocumentMetadataApiRequest
         {
@@ -173,14 +155,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, _, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new UpdateDocumentMetadataCommand(db, ctx),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
 
         var body = new UpdateDocumentMetadataApiRequest
         {
@@ -200,13 +183,14 @@ public sealed class DocumentsControllerTests
         var otherAccount = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var (_, _, doc) = await SeedDocumentGraph(db, ownerAccount);
-        var ctx = new TestCurrentUserContext(otherAccount, userId, true);
+        var ctx = new TestCurrentUserContext(otherAccount, userId, true, WorkspaceRoles.Admin);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new UpdateDocumentMetadataCommand(db, ctx),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
 
         var body = new UpdateDocumentMetadataApiRequest { Category = "Reference", Title = "x" };
         var result = await controller.UpdateMetadata(doc.Id, body, CancellationToken.None);
@@ -219,7 +203,7 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, _, doc) = await SeedDocumentGraph(db, accountId);
         doc.IsDeleted = true;
         _ = await db.SaveChangesAsync();
@@ -228,7 +212,8 @@ public sealed class DocumentsControllerTests
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new UpdateDocumentMetadataCommand(db, ctx),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
 
         var body = new UpdateDocumentMetadataApiRequest { Category = "Reference", Title = "x" };
         var result = await controller.UpdateMetadata(doc.Id, body, CancellationToken.None);
@@ -241,14 +226,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, _, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new ArchiveDocumentCommand(db, ctx));
+            new ArchiveDocumentCommand(db, ctx),
+            ctx);
 
         var result = await controller.Archive(doc.Id, CancellationToken.None);
         _ = Assert.IsType<NoContentResult>(result);
@@ -265,14 +251,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, file, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new ArchiveDocumentCommand(db, ctx));
+            new ArchiveDocumentCommand(db, ctx),
+            ctx);
 
         _ = await controller.Archive(doc.Id, CancellationToken.None);
 
@@ -286,14 +273,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (plan, _, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new ArchiveDocumentCommand(db, ctx));
+            new ArchiveDocumentCommand(db, ctx),
+            ctx);
 
         _ = await controller.Archive(doc.Id, CancellationToken.None);
 
@@ -310,13 +298,14 @@ public sealed class DocumentsControllerTests
         var otherAccount = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var (_, _, doc) = await SeedDocumentGraph(db, ownerAccount);
-        var ctx = new TestCurrentUserContext(otherAccount, userId, true);
+        var ctx = new TestCurrentUserContext(otherAccount, userId, true, WorkspaceRoles.Admin);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new ArchiveDocumentCommand(db, ctx));
+            new ArchiveDocumentCommand(db, ctx),
+            ctx);
 
         var result = await controller.Archive(doc.Id, CancellationToken.None);
         _ = Assert.IsType<NotFoundResult>(result);
@@ -328,14 +317,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, _, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new UpdateDocumentMetadataCommand(db, ctx),
-            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()));
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
 
         var body = new UpdateDocumentMetadataApiRequest
         {
@@ -368,14 +358,15 @@ public sealed class DocumentsControllerTests
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var ctx = new TestCurrentUserContext(accountId, userId, true);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var (_, _, doc) = await SeedDocumentGraph(db, accountId);
 
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
-            new ArchiveDocumentCommand(db, ctx));
+            new ArchiveDocumentCommand(db, ctx),
+            ctx);
 
         _ = await controller.Archive(doc.Id, CancellationToken.None);
 
@@ -389,6 +380,88 @@ public sealed class DocumentsControllerTests
 
         var meta = log.MetadataJson.RootElement;
         Assert.Equal("SoftDelete", meta.GetProperty("archiveType").GetString());
+    }
+
+    [Fact]
+    public async Task Viewer_cannot_upload_document()
+    {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, WorkspaceRoles.Viewer);
+        var controller = CreateController(role: WorkspaceRoles.Viewer);
+
+        var result = await controller.Upload(
+            new UploadDocumentFormRequest { PlanId = Guid.NewGuid(), Category = "Reference", Title = "Doc", File = new FakeFormFile("a.pdf", "application/pdf", 100) },
+            CancellationToken.None);
+
+        _ = Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task Viewer_cannot_update_document_metadata()
+    {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, WorkspaceRoles.Viewer);
+        var controller = CreateController(role: WorkspaceRoles.Viewer);
+
+        var result = await controller.UpdateMetadata(Guid.NewGuid(), new UpdateDocumentMetadataApiRequest { Category = "Reference", Title = "x" }, CancellationToken.None);
+
+        _ = Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task Viewer_cannot_archive_document()
+    {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, WorkspaceRoles.Viewer);
+        var controller = CreateController(role: WorkspaceRoles.Viewer);
+
+        var result = await controller.Archive(Guid.NewGuid(), CancellationToken.None);
+
+        _ = Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task Planner_can_upload_and_update_document()
+    {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, WorkspaceRoles.Planner);
+        var controller = CreateController(
+            role: WorkspaceRoles.Planner,
+            uploadResult: UploadDocumentResult.Created(Guid.NewGuid()),
+            updateResult: UpdateDocumentMetadataResult.CreateSuccess(ListItem(Guid.NewGuid(), Guid.NewGuid(), "x")));
+
+        var uploadResult = await controller.Upload(
+            new UploadDocumentFormRequest { PlanId = Guid.NewGuid(), Category = "Reference", Title = "Doc", File = new FakeFormFile("a.pdf", "application/pdf", 100) },
+            CancellationToken.None);
+        _ = Assert.IsType<CreatedResult>(uploadResult);
+
+        var updateResult = await controller.UpdateMetadata(Guid.NewGuid(), new UpdateDocumentMetadataApiRequest { Category = "Reference", Title = "x" }, CancellationToken.None);
+        _ = Assert.IsType<OkObjectResult>(updateResult);
+    }
+
+    [Fact]
+    public async Task Admin_can_archive_document()
+    {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var controller = CreateController(
+            role: WorkspaceRoles.Admin,
+            archiveResult: ArchiveDocumentResult.CreateSuccess(Guid.NewGuid()));
+
+        var result = await controller.Archive(Guid.NewGuid(), CancellationToken.None);
+
+        _ = Assert.IsType<NoContentResult>(result);
+    }
+
+    private static DocumentsController CreateController(
+        UploadDocumentResult? uploadResult = null,
+        IReadOnlyList<DocumentListItem>? getDocumentsResult = null,
+        UpdateDocumentMetadataResult? updateResult = null,
+        ArchiveDocumentResult? archiveResult = null,
+        string role = WorkspaceRoles.Admin)
+    {
+        var ctx = new TestCurrentUserContext(Guid.NewGuid(), Guid.NewGuid(), true, role);
+        return new DocumentsController(
+            new FakeUploadDocumentCommand(uploadResult ?? UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery(getDocumentsResult ?? []),
+            new FakeUpdateDocumentMetadataCommand(updateResult ?? UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(archiveResult ?? ArchiveDocumentResult.CreateNotFound()),
+            ctx);
     }
 
     private static DocumentListItem ListItem(Guid id, Guid planId, string title) =>
@@ -566,6 +639,8 @@ public sealed class DocumentsControllerTests
 
         public Guid? AccountId => Guid.NewGuid();
 
+        public string? Role => WorkspaceRoles.Admin;
+
         public bool IsAuthenticated => true;
     }
 
@@ -637,16 +712,19 @@ public sealed class DocumentsControllerTests
 
     private sealed class TestCurrentUserContext : ICurrentUserContext
     {
-        public TestCurrentUserContext(Guid accountId, Guid userId, bool isAuthenticated)
+        public TestCurrentUserContext(Guid accountId, Guid userId, bool isAuthenticated, string? role = WorkspaceRoles.Admin)
         {
             AccountId = accountId;
             UserId = userId;
             IsAuthenticated = isAuthenticated;
+            Role = role;
         }
 
         public Guid? AccountId { get; }
 
         public Guid? UserId { get; }
+
+        public string? Role { get; }
 
         public bool IsAuthenticated { get; }
     }

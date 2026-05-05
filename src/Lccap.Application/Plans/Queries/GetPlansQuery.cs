@@ -46,7 +46,7 @@ public sealed class GetPlansQuery
 
         var plans = await _dbContext.Plans
             .AsNoTracking()
-            .Where(p => p.AccountId == accountId && !p.IsDeleted)
+            .Where(p => p.AccountId == accountId && !p.IsDeleted && p.Status != "Archived")
             .OrderByDescending(p => p.UpdatedAtUtc ?? p.CreatedAtUtc)
             .Select(p => new PlanListItemDto(
                 p.Id,

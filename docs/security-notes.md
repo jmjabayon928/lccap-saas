@@ -11,6 +11,20 @@ Development CORS is configured in `Program.cs` to allow local frontend origins (
 - Each LGU (tenant) is represented as an **Account**; **`account_id` is the tenant boundary**.
 - Application behavior must not read or write data across tenant boundaries.
 
+## Role-Based Access Control (RBAC) - MVP
+
+- **Server-Side Enforcement**: RBAC is enforced on the server for all workspace APIs (Plans, Sections, Documents, Actions, Monitoring, Exports).
+- **Role Claim**: The user's role is sourced from the `role` claim in the JWT.
+- **MVP Role Policy**:
+  - **Viewer**: Read-only access to all workspace content. Cannot create, update, archive, restore, or upload.
+  - **Reviewer**: Read-only access + Export capability. Cannot create, update, archive, or restore.
+  - **Planner**: Full read, create, update, and restore capabilities. Cannot **Archive** (Admin-only).
+  - **Admin**: Full control over tenant workspace content, including **Archive**.
+  - **Platform Roles** (`SystemAdmin`, `NationalAdmin`, `AgencyAdmin`): Do not grant tenant content mutation by default unless the user also has a tenant account context and appropriate role.
+- **403 Forbidden**: Authenticated users attempting actions not permitted by their role receive a **403 Forbidden** response.
+- **UI Hiding**: Frontend role-based hiding is a convenience only; the backend remains the authoritative source of truth for all permissions.
+- **Isolation Priority**: RBAC is checked **in addition to** tenant isolation. A user must belong to the correct tenant AND have the correct role to perform an action.
+
 ## No `accountId` from the request
 
 - Callers must not supply tenant identity in an unconstrained way (e.g. arbitrary `accountId` on the URL or body) to assume another tenant’s context.
@@ -122,6 +136,32 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Audit** — successful updates and archives write **`audit_logs`** rows (`MonitoringIndicatorUpdated`, `MonitoringIndicatorArchived`) with tenant and user linkage and JSON snapshots for accountability.
 - **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
 
+## Plan metadata and archive (MVP)
+
+- **`PUT /api/plans/{id}`** updates plan metadata fields (title, years, status, template mode, version, description); `account_id` is not accepted from the client.
+- **`DELETE /api/plans/{id}`** archives the **plan** row (soft delete: `is_deleted = true` and `status = 'Archived'`). There is **no** hard delete or purge of child records (sections, documents, actions, etc.) in this MVP slice.
+- **Active lists** — plan lists and workspace queries return only rows where `is_deleted` is false and `status != 'Archived'`; archived plans stay out of the LGU workspace.
+- **Audit** — successful updates and archives write **`audit_logs`** rows (`PlanMetadataUpdated`, `PlanArchived`) with tenant and user linkage and JSON snapshots for accountability.
+- **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
+
+## Section revision history and restore (MVP)
+
+- **Audit-backed history** — Section revisions are sourced from `audit_logs` where `entity_name = 'PlanSection'`.
+- **Tenant-scoped restore** — Restore operations strictly verify that the audit log entry, the section, and the parent plan all belong to the current authenticated account.
+- **Action audit** — Section updates and restores write new `audit_logs` entries (`PlanSectionUpdated`, `PlanSectionRestored`) with old/new value snapshots.
+- **No raw JSON exposure** — The API and UI extract only the necessary fields (title, content) from the audit log JSON; raw unrelated audit data is not exposed.
+- **No schema changes** — This MVP implementation uses the existing `audit_logs` table and does not require a dedicated revisions table.
+- **Do not send `accountId`** from the client for these routes; scope comes from the JWT/session only.
+
+## Optimistic Concurrency and RowVersion (MVP)
+
+- **Authoritative Backend** — The backend strictly enforces optimistic concurrency using `RowVersion` (bytea) for Plans, Action Items, and Monitoring Indicators.
+- **Latest Detail Fetch** — Frontend edit flows must ensure they use the latest concurrency token. If a list response is lightweight (e.g. Plans list), the UI must fetch the full detail by ID before opening an edit form.
+- **User-Friendly Conflicts** — Concurrency conflicts (HTTP 409) are mapped to clear user instructions: "This record was changed elsewhere. Refresh and try again."
+- **Legacy Data Handling and Repair** — Legacy records missing a concurrency token are handled gracefully. The backend automatically repairs missing or empty `RowVersion` tokens for active, tenant-scoped records during detail or list retrieval. The UI remains tolerant of missing tokens but blocks editing until a valid token is obtained via refresh.
+- **Token Rotation** — Concurrency tokens are rotated (assigned a new random 8-byte value) on every successful update to ensure the next update requires the latest token.
+- **Cryptographic Randomness** — New tokens are generated using a cryptographically strong random number generator (`RandomNumberGenerator.Fill`).
+
 ## Frontend uploads — hardening (directional)
 
 - Content validation beyond extension (magic-bytes / MIME sniffing), antivirus scanning, asynchronous malware pipelines, per-tenant quotas, and **signed URLs** or gateway-controlled downloads from object storage instead of exposing internal paths.
@@ -133,3 +173,13 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Platform Admin**: The platform admin demo user is seeded with `account_id: null` per schema requirements.
 - **Tenant Isolation**: LGU demo users are seeded with their respective `account_id` to support tenant isolation testing.
 - **Not Official**: Demo accounts and users are for development/testing only and do not represent official government entities or approval authorities.
+
+## Audit History Viewer (MVP)
+
+- **Read-Only**: The audit history viewer is strictly read-only. No audit records can be created, updated, or deleted via the viewer.
+- **Tenant-Scoped**: Users can only view audit logs belonging to their own `account_id`. Cross-tenant access is strictly forbidden and enforced server-side.
+- **RBAC Enforced**: Access is restricted to **Admin** and **Reviewer** roles only. **Planner**, **Viewer**, and **PublicViewer** roles are blocked with a **403 Forbidden** response.
+- **No `accountId` from Client**: The tenant scope is determined from the authenticated principal (JWT), not from client-supplied IDs.
+- **Accountability**: The viewer provides a history of who changed what, when, and includes snapshots of old and new values for transparency.
+- **Metadata Visibility**: Metadata such as `planId` or `sectionKey` is exposed where available to provide context for the changes.
+- **Positioning**: Audit history supports **LGU-facing accountability** and internal review. It is not a formal government audit report or national reporting channel.

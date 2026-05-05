@@ -11,10 +11,16 @@ const api = {
   /** GET /api/plans */
   plansList: () => `/api/plans`,
   planById: (planId: string) => `/api/plans/${encodeURIComponent(planId)}`,
+  /** DELETE /api/plans/{planId} — archives plan */
+  archivePlan: (planId: string) => `/api/plans/${encodeURIComponent(planId)}`,
 
   planSections: (planId: string) => `/api/plans/${encodeURIComponent(planId)}/sections`,
   planSectionByKey: (planId: string, sectionKey: string) =>
     `/api/plans/${encodeURIComponent(planId)}/sections/${encodeURIComponent(sectionKey)}`,
+  planSectionHistory: (planId: string, sectionKey: string) =>
+    `/api/plans/${encodeURIComponent(planId)}/sections/${encodeURIComponent(sectionKey)}/history`,
+  restorePlanSection: (planId: string, sectionKey: string) =>
+    `/api/plans/${encodeURIComponent(planId)}/sections/${encodeURIComponent(sectionKey)}/restore`,
 
   /** POST /api/documents/upload (multipart/form-data) */
   uploadDocument: () => `/api/documents/upload`,
@@ -44,7 +50,10 @@ const api = {
   /** POST /api/plans/{planId}/exports/pdf */
   createPdfExport: (planId: string) => `/api/plans/${encodeURIComponent(planId)}/exports/pdf`,
   exportById: (exportJobId: string) => `/api/exports/${encodeURIComponent(exportJobId)}`,
-  exportDownload: (exportJobId: string) => `/api/exports/${encodeURIComponent(exportJobId)}/download`
+  exportDownload: (exportJobId: string) => `/api/exports/${encodeURIComponent(exportJobId)}/download`,
+
+  /** GET /api/audit-logs */
+  auditLogs: () => `/api/audit-logs`
 } as const;
 
 export const endpoints = api;

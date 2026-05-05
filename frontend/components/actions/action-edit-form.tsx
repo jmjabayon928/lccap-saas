@@ -58,6 +58,13 @@ function datetimeLocalValueToIsoUtc(value: string): string | null {
 
 function formatError(err: unknown): string {
   if (isApiError(err)) {
+    if (err.status === 409) {
+      return "This action was changed elsewhere. Refresh and try again.";
+    }
+    const details = err.details as { errors?: Record<string, string[]> } | undefined;
+    if (details?.errors?.RowVersion || details?.errors?.rowVersion) {
+      return "This action needs to be refreshed before editing.";
+    }
     return err.message;
   }
   if (err instanceof Error) {

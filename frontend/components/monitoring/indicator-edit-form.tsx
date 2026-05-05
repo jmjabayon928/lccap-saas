@@ -25,6 +25,13 @@ const MONITORING_STATUSES: readonly MonitoringStatus[] = [
 
 function formatError(err: unknown): string {
   if (isApiError(err)) {
+    if (err.status === 409) {
+      return "This indicator was changed elsewhere. Refresh and try again.";
+    }
+    const details = err.details as { errors?: Record<string, string[]> } | undefined;
+    if (details?.errors?.RowVersion || details?.errors?.rowVersion) {
+      return "This indicator needs to be refreshed before editing.";
+    }
     return err.message;
   }
   if (err instanceof Error) {
@@ -109,6 +116,9 @@ export function IndicatorEditForm({ indicator, onSaved, onCancel }: IndicatorEdi
   }
 
   function buildRequest(): UpdateMonitoringIndicatorRequest {
+    if (indicator.rowVersion === null) {
+      throw new Error("MISSING_ROW_VERSION");
+    }
     const baselineValueOut = baselineValue.trim() === "" ? null : parseOptionalNumberField(baselineValue);
     const targetValueOut = targetValue.trim() === "" ? null : parseOptionalNumberField(targetValue);
     const currentValueOut = currentValue.trim() === "" ? null : parseOptionalNumberField(currentValue);
@@ -144,22 +154,19 @@ export function IndicatorEditForm({ indicator, onSaved, onCancel }: IndicatorEdi
       return;
     }
 
-    let request: UpdateMonitoringIndicatorRequest;
-    try {
-      request = buildRequest();
-    } catch {
-      setClientError("Please check numeric fields and progress (0–100) and try again.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
+      const request = buildRequest();
       const updated = await monitoringClient.updateIndicator(indicator.id, request);
       onSaved(updated);
       setSuccessMessage("Indicator updated.");
       window.setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err) {
-      setApiError(formatError(err));
+      if (err instanceof Error && err.message === "MISSING_ROW_VERSION") {
+        setClientError("This indicator needs to be refreshed before editing because it has no concurrency token.");
+      } else {
+        setApiError(formatError(err));
+      }
     } finally {
       setIsSubmitting(false);
     }

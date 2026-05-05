@@ -16,7 +16,7 @@ export interface ActionItemSummary {
   readonly id: string;
   readonly planId: string;
   /** Base64 row version from API (optimistic concurrency). */
-  readonly rowVersion: string;
+  readonly rowVersion: string | null;
   readonly title: string;
   readonly description: string | null;
   readonly actionType: ActionType;
@@ -51,7 +51,7 @@ export interface CreateActionItemRequest {
 }
 
 export type UpdateActionItemRequest = CreateActionItemRequest & {
-  readonly rowVersion: string;
+  readonly rowVersion: string | null;
 };
 
 export type SaveActionItemResult = ActionItemDetail;

@@ -26,6 +26,7 @@ export interface PlanSummary {
   readonly description: string | null;
   readonly createdAtUtc: string | null;
   readonly updatedAtUtc: string | null;
+  readonly rowVersion: string | null;
 }
 
 export interface CreatePlanRequest {
@@ -45,6 +46,17 @@ export interface CreatePlanResult {
   readonly startYear: number;
   readonly endYear: number;
   readonly status: string;
+}
+
+export interface UpdatePlanMetadataRequest {
+  readonly title: string;
+  readonly startYear: number;
+  readonly endYear: number;
+  readonly status: PlanStatus;
+  readonly templateMode: TemplateMode;
+  readonly versionNumber: number;
+  readonly description: string | null;
+  readonly rowVersion: string | null;
 }
 
 export interface PlanSectionSummary {
@@ -78,4 +90,22 @@ export interface SavePlanSectionResult {
   readonly title?: string;
   readonly content?: string;
   readonly sortOrder?: number;
+}
+
+export interface PlanSectionHistoryEntry {
+  readonly auditLogId: string;
+  readonly sectionId: string;
+  readonly planId: string;
+  readonly sectionKey: string;
+  readonly action: "PlanSectionUpdated" | "PlanSectionRestored";
+  readonly title: string;
+  readonly content: string;
+  readonly createdAtUtc: string;
+  readonly userId: string | null;
+  readonly canRestore: boolean;
+}
+
+export interface RestorePlanSectionRequest {
+  readonly auditLogId: string;
+  readonly restoreReason?: string;
 }

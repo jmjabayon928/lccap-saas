@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { LayoutDashboard, FileText, FolderOpen, CheckSquare, Activity, FileOutput, Map, Bot } from "lucide-react";
+import { LayoutDashboard, FileText, FolderOpen, CheckSquare, Activity, FileOutput, Map, Bot, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useAuthSession } from "@/lib/auth/use-auth-session";
 
 interface NavItem {
   label: string;
@@ -22,12 +23,22 @@ const navItems: NavItem[] = [
   { label: "Actions", href: "/actions", icon: CheckSquare },
   { label: "Monitoring", href: "/monitoring", icon: Activity },
   { label: "Exports", href: "/exports", icon: FileOutput },
+  { label: "Audit History", href: "/audit", icon: History },
   { label: "Future: Maps", href: "/dashboard", icon: Map, future: true },
   { label: "Future: AI Assistant", href: "/dashboard", icon: Bot, future: true }
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { session } = useAuthSession();
+  const role = session?.user.role;
+
+  const filteredItems = navItems.filter((item) => {
+    if (item.href === "/audit") {
+      return role === "Admin" || role === "Reviewer";
+    }
+    return true;
+  });
 
   return (
     <aside className="h-full border-r border-border bg-white p-3 md:p-4">
@@ -36,7 +47,7 @@ export function Sidebar() {
         <p className="text-xs text-muted-foreground">Demo LGU Command Center</p>
       </div>
       <nav className="space-y-1">
-        {navItems.map((item) => {
+        {filteredItems.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (

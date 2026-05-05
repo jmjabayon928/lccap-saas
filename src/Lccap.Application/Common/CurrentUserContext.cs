@@ -12,6 +12,8 @@ public sealed class CurrentUserContext : ICurrentUserContext
 
     public Guid? AccountId { get; set; }
 
+    public string? Role { get; set; }
+
     public bool IsAuthenticated { get; set; }
 
     public void SetFromPrincipal(ClaimsPrincipal? principal)
@@ -21,6 +23,7 @@ public sealed class CurrentUserContext : ICurrentUserContext
         {
             UserId = null;
             AccountId = null;
+            Role = null;
             return;
         }
 
@@ -28,6 +31,7 @@ public sealed class CurrentUserContext : ICurrentUserContext
             principal!.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? principal.FindFirst("sub")?.Value);
         AccountId = TryParseGuid(principal.FindFirst("account_id")?.Value);
+        Role = (principal.FindFirst("role")?.Value ?? principal.FindFirst(ClaimTypes.Role)?.Value)?.Trim();
     }
 
     private static Guid? TryParseGuid(string? value)

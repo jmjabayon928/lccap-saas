@@ -44,6 +44,14 @@ export default function PlansPage() {
     void loadPlans();
   }, [loadPlans]);
 
+  const handlePlanUpdated = (updated: PlanSummary) => {
+    setPlans((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  };
+
+  const handlePlanArchived = (planId: string) => {
+    setPlans((prev) => prev.filter((p) => p.id !== planId));
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -95,6 +103,8 @@ export default function PlansPage() {
           isLoading={listLoading}
           errorMessage={listError}
           onRetry={loadPlans}
+          onPlanUpdated={handlePlanUpdated}
+          onPlanArchived={handlePlanArchived}
         />
       ) : null}
 

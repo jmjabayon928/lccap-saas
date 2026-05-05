@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Lccap.Application.Common.Concurrency;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Documents.Queries;
 using Lccap.Domain.Entities;
@@ -107,6 +108,8 @@ public class UpdateDocumentMetadataCommand
             DateTimeOffset.UtcNow,
             _currentUserContext.UserId);
 
+        document.RotateRowVersion();
+
         var newSnapshot = BuildMetadataSnapshotJson(
             document.Title,
             document.Category,
@@ -131,7 +134,7 @@ public class UpdateDocumentMetadataCommand
             NewValuesJson = newSnapshot,
             MetadataJson = metadata,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            RowVersion = RowVersionHelper.NewRowVersion(),
         };
 
         _ = _dbContext.AuditLogs.Add(audit);

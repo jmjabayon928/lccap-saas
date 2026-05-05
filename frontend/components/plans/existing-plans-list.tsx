@@ -5,6 +5,8 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlanMetadataEditForm } from "@/components/plans/plan-metadata-edit-form";
+import { PlanArchiveButton } from "@/components/plans/plan-archive-button";
 import {
   Table,
   TableBody,
@@ -14,13 +16,17 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 import type { PlanSummary } from "@/types/plans";
+import { planClient } from '@/lib/plans/plan-client';
 
 export interface ExistingPlansListProps {
   readonly plans: PlanSummary[];
   readonly isLoading?: boolean;
   readonly errorMessage?: string | null;
   readonly onRetry?: () => void;
+  readonly onPlanUpdated?: (updated: PlanSummary) => void;
+  readonly onPlanArchived?: (planId: string) => void;
 }
 
 function formatStamp(iso: string | null): string | null {
@@ -41,9 +47,37 @@ export function ExistingPlansList({
   plans,
   isLoading = false,
   errorMessage = null,
-  onRetry
+  onRetry,
+  onPlanUpdated,
+  onPlanArchived
 }: ExistingPlansListProps) {
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editingPlanDetail, setEditingPlanDetail] = useState<PlanSummary | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [archivingPlanId, setArchivingPlanId] = useState<string | null>(null);
+
   const hasPlans = plans.length > 0;
+
+  async function handleEditClick(planId: string) {
+    setDetailError(null);
+    setLoadingDetailId(planId);
+    try {
+      const detail = await planClient.getPlanById(planId);
+      setEditingPlanDetail(detail);
+      setEditingPlanId(planId);
+    } catch {
+      setDetailError("Could not load latest plan details. Please retry.");
+    } finally {
+      setLoadingDetailId(null);
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditingPlanId(null);
+    setEditingPlanDetail(null);
+    setDetailError(null);
+  }
 
   return (
     <Card className="border-slate-200/80 shadow-sm">
@@ -96,7 +130,7 @@ export function ExistingPlansList({
                     <TableHead className="whitespace-nowrap">Status</TableHead>
                     <TableHead className="whitespace-nowrap">Template</TableHead>
                     <TableHead className="min-w-[9rem]">Updated</TableHead>
-                    <TableHead className="text-right"> </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -104,9 +138,80 @@ export function ExistingPlansList({
                     const created = formatStamp(plan.createdAtUtc);
                     const updated = formatStamp(plan.updatedAtUtc);
                     const activity = updated ?? created;
+
+                    if (editingPlanId === plan.id && editingPlanDetail) {
+                      return (
+                        <TableRow key={plan.id}>
+                          <TableCell colSpan={6} className="p-0">
+                            <div className="p-4 bg-slate-50/50 border-y">
+                              <PlanMetadataEditForm
+                                plan={editingPlanDetail}
+                                onCancel={handleCancelEdit}
+                                onSuccess={(updatedPlan) => {
+                                  handleCancelEdit();
+                                  onPlanUpdated?.(updatedPlan);
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    if (archivingPlanId === plan.id) {
+                      return (
+                        <TableRow key={plan.id}>
+                          <TableCell colSpan={6} className="p-0">
+                            <div className="p-4 bg-destructive/5 border-y">
+                              <div className="max-w-md">
+                                <PlanArchiveButton
+                                  planId={plan.id}
+                                  planTitle={plan.title}
+                                  onSuccess={() => {
+                                    setArchivingPlanId(null);
+                                    onPlanArchived?.(plan.id);
+                                  }}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="mt-2"
+                                  onClick={() => setArchivingPlanId(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    const isLoadingDetail = loadingDetailId === plan.id;
+
                     return (
                       <TableRow key={plan.id}>
-                        <TableCell className="font-medium text-foreground">{plan.title}</TableCell>
+                        <TableCell className="font-medium text-foreground">
+                          <div>
+                            {plan.title}
+                            {plan.description && (
+                              <p className="text-xs text-muted-foreground font-normal line-clamp-1 mt-0.5">
+                                {plan.description}
+                              </p>
+                            )}
+                            {isLoadingDetail && (
+                              <p className="text-xs text-emerald-700 font-medium mt-1 flex items-center gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Loading latest details…
+                              </p>
+                            )}
+                            {detailError && loadingDetailId === null && editingPlanId === null && (
+                              <p className="text-xs text-destructive font-medium mt-1">
+                                {detailError}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
                           {plan.startYear}–{plan.endYear}
                         </TableCell>
@@ -126,12 +231,30 @@ export function ExistingPlansList({
                           ) : null}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link
-                            href={`/plans/${plan.id}`}
-                            className={cn(buttonVariants({ variant: "default", size: "sm" }), "inline-flex")}
-                          >
-                            Open workspace
-                          </Link>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditClick(plan.id)}
+                              disabled={isLoadingDetail}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setArchivingPlanId(plan.id)}
+                            >
+                              Archive
+                            </Button>
+                            <Link
+                              href={`/plans/${plan.id}`}
+                              className={cn(buttonVariants({ variant: "default", size: "sm" }), "inline-flex")}
+                            >
+                              Open
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -145,6 +268,47 @@ export function ExistingPlansList({
                 const created = formatStamp(plan.createdAtUtc);
                 const updated = formatStamp(plan.updatedAtUtc);
                 const activity = updated ?? created;
+
+                if (editingPlanId === plan.id && editingPlanDetail) {
+                  return (
+                    <div key={plan.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                      <PlanMetadataEditForm
+                        plan={editingPlanDetail}
+                        onCancel={handleCancelEdit}
+                        onSuccess={(updatedPlan) => {
+                          handleCancelEdit();
+                          onPlanUpdated?.(updatedPlan);
+                        }}
+                      />
+                    </div>
+                  );
+                }
+
+                if (archivingPlanId === plan.id) {
+                  return (
+                    <div key={plan.id} className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 shadow-sm">
+                      <PlanArchiveButton
+                        planId={plan.id}
+                        planTitle={plan.title}
+                        onSuccess={() => {
+                          setArchivingPlanId(null);
+                          onPlanArchived?.(plan.id);
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => setArchivingPlanId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  );
+                }
+
+                const isLoadingDetail = loadingDetailId === plan.id;
+
                 return (
                   <div
                     key={plan.id}
@@ -159,6 +323,22 @@ export function ExistingPlansList({
                       </div>
                       <Badge variant="secondary">{plan.status}</Badge>
                     </div>
+                    {plan.description && (
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                        {plan.description}
+                      </p>
+                    )}
+                    {isLoadingDetail && (
+                      <p className="text-xs text-emerald-700 font-medium mt-2 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Loading latest details…
+                      </p>
+                    )}
+                    {detailError && loadingDetailId === null && editingPlanId === null && (
+                      <p className="text-xs text-destructive font-medium mt-2">
+                        {detailError}
+                      </p>
+                    )}
                     <p className="mt-2 text-xs text-muted-foreground">
                       {plan.templateMode} · version {plan.versionNumber}
                     </p>
@@ -170,15 +350,33 @@ export function ExistingPlansList({
                         ) : null}
                       </p>
                     ) : null}
-                    <Link
-                      href={`/plans/${plan.id}`}
-                      className={cn(
-                        buttonVariants({ variant: "default", size: "sm" }),
-                        "mt-3 inline-flex w-full justify-center"
-                      )}
-                    >
-                      Open workspace
-                    </Link>
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick(plan.id)}
+                        disabled={isLoadingDetail}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setArchivingPlanId(plan.id)}
+                      >
+                        Archive
+                      </Button>
+                      <Link
+                        href={`/plans/${plan.id}`}
+                        className={cn(
+                          buttonVariants({ variant: "default", size: "sm" }),
+                          "inline-flex justify-center"
+                        )}
+                      >
+                        Open
+                      </Link>
+                    </div>
                   </div>
                 );
               })}

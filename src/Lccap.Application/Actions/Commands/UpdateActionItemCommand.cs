@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Lccap.Application.Common.Concurrency;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -117,6 +118,8 @@ public class UpdateActionItemCommand
             _currentUserContext.UserId.Value,
             DateTimeOffset.UtcNow);
 
+        entity.RotateRowVersion();
+
         var newSnapshot = BuildFieldSnapshot(
             entity.Title,
             entity.Description,
@@ -145,7 +148,7 @@ public class UpdateActionItemCommand
             NewValuesJson = newSnapshot,
             MetadataJson = metadata,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            RowVersion = RowVersionHelper.NewRowVersion(),
         };
 
         _ = _dbContext.AuditLogs.Add(audit);

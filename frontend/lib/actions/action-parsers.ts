@@ -96,12 +96,16 @@ function parseActionRecord(raw: Record<string, unknown>): ActionItemDetail | nul
     !isNonEmptyString(idRaw) ||
     !isNonEmptyString(planId) ||
     !isNonEmptyString(title) ||
-    !isNonEmptyString(sector) ||
-    typeof rowVersionRaw !== "string" ||
-    !rowVersionRaw.trim()
+    !isNonEmptyString(sector)
   ) {
     return null;
   }
+
+  let rowVersion: string | null = null;
+  if (typeof rowVersionRaw === "string" && rowVersionRaw.trim()) {
+    rowVersion = rowVersionRaw.trim();
+  }
+
   if (!isFiniteNumber(budgetAmount) || budgetAmount < 0) {
     return null;
   }
@@ -122,7 +126,7 @@ function parseActionRecord(raw: Record<string, unknown>): ActionItemDetail | nul
   return {
     id: idRaw,
     planId,
-    rowVersion: rowVersionRaw.trim(),
+    rowVersion,
     title,
     description,
     actionType,

@@ -247,6 +247,18 @@ export default function PlanWorkspacePage() {
       ? state.sections.find((s) => s.sectionKey === selectedSectionKey)
       : undefined;
 
+  function handlePlanUpdated(updated: PlanSummary): void {
+    setState((s) => {
+      if (s.status !== "ready") {
+        return s;
+      }
+      return {
+        ...s,
+        plan: updated
+      };
+    });
+  }
+
   function handleSectionSaved(updated: PlanSectionSummary): void {
     setState((s) => {
       if (s.status !== "ready") {
@@ -413,7 +425,7 @@ export default function PlanWorkspacePage() {
 
       {state.status === "ready" ? (
         <>
-          <PlanSummaryCard plan={state.plan} />
+          <PlanSummaryCard plan={state.plan} onPlanUpdated={handlePlanUpdated} onRefresh={() => void load()} />
 
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <PlanSectionsPreview

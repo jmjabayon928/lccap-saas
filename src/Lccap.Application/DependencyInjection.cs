@@ -1,5 +1,6 @@
 using Lccap.Application.Actions.Commands;
 using Lccap.Application.Actions.Queries;
+using Lccap.Application.Audit.Queries;
 using Lccap.Application.Common;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Documents.Commands;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         _ = services.AddScoped<ArchiveMonitoringIndicatorCommand>();
         _ = services.AddScoped<CreatePlanCommand>();
         _ = services.AddScoped<UpdatePlanCommand>();
+        _ = services.AddScoped<ArchivePlanCommand>();
         _ = services.AddScoped<GetPlanByIdQuery>();
         _ = services.AddScoped<GetPlansQuery>();
         _ = services.AddScoped<UploadDocumentCommand>();
@@ -37,12 +39,15 @@ public static class DependencyInjection
         _ = services.AddScoped<DownloadExportQuery>();
         _ = services.AddScoped<GetDocumentsByPlanQuery>();
         _ = services.AddScoped<SavePlanSectionCommand>();
+        _ = services.AddScoped<RestorePlanSectionCommand>();
         _ = services.AddScoped<GetPlanSectionsQuery>();
         _ = services.AddScoped<GetPlanSectionByKeyQuery>();
+        _ = services.AddScoped<GetPlanSectionHistoryQuery>();
         _ = services.AddScoped<CreateActionItemCommand>();
         _ = services.AddScoped<UpdateActionItemCommand>();
         _ = services.AddScoped<ArchiveActionItemCommand>();
         _ = services.AddScoped<GetActionItemsByPlanQuery>();
         _ = services.AddScoped<GetActionItemByIdQuery>();
+        _ = services.AddScoped<GetAuditLogsQuery>();
     }
 }

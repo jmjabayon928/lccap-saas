@@ -1,6 +1,7 @@
 import { ApiError } from "@/lib/api/api-error";
 import type {
   CreatePlanResult,
+  PlanSectionHistoryEntry,
   PlanSectionSummary,
   PlanStatus,
   PlanSummary,
@@ -113,6 +114,11 @@ function parsePlanSummaryFromRecord(record: Record<string, unknown>, payloadForE
   const createdAtUtc = optionalIsoOrNull(record.createdAtUtc);
   const updatedAtUtc = optionalIsoOrNull(record.updatedAtUtc);
 
+  let rowVersion: string | null = null;
+  if (typeof record.rowVersion === "string" && record.rowVersion.trim()) {
+    rowVersion = record.rowVersion.trim();
+  }
+
   if (!isNonEmptyString(idRaw)) {
     throw new ApiError("Invalid plan response: missing plan identifier", 502, payloadForError);
   }
@@ -159,7 +165,8 @@ function parsePlanSummaryFromRecord(record: Record<string, unknown>, payloadForE
     versionNumber,
     description,
     createdAtUtc,
-    updatedAtUtc
+    updatedAtUtc,
+    rowVersion
   };
 }
 
@@ -321,4 +328,68 @@ export function parsePlanSections(payload: unknown): PlanSectionSummary[] {
   }
 
   return [...parsed].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export function parsePlanSectionHistoryEntry(payload: unknown): PlanSectionHistoryEntry {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid history entry: expected object", 502, payload);
+  }
+
+  const auditLogId = payload.auditLogId;
+  const sectionId = payload.sectionId;
+  const planId = payload.planId;
+  const sectionKey = payload.sectionKey;
+  const action = payload.action;
+  const title = payload.title;
+  const content = payload.content;
+  const createdAtUtc = payload.createdAtUtc;
+  const userId = payload.userId;
+  const canRestore = payload.canRestore;
+
+  if (
+    !isNonEmptyString(auditLogId) ||
+    !isNonEmptyString(sectionId) ||
+    !isNonEmptyString(planId) ||
+    !isNonEmptyString(sectionKey) ||
+    (action !== "PlanSectionUpdated" && action !== "PlanSectionRestored") ||
+    typeof title !== "string" ||
+    typeof content !== "string" ||
+    !isNonEmptyString(createdAtUtc) ||
+    typeof canRestore !== "boolean"
+  ) {
+    throw new ApiError("Invalid history entry: malformed fields", 502, payload);
+  }
+
+  return {
+    auditLogId,
+    sectionId,
+    planId,
+    sectionKey,
+    action: action as "PlanSectionUpdated" | "PlanSectionRestored",
+    title,
+    content,
+    createdAtUtc,
+    userId: typeof userId === "string" ? userId : null,
+    canRestore
+  };
+}
+
+export function parsePlanSectionHistoryList(payload: unknown): PlanSectionHistoryEntry[] {
+  let list: unknown[] = [];
+
+  if (isRecord(payload) && Array.isArray(payload.history)) {
+    list = payload.history;
+  } else if (Array.isArray(payload)) {
+    list = payload;
+  } else {
+    throw new ApiError("Invalid history list response: expected array or history wrapper", 502, payload);
+  }
+
+  return list.map((item, i) => {
+    try {
+      return parsePlanSectionHistoryEntry(item);
+    } catch {
+      throw new ApiError(`Invalid history list: entry ${i} is malformed`, 502, payload);
+    }
+  });
 }

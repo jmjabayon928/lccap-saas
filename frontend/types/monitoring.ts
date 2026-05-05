@@ -15,7 +15,7 @@ export interface MonitoringIndicatorSummary {
   /** Optional link to a plan action item when the API provides it. */
   readonly actionItemId: string | null;
   /** Base64 row version from API (optimistic concurrency). */
-  readonly rowVersion: string;
+  readonly rowVersion: string | null;
   readonly name: string;
   readonly description: string | null;
   readonly unit: string | null;
@@ -58,12 +58,12 @@ export interface UpdateMonitoringIndicatorRequest {
   readonly status: MonitoringStatus;
   readonly frequency: string | null;
   readonly responsibleOffice: string | null;
-  readonly rowVersion: string;
+  readonly rowVersion: string | null;
 }
 
 export interface SaveMonitoringIndicatorResult {
   readonly id: string;
-  readonly rowVersion?: string;
+  readonly rowVersion?: string | null;
   // Optional full indicator fields for backward compatibility
   readonly planId?: string;
   readonly name?: string;

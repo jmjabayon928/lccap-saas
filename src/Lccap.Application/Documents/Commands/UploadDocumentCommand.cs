@@ -131,6 +131,7 @@ public class UploadDocumentCommand
             CreatedByUserId = _currentUserContext.UserId,
             IsDeleted = false,
         };
+        document.EnsureRowVersion();
 
         _ = _dbContext.FileAssets.Add(fileAsset);
         _ = _dbContext.Documents.Add(document);

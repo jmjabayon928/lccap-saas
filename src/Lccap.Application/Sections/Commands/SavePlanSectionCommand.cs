@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lccap.Application.Common.Concurrency;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Domain.Entities;
 
@@ -49,10 +50,15 @@ public class SavePlanSectionCommand
         var accountId = _currentUserContext.AccountId.Value;
         var userId = _currentUserContext.UserId.Value;
 
-        var planExists = _dbContext.Plans.Any(p => p.Id == request.PlanId && p.AccountId == accountId && !p.IsDeleted);
-        if (!planExists)
+        var plan = _dbContext.Plans.SingleOrDefault(p => p.Id == request.PlanId && p.AccountId == accountId && !p.IsDeleted);
+        if (plan == null)
         {
             return SavePlanSectionResult.Missing();
+        }
+
+        if (plan.Status == "Archived")
+        {
+            return SavePlanSectionResult.ValidationError("Cannot edit sections of an archived plan.");
         }
 
         var normalizedKey = request.SectionKey.Trim();
@@ -63,7 +69,23 @@ public class SavePlanSectionCommand
                 && !x.IsDeleted);
 
         var now = DateTimeOffset.UtcNow;
-        if (section is null)
+        var isNew = section is null;
+
+        // Snapshot old values for audit
+        var oldValues = section != null ? new
+        {
+            sectionId = section.Id,
+            planId = section.PlanId,
+            sectionKey = section.SectionKey,
+            title = section.Title,
+            content = section.Content,
+            sortOrder = section.SortOrder,
+            lastEditedByUserId = section.LastEditedByUserId,
+            lastEditedAtUtc = section.LastEditedAtUtc,
+            rowVersion = RowVersionHelper.ToBase64(section.RowVersion)
+        } : null;
+
+        if (isNew)
         {
             section = new PlanSection
             {
@@ -81,13 +103,56 @@ public class SavePlanSectionCommand
                 CreatedByUserId = userId,
                 IsDeleted = false,
             };
+            section.EnsureRowVersion();
             _ = _dbContext.PlanSections.Add(section);
         }
         else
         {
+            // Skip no-op saves to avoid audit noise
+            if (section!.Title == request.Title.Trim() && section.Content == (request.Content ?? string.Empty) && section.SortOrder == request.SortOrder)
+            {
+                return SavePlanSectionResult.Ok(section.Id, section.LastEditedByUserId, section.LastEditedAtUtc);
+            }
+
             section.SortOrder = request.SortOrder;
             section.UpdateContent(request.Title, request.Content ?? string.Empty, userId, now);
+            section.RotateRowVersion();
         }
+
+        // Snapshot new values for audit
+        var newValues = new
+        {
+            sectionId = section.Id,
+            planId = section.PlanId,
+            sectionKey = section.SectionKey,
+            title = section.Title,
+            content = section.Content,
+            sortOrder = section.SortOrder,
+            lastEditedByUserId = section.LastEditedByUserId,
+            lastEditedAtUtc = section.LastEditedAtUtc,
+            rowVersion = RowVersionHelper.ToBase64(section.RowVersion)
+        };
+
+        var auditLog = new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            UserId = userId,
+            EntityName = "PlanSection",
+            EntityId = section.Id,
+            Action = "PlanSectionUpdated",
+            OldValuesJson = oldValues != null ? JsonDocument.Parse(JsonSerializer.Serialize(oldValues)) : null,
+            NewValuesJson = JsonDocument.Parse(JsonSerializer.Serialize(newValues)),
+            MetadataJson = JsonDocument.Parse(JsonSerializer.Serialize(new
+            {
+                planId = request.PlanId,
+                sectionKey = normalizedKey,
+                revisionSource = "AuditLog"
+            })),
+            CreatedAtUtc = now
+        };
+        auditLog.EnsureRowVersion();
+        _ = _dbContext.AuditLogs.Add(auditLog);
 
         _ = await _dbContext.SaveChangesAsync(cancellationToken);
         return SavePlanSectionResult.Ok(section.Id, section.LastEditedByUserId, section.LastEditedAtUtc);

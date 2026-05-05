@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Lccap.Api.Auth;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Monitoring;
 using Lccap.Application.Monitoring.Commands;
@@ -12,14 +13,26 @@ namespace Lccap.Api.Controllers;
 [Route("api/monitoring")]
 public sealed class MonitoringController : ControllerBase
 {
+    private readonly ICurrentUserContext _currentUser;
+
+    public MonitoringController(ICurrentUserContext currentUser)
+    {
+        _currentUser = currentUser;
+    }
+
     [HttpPost("indicators")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> CreateIndicator(
         [FromBody] CreateIndicatorRequest request,
         [FromServices] CreateIndicatorCommand command,
         [FromServices] ILccapDbContext dbContext,
-        [FromServices] ICurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return BadRequest("Indicator name must not be blank.");
@@ -35,7 +48,7 @@ public sealed class MonitoringController : ControllerBase
             return BadRequest("Progress percent must be between 0 and 100 when provided.");
         }
 
-        var accountId = currentUser.AccountId;
+        var accountId = _currentUser.AccountId;
         if (accountId is null)
         {
             return Unauthorized("Authenticated account context is required.");
@@ -87,11 +100,10 @@ public sealed class MonitoringController : ControllerBase
             Status = normalized.Status,
             MetadataJson = mergedMetadata,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedByUserId = currentUser.UserId,
-            IsDeleted = false,
-            RowVersion = new byte[8]
+            CreatedByUserId = _currentUser.UserId,
+            IsDeleted = false
         };
-        RandomNumberGenerator.Fill(indicator.RowVersion);
+        indicator.EnsureRowVersion();
 
         _ = dbContext.MonitoringIndicators.Add(indicator);
         _ = await dbContext.SaveChangesAsync(cancellationToken);
@@ -100,13 +112,18 @@ public sealed class MonitoringController : ControllerBase
     }
 
     [HttpPut("indicators/{indicatorId:guid}")]
+    [RequireWorkspaceRole("CreateOrEdit")]
     public async Task<IActionResult> UpdateIndicator(
         Guid indicatorId,
         [FromBody] UpdateIndicatorRequest request,
         [FromServices] UpdateMonitoringIndicatorCommand command,
-        [FromServices] ICurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return BadRequest("Indicator name must not be blank.");
@@ -135,7 +152,7 @@ public sealed class MonitoringController : ControllerBase
             return BadRequest("Row version is invalid.");
         }
 
-        if (currentUser.AccountId is null || currentUser.UserId is null)
+        if (_currentUser.AccountId is null || _currentUser.UserId is null)
         {
             return Unauthorized("Authenticated account context is required.");
         }
@@ -172,11 +189,17 @@ public sealed class MonitoringController : ControllerBase
     }
 
     [HttpDelete("indicators/{indicatorId:guid}")]
+    [RequireWorkspaceRole("Archive")]
     public async Task<IActionResult> ArchiveIndicator(
         Guid indicatorId,
         [FromServices] ArchiveMonitoringIndicatorCommand command,
         CancellationToken cancellationToken)
     {
+        if (!WorkspaceAuthorizationPolicy.CanArchive(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
         var outcome = await command.ExecuteAsync(indicatorId, cancellationToken);
         return outcome.Outcome switch
         {
@@ -189,13 +212,18 @@ public sealed class MonitoringController : ControllerBase
     }
 
     [HttpGet("plans/{planId:guid}/indicators")]
+    [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetIndicators(
         Guid planId,
         [FromServices] ILccapDbContext dbContext,
-        [FromServices] ICurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
-        var accountId = currentUser.AccountId;
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var accountId = _currentUser.AccountId;
         if (accountId is null)
         {
             return Unauthorized("Authenticated account context is required.");
@@ -215,10 +243,24 @@ public sealed class MonitoringController : ControllerBase
         }
 
         var rows = await dbContext.MonitoringIndicators
-            .AsNoTracking()
             .Where(i => i.AccountId == accountId.Value && i.PlanId == planId && !i.IsDeleted)
             .OrderBy(i => i.Name)
             .ToListAsync(cancellationToken);
+
+        var repaired = false;
+        foreach (var row in rows)
+        {
+            if (row.RowVersion == null || row.RowVersion.Length == 0)
+            {
+                row.EnsureRowVersion();
+                repaired = true;
+            }
+        }
+
+        if (repaired)
+        {
+            _ = await dbContext.SaveChangesAsync(cancellationToken);
+        }
 
         return Ok(rows.Select(ToIndicatorResponse));
     }

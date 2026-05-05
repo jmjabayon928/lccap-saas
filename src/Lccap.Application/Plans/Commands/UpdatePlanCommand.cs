@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lccap.Application.Plans.Commands;
@@ -63,17 +65,55 @@ public sealed class UpdatePlanCommand
             return UpdatePlanResult.ConcurrencyConflict();
         }
 
-        plan.Title = request.Title.Trim();
-        plan.StartYear = request.StartYear;
-        plan.EndYear = request.EndYear;
-        plan.Status = request.Status;
-        plan.TemplateMode = request.TemplateMode;
-        plan.VersionNumber = request.VersionNumber;
-        plan.Description = request.Description;
-        plan.SubmittedAtUtc = request.SubmittedAtUtc;
-        plan.ApprovedAtUtc = request.ApprovedAtUtc;
-        plan.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        plan.UpdatedByUserId = _currentUserContext.UserId;
+        var oldValues = new
+        {
+            plan.Title,
+            plan.StartYear,
+            plan.EndYear,
+            plan.Status,
+            plan.TemplateMode,
+            plan.VersionNumber,
+            plan.Description
+        };
+
+        plan.UpdateMetadata(
+            request.Title.Trim(),
+            request.StartYear,
+            request.EndYear,
+            request.Status,
+            request.TemplateMode,
+            request.VersionNumber,
+            request.Description,
+            DateTimeOffset.UtcNow,
+            _currentUserContext.UserId.Value);
+
+        plan.RotateRowVersion();
+
+        var newValues = new
+        {
+            Title = request.Title.Trim(),
+            request.StartYear,
+            request.EndYear,
+            request.Status,
+            request.TemplateMode,
+            request.VersionNumber,
+            request.Description
+        };
+
+        var auditLog = new AuditLog
+        {
+            AccountId = _currentUserContext.AccountId,
+            UserId = _currentUserContext.UserId,
+            EntityName = "Plan",
+            EntityId = plan.Id,
+            Action = "PlanMetadataUpdated",
+            OldValuesJson = JsonDocument.Parse(JsonSerializer.Serialize(oldValues)),
+            NewValuesJson = JsonDocument.Parse(JsonSerializer.Serialize(newValues)),
+            MetadataJson = JsonDocument.Parse(JsonSerializer.Serialize(new { operation = "MetadataUpdate" })),
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        };
+
+        _dbContext.AuditLogs.Add(auditLog);
 
         try
         {

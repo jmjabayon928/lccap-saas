@@ -9,7 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isApiError } from "@/lib/api/api-error";
 import { planClient } from "@/lib/plans/plan-client";
-import type { PlanSectionSummary } from "@/types/plans";
+import { SectionHistoryPanel } from "./section-history-panel";
+import type { PlanSectionSummary, SavePlanSectionResult } from "@/types/plans";
 
 function formatEdited(iso: string | null): string {
   if (!iso || !iso.trim()) {
@@ -97,6 +98,22 @@ export function PlanSectionEditor({ planId, section, onSaved }: PlanSectionEdito
     }
   }
 
+  function handleRestored(result: SavePlanSectionResult, restoredTitle: string, restoredContent: string): void {
+    setTitle(restoredTitle);
+    setContent(restoredContent);
+    setShowSuccess(true);
+
+    const updated: PlanSectionSummary = {
+      ...section,
+      id: result.sectionId,
+      title: restoredTitle,
+      content: restoredContent,
+      lastEditedAtUtc: result.lastEditedAtUtc
+    };
+
+    onSaved(updated);
+  }
+
   return (
     <Card className="border-border shadow-sm">
       <CardHeader className="space-y-1">
@@ -175,7 +192,10 @@ export function PlanSectionEditor({ planId, section, onSaved }: PlanSectionEdito
           </div>
 
           <div className="flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <span>Last edited: {formatEdited(section.lastEditedAtUtc)}</span>
+            <div className="flex items-center gap-4">
+              <span>Last edited: {formatEdited(section.lastEditedAtUtc)}</span>
+              <SectionHistoryPanel planId={planId} sectionKey={section.sectionKey} onRestored={handleRestored} />
+            </div>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? "Saving…" : "Save section"}
             </Button>

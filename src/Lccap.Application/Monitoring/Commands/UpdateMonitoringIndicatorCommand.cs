@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Lccap.Application.Common.Concurrency;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Monitoring;
 using Lccap.Domain.Entities;
@@ -142,6 +143,8 @@ public sealed class UpdateMonitoringIndicatorCommand
             userId,
             now);
 
+        entity.RotateRowVersion();
+
         var metaAfter = MonitoringIndicatorMetadataHelper.Parse(entity.MetadataJson);
         var newValues = JsonSerializer.SerializeToDocument(
             new
@@ -179,7 +182,7 @@ public sealed class UpdateMonitoringIndicatorCommand
             NewValuesJson = newValues,
             MetadataJson = auditMetadata,
             CreatedAtUtc = now,
-            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            RowVersion = RowVersionHelper.NewRowVersion(),
         };
 
         _ = _dbContext.AuditLogs.Add(audit);
