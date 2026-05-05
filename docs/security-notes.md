@@ -184,7 +184,14 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Metadata Visibility**: Metadata such as `planId` or `sectionKey` is exposed where available to provide context for the changes.
 - **Positioning**: Audit history supports **LGU-facing accountability** and internal review. It is not a formal government audit report or national reporting channel.
 
-## Auth/Session Hardening — Slice 1 (Refresh Token Persistence Foundation)
+## Auth/Session Hardening — Slice 2 (Backend Refresh Token Services & Endpoints)
+
+- **HttpOnly refresh cookie**: Login now sets `lccap_refresh_token` (HttpOnly, SameSite=Lax, Path=/api/auth, Secure in non-Dev). Raw token never leaves server except in Set-Cookie.
+- **Endpoints added**: POST /api/auth/refresh, POST /api/auth/logout, GET /api/auth/me (authorized). Refresh rotates token (same family), revokes on reuse/expired/invalid user.
+- **No raw tokens**: Only SHA-256 hashes stored in refresh_tokens.token_hash.
+- **Backward compatible**: Existing login response JSON shape unchanged; current frontend continues to work.
+- **Frontend integration**: Cookie reading, 401 retry, and UI session handling planned for Slice 3.
+- **Security**: 7-day refresh expiry, family revocation on misuse, active user checks, IP/UA logging.
 
 - **Schema added**: New table `public.refresh_tokens` (additive migration `002_add_refresh_tokens.sql`) provides the persistence foundation for future production-grade refresh token rotation, revocation, family tracking, and IP/user-agent auditing.
 - **No raw tokens**: Only secure `token_hash` (varchar 128) is ever stored. Raw refresh tokens are never persisted.

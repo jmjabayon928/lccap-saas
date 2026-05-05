@@ -123,6 +123,40 @@
         ]
       },
       {
+        "id": "FILE-0006c",
+        "path": "src/Lccap.Application/Auth/RefreshTokenService.cs",
+        "layer": "application",
+        "module": "auth",
+        "file_type": "cs",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "RefreshTokenService",
+            "kind": "service",
+            "status": "done",
+            "description": "Generates raw 32-byte tokens (Base64Url) and SHA-256 hex hashes for storage only"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0006d",
+        "path": "src/Lccap.Application/Auth/AuthSessionService.cs",
+        "layer": "application",
+        "module": "auth",
+        "file_type": "cs",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AuthSessionService",
+            "kind": "service",
+            "status": "done",
+            "description": "Create/Refresh/Logout with rotation, family revocation on reuse, active user validation; never persists raw tokens"
+          }
+        ]
+      },
+      {
         "id": "FILE-0007",
         "path": "scripts/verify-dotnet.ps1",
         "layer": "scripts",

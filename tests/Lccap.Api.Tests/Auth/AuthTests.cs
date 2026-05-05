@@ -2,10 +2,13 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Lccap.Api.Controllers;
+using Lccap.Application.Auth;
 using Lccap.Application.Common;
+using Lccap.Application.Common.Interfaces;
 using Lccap.Domain.Entities;
 using Lccap.Infrastructure.Persistence;
 using Lccap.Infrastructure.Security;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +17,14 @@ namespace Lccap.Api.Tests.Auth;
 
 public sealed class AuthTests
 {
+    /// <summary>
+    /// Simple IClock for tests (SystemClock may be internal).
+    /// </summary>
+    private sealed class TestClock : IClock
+    {
+        public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+    }
+
     [Fact]
     public async Task ValidLogin_ReturnsToken()
     {
@@ -27,6 +38,7 @@ public sealed class AuthTests
             dbContext,
             passwordHasher,
             CreateTokenGenerator(),
+            new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService()),
             CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -47,6 +59,7 @@ public sealed class AuthTests
             dbContext,
             passwordHasher,
             CreateTokenGenerator(),
+            new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService()),
             CancellationToken.None);
 
         Assert.IsType<UnauthorizedObjectResult>(result);
@@ -67,6 +80,7 @@ public sealed class AuthTests
             dbContext,
             passwordHasher,
             CreateTokenGenerator(),
+            new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService()),
             CancellationToken.None);
 
         Assert.IsType<UnauthorizedObjectResult>(result);
@@ -85,6 +99,7 @@ public sealed class AuthTests
             dbContext,
             passwordHasher,
             CreateTokenGenerator(),
+            new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService()),
             CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -114,6 +129,174 @@ public sealed class AuthTests
         Assert.Equal(userId, currentUser.UserId);
     }
 
+    // --- Slice 2 refresh token session tests ---
+
+    [Fact]
+    public async Task Login_Sets_Refresh_Cookie_And_Returns_Access_Token()
+    {
+        var (controller, dbContext, _, _) = CreateAuthControllerWithHttpContext();
+        var passwordHasher = new PasswordHasher();
+        var user = SeedUser(dbContext, passwordHasher, "Active");
+        await dbContext.SaveChangesAsync();
+
+        var result = await controller.Login(
+            new AuthController.LoginRequest(user.Email, "P@ssw0rd!"),
+            dbContext,
+            passwordHasher,
+            CreateTokenGenerator(),
+            new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService()),
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AuthController.LoginResponse>(ok.Value);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Token));
+
+        // Verify Set-Cookie header contains refresh cookie with HttpOnly
+        Assert.True(controller.Response.Headers.TryGetValue("Set-Cookie", out var setCookie));
+        var cookieHeader = setCookie.ToString();
+        Assert.Contains(AuthCookieOptions.CookieName, cookieHeader);
+        Assert.Contains("HttpOnly", cookieHeader, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Login_Stores_Only_Refresh_Token_Hash()
+    {
+        var (controller, dbContext, _, _) = CreateAuthControllerWithHttpContext();
+        var passwordHasher = new PasswordHasher();
+        var user = SeedUser(dbContext, passwordHasher, "Active");
+        await dbContext.SaveChangesAsync();
+
+        await controller.Login(
+            new AuthController.LoginRequest(user.Email, "P@ssw0rd!"),
+            dbContext,
+            passwordHasher,
+            CreateTokenGenerator(),
+            new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService()),
+            CancellationToken.None);
+
+        var stored = await dbContext.RefreshTokens.ToListAsync();
+        Assert.Single(stored);
+        var rt = stored[0];
+        Assert.False(string.IsNullOrWhiteSpace(rt.TokenHash));
+        Assert.Equal(64, rt.TokenHash.Length); // SHA256 hex
+        // Raw token never stored
+    }
+
+    [Fact]
+    public async Task Refresh_With_Valid_Cookie_Rotates_Refresh_Token_And_Returns_New_Access_Token()
+    {
+        var (controller, dbContext, _, _) = CreateAuthControllerWithHttpContext();
+        var passwordHasher = new PasswordHasher();
+        var user = SeedUser(dbContext, passwordHasher, "Active");
+        await dbContext.SaveChangesAsync();
+
+        var sessionService = new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService());
+        var session = await sessionService.CreateSessionAsync(user, "127.0.0.1", "test-agent", CancellationToken.None);
+
+        // Simulate cookie present
+        controller.Request.Cookies = new TestCookieCollection(new Dictionary<string, string>
+        {
+            [AuthCookieOptions.CookieName] = session.RefreshToken
+        });
+
+        var result = await controller.Refresh(
+            dbContext,
+            sessionService,
+            CreateTokenGenerator(),
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AuthController.LoginResponse>(ok.Value);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Token));
+
+        // Old token should be revoked, new one created
+        var tokens = await dbContext.RefreshTokens.Where(t => t.UserId == user.Id && !t.IsDeleted).ToListAsync();
+        Assert.Equal(2, tokens.Count);
+        var oldToken = tokens.SingleOrDefault(t => t.RevokedAtUtc != null);
+        var newToken = tokens.SingleOrDefault(t => t.RevokedAtUtc == null);
+        Assert.NotNull(oldToken);
+        Assert.NotNull(newToken);
+        Assert.Equal(oldToken!.ReplacedByTokenId, newToken!.Id);
+    }
+
+    [Fact]
+    public async Task Refresh_With_Revoked_Token_Fails()
+    {
+        var (controller, dbContext, _, _) = CreateAuthControllerWithHttpContext();
+        var passwordHasher = new PasswordHasher();
+        var user = SeedUser(dbContext, passwordHasher, "Active");
+        await dbContext.SaveChangesAsync();
+
+        var sessionService = new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService());
+        var session = await sessionService.CreateSessionAsync(user, null, null, CancellationToken.None);
+
+        // Manually revoke the token
+        var hash = new RefreshTokenService().HashToken(session.RefreshToken);
+        var stored = await dbContext.RefreshTokens.FirstAsync(t => t.TokenHash == hash);
+        stored.Revoke(DateTimeOffset.UtcNow, null, "test-revoke", null);
+        await dbContext.SaveChangesAsync();
+
+        controller.Request.Cookies = new TestCookieCollection(new Dictionary<string, string>
+        {
+            [AuthCookieOptions.CookieName] = session.RefreshToken
+        });
+
+        var result = await controller.Refresh(dbContext, sessionService, CreateTokenGenerator(), CancellationToken.None);
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task Logout_Revokes_Refresh_Token_And_Clears_Cookie()
+    {
+        var (controller, dbContext, _, _) = CreateAuthControllerWithHttpContext();
+        var passwordHasher = new PasswordHasher();
+        var user = SeedUser(dbContext, passwordHasher, "Active");
+        await dbContext.SaveChangesAsync();
+
+        var sessionService = new AuthSessionService(dbContext, new TestClock(), new RefreshTokenService());
+        var session = await sessionService.CreateSessionAsync(user, null, null, CancellationToken.None);
+
+        controller.Request.Cookies = new TestCookieCollection(new Dictionary<string, string>
+        {
+            [AuthCookieOptions.CookieName] = session.RefreshToken
+        });
+
+        var result = await controller.Logout(sessionService, CancellationToken.None);
+        Assert.IsType<NoContentResult>(result);
+
+        var stored = await dbContext.RefreshTokens.FirstAsync(t => t.TokenHash == new RefreshTokenService().HashToken(session.RefreshToken));
+        Assert.NotNull(stored.RevokedAtUtc);
+        Assert.Equal("Logout", stored.RevokeReason);
+    }
+
+    [Fact]
+    public async Task Me_Returns_Current_User_From_Access_Token()
+    {
+        var (controller, dbContext, _, _) = CreateAuthControllerWithHttpContext();
+        var passwordHasher = new PasswordHasher();
+        var user = SeedUser(dbContext, passwordHasher, "Active");
+        await dbContext.SaveChangesAsync();
+
+        // Simulate authenticated principal (from JWT)
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim("sub", user.Id.ToString()),
+            new Claim("account_id", user.AccountId!.Value.ToString()),
+            new Claim("email", user.Email),
+            new Claim("role", user.Role)
+        }, "Bearer"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        var result = await controller.Me(dbContext, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var me = Assert.IsType<AuthController.MeResponse>(ok.Value);
+        Assert.Equal(user.Id, me.UserId);
+        Assert.Equal(user.FullName, me.FullName);
+    }
+
     private static (AuthController Controller, TestAuthDbContext DbContext, Guid AccountId, Guid UserId) CreateAuthController()
     {
         var options = new DbContextOptionsBuilder<LccapDbContext>()
@@ -121,6 +304,41 @@ public sealed class AuthTests
             .Options;
         var db = new TestAuthDbContext(options);
         return (new AuthController(), db, Guid.NewGuid(), Guid.NewGuid());
+    }
+
+    private static (AuthController Controller, TestAuthDbContext DbContext, Guid AccountId, Guid UserId) CreateAuthControllerWithHttpContext()
+    {
+        var (controller, db, accountId, userId) = CreateAuthController();
+        var httpContext = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        return (controller, db, accountId, userId);
+    }
+
+    /// <summary>
+    /// Minimal IReadableStringCollection substitute for test cookie simulation.
+    /// </summary>
+    private sealed class TestCookieCollection : IRequestCookieCollection
+    {
+        private readonly IReadOnlyDictionary<string, string> _cookies;
+
+        public TestCookieCollection(IReadOnlyDictionary<string, string> cookies)
+        {
+            _cookies = cookies;
+        }
+
+        public string? this[string key] => _cookies.TryGetValue(key, out var v) ? v : null;
+
+        public int Count => _cookies.Count;
+
+        public ICollection<string> Keys => _cookies.Keys.ToList();
+
+        public bool ContainsKey(string key) => _cookies.ContainsKey(key);
+
+        public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => _cookies.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _cookies.GetEnumerator();
+
+        public bool TryGetValue(string key, out string value) => _cookies.TryGetValue(key, out value!);
     }
 
     private static JwtTokenGenerator CreateTokenGenerator()
@@ -210,6 +428,7 @@ public sealed class AuthTests
             modelBuilder.Ignore<MonitoringIndicator>();
             modelBuilder.Ignore<MonitoringUpdate>();
             modelBuilder.Ignore<ActionItem>();
+            // Do NOT ignore RefreshToken - it is required for Slice 2 session tests
 
             _ = modelBuilder.Entity<User>(builder =>
             {
@@ -230,6 +449,21 @@ public sealed class AuthTests
                 builder.Ignore("CreatedPlanSections");
                 builder.Ignore("CreatedDocuments");
                 builder.Ignore("CreatedMonitoringIndicators");
+            });
+
+            _ = modelBuilder.Entity<RefreshToken>(builder =>
+            {
+                _ = builder.HasKey(x => x.Id);
+                _ = builder.Property(x => x.UserId).IsRequired();
+                _ = builder.Property(x => x.TokenHash).IsRequired().HasMaxLength(128);
+                _ = builder.Property(x => x.TokenFamilyId).IsRequired();
+                _ = builder.Property(x => x.IssuedAtUtc).IsRequired();
+                _ = builder.Property(x => x.ExpiresAtUtc).IsRequired();
+                _ = builder.Property(x => x.IsDeleted).IsRequired();
+                _ = builder.Property(x => x.RowVersion).IsConcurrencyToken();
+                builder.Ignore("User");
+                builder.Ignore("Account");
+                builder.Ignore("ReplacedByToken");
             });
         }
     }

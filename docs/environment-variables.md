@@ -19,6 +19,8 @@ This document describes configuration that can be supplied via environment varia
 
 **Slice 1 auth hardening note**: The new `public.refresh_tokens` table (added via `002_add_refresh_tokens.sql`) uses the existing Postgres connection string. No new environment variables required. Raw refresh tokens are never stored; only hashes and metadata. Login behavior unchanged in this slice.
 
+**Slice 2 note**: Backend refresh session services added. Cookie name `lccap_refresh_token` is hardcoded (no env var). JWT settings (Issuer/Audience/SigningKey/ExpirationMinutes) continue to control access token lifetime. Refresh tokens default to 7 days. No new configuration required.
+
 ## JWT / Auth
 
 | Variable | Required | Used by | Safe local example | Production |

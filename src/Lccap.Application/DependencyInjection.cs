@@ -12,6 +12,7 @@ using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
 using Lccap.Application.Sections.Commands;
 using Lccap.Application.Sections.Queries;
+using Lccap.Application.Auth;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lccap.Application;
@@ -49,5 +50,9 @@ public static class DependencyInjection
         _ = services.AddScoped<GetActionItemsByPlanQuery>();
         _ = services.AddScoped<GetActionItemByIdQuery>();
         _ = services.AddScoped<GetAuditLogsQuery>();
+
+        // Auth / session services (Slice 2)
+        _ = services.AddScoped<RefreshTokenService>();
+        _ = services.AddScoped<AuthSessionService>();
     }
 }
