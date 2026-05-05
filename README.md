@@ -1,4 +1,4 @@
-# LCCAP SaaS — Enterprise Local Climate Action Planning Platform
+# LCCAP SaaS - Enterprise-Style Local Climate Action Planning Workspace
 
 .NET
 PostgreSQL
@@ -7,27 +7,37 @@ AI
 Status
 License
 
-**LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, and **export-ready draft packages** that teams can refine offline and route through their own official channels. It **complements existing official government and donor systems**—it does not supersede them.
+**LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, accountability history, and **export-ready draft packages** that teams can refine offline and route through their own official channels.
+
+It **complements existing official government and donor systems**. It does **not** supersede, replace, or act as an official submission, approval, national reporting, funding, certification, or diagnostic platform.
 
 The same workspace treats climate planning as structured, lifecycle-aware preparation rather than a single static file:
 
-- Plans are governed workspace entities
-- Sections are editable and version-ready
-- Supporting documents are organized as evidence-linked FileAssets
-- Actions are structured climate interventions
-- Monitoring indicators are recorded and updated
-- Exports produce **working outputs** from structured plan data (draft-ready packages, not a substitute for mandated submission portals)
-- AI features are planned as asynchronous, auditable jobs (later phases)
+- Plans are governed workspace entities.
+- Sections are editable, auditable, and restorable from revision history.
+- Supporting documents are organized as evidence-linked FileAssets.
+- Documents can be uploaded, listed, edited, archived, and audited.
+- Actions are structured climate interventions with lifecycle status.
+- Action items can be created, edited, archived, and audited.
+- Monitoring indicators are recorded, updated, archived, and audited.
+- Exports produce **working outputs** from structured plan data.
+- PDF exports are draft-ready packages, not a substitute for mandated submission portals.
+- Admin and Reviewer users can review accountability history through an Audit Viewer.
+- Server-side RBAC protects workspace operations.
+- Optimistic concurrency prevents accidental overwrites.
+- Paginated lists prevent unbounded tenant responses.
+- Refresh-token-backed sessions support safer local demo and pilot workflows.
+- AI features are planned as asynchronous, auditable jobs in later phases.
 
-Later phases extend capability (evidence indexing, richer exports, interoperability, spatial analytics—see **Phase roadmap**); the **MVP** remains an internal preparation and organization workspace for LGU teams.
+Later phases extend capability, including evidence indexing, richer exports, interoperability, spatial analytics, exposure summaries, and recommendation-style assistance. The **MVP** remains an internal preparation and organization workspace for LGU teams.
 
 ---
 
 ## Table of Contents
 
 - Executive Summary
-- Product positioning & complementary role
-- MVP emphasis & non-goals
+- Product positioning and complementary role
+- MVP emphasis and non-goals
 - Phase roadmap
 - Product Overview
 - Target Users
@@ -38,15 +48,17 @@ Later phases extend capability (evidence indexing, richer exports, interoperabil
 - System Architecture
 - Technology Stack
 - Multi-Tenancy and Security
+- Server-Side RBAC Matrix
 - Data Model Overview
 - AI and Intelligence Roadmap
 - Frontend Direction
-- Local Setup & Development
+- Local Setup and Development
 - Demo Login Users
 - End-to-End Demo Script
 - Testing and Quality Gates
 - Roadmap
 - Enterprise Design Principles
+- Current Enterprise MVP Caveats
 - Author
 
 ---
@@ -55,69 +67,150 @@ Later phases extend capability (evidence indexing, richer exports, interoperabil
 
 Local Climate Change Action Plans require LGUs to gather climate data, assess risks, identify adaptation and mitigation actions, define monitoring indicators, prepare reports, and align with national climate policy frameworks.
 
-In many real-world environments, this process is still managed through disconnected Word documents, spreadsheets, PDFs, shared folders, and manual review processes.
+In many real-world environments, this process is still managed through disconnected Word documents, spreadsheets, PDFs, shared folders, email threads, manual review notes, and offline coordination.
 
 LCCAP SaaS provides a structured SaaS **planning workspace** for:
 
-- Creating LCCAP plans and organizing sections
-- Uploading and organizing supporting documents and evidence
-- Defining climate actions
-- Tracking monitoring indicators
-- Generating **export-ready draft** outputs for offline refinement and use with official processes
-- Maintaining tenant-scoped data isolation
-- Preparing for later-phase AI-assisted drafting, analysis, and recommendations
+- Creating LCCAP plans and organizing sections.
+- Uploading and organizing supporting documents and evidence.
+- Defining climate actions.
+- Tracking monitoring indicators.
+- Editing and archiving records without hard deletion.
+- Preserving accountability through audit logs.
+- Restoring section content from revision history.
+- Generating **export-ready draft** outputs for offline refinement and use with official processes.
+- Maintaining tenant-scoped data isolation.
+- Preparing for later-phase AI-assisted drafting, analysis, and recommendations.
 
-It **complements** official government and donor systems; it does not replace mandated portals, diagnostics, or approvals.
+It **complements** official government and donor systems. It does not replace mandated portals, diagnostics, reporting systems, approvals, or policy guidance.
 
-The MVP is implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, **PostgreSQL**, and a **Next.js / TypeScript / Tailwind CSS** frontend. The core MVP flow has been locally validated end-to-end: login, tenant-scoped plan workspace, section editing, document upload/listing, action items, monitoring indicators, PDF export generation, and PDF download.
+The MVP is implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, **PostgreSQL**, and a **Next.js / TypeScript / Tailwind CSS** frontend.
+
+The updated MVP flow has been locally validated end-to-end:
+
+```text
+Login
+  -> Refresh-token-backed session
+  -> View paginated tenant plans
+  -> Open real plan workspace
+  -> Edit and archive plan metadata
+  -> Edit and save section content
+  -> View section history
+  -> Restore section revisions
+  -> Upload, list, edit, and archive documents
+  -> Create, edit, and archive action items
+  -> Create, edit, and archive monitoring indicators
+  -> Generate PDF draft package
+  -> Download generated PDF
+  -> Review audit history as Admin or Reviewer
+```
+
+The updated MVP has also been hardened with:
+
+- Server-side RBAC enforcement.
+- Tenant isolation through authenticated current-user context.
+- Soft-delete archive behavior.
+- Audit logs with old/new/metadata snapshots.
+- Audit Viewer for Admin and Reviewer roles.
+- Optimistic concurrency with rowVersion tokens.
+- Legacy empty rowVersion repair where supported.
+- Paginated list endpoints.
+- HttpOnly refresh-token cookies.
+- Refresh-token rotation.
+- Memory-only access-token handling in the frontend.
+- Frontend type-check and lint validation.
+- Backend solution-wide test coverage.
+
+This is an enterprise-style MVP foundation for demos and controlled pilot preparation. It is not yet a finished production SaaS and should not be presented as a national submission platform or high-scale production deployment without the remaining production hardening work.
 
 ---
 
-## Product positioning & complementary role
+## Product positioning and complementary role
 
-LCCAP SaaS is positioned as an **enterprise-grade, LGU-facing LCCAP operating workspace**: a planning workspace that helps teams **prepare better internal working packages**—organized sections, evidence, actions, monitoring, and **export-ready draft outputs**—while **existing official systems remain the authority** for national reporting, donor-specific portals, mandated diagnostics, and approvals.
+LCCAP SaaS is positioned as an **enterprise-style, LGU-facing LCCAP operating workspace**: a planning workspace that helps teams **prepare better internal working packages** through organized sections, evidence, actions, monitoring, audit history, and **export-ready draft outputs**.
 
-**Complementary role (non-replacement).** This product is **not** a substitute for, and does not replicate the mandate of, systems and channels such as CCC, DILG, LGA, NICCDIES, PSF-related portals, PlanSmart, UNDP SHIELD, official LGU approval or clearance workflows, general LGU enterprise document management suites, or other official government or donor climate-governance tools. Where those systems define submission, eligibility, or certification, LCCAP SaaS supports **upstream preparation and organization** only.
+Existing official systems remain the authority for national reporting, donor-specific portals, mandated diagnostics, statutory approvals, certification, and official submissions.
+
+**Complementary role.** This product is **not** a substitute for, and does not replicate the mandate of, systems and channels such as:
+
+- CCC systems and guidance channels.
+- DILG systems and guidance channels.
+- LGA training and capacity-building programs.
+- NICCDIES or other mandated national reporting systems.
+- PSF-related official portals or eligibility systems.
+- PlanSmart.
+- UNDP SHIELD.
+- Official LGU approval or clearance workflows.
+- General LGU enterprise document management suites.
+- Other official government or donor climate-governance tools.
+
+Where those systems define submission, eligibility, assessment, certification, or approval, LCCAP SaaS supports **upstream preparation and organization** only.
+
+The product language should avoid implying that LCCAP SaaS is:
+
+- An official government platform.
+- A mandated submission channel.
+- A funding approval system.
+- A national dashboard.
+- A replacement for climate-risk diagnostics.
+- A replacement for LGU policy guidance.
+- A replacement for local legislative approval processes.
+
+The product should be described as:
+
+- A preparation workspace.
+- A structured planning workspace.
+- An internal LGU operating workspace.
+- A draft-package generator.
+- An accountability and organization tool.
+- A complementary system of work for LCCAP preparation.
 
 ---
 
-## MVP emphasis & non-goals
+## MVP emphasis and non-goals
 
 ### MVP emphasis
 
-- Organizing **LCCAP plan sections** and narrative structure
-- Organizing **supporting documents and evidence** in plan context
-- **Linking** documentation and references relevant to risk and hazard discussion (as structured plan content—not a replacement for official risk diagnostic tools)
-- **Defining climate actions** (adaptation and mitigation) with structured fields
-- **Tracking monitoring indicators** and progress for implementation visibility
-- **Preparing export-ready working outputs** (e.g. PDF drafts) for offline refinement and use with official processes
-- **Complementing** government and donor workflows rather than replacing mandated portals or guidance
+- Organizing **LCCAP plan sections** and narrative structure.
+- Organizing **supporting documents and evidence** in plan context.
+- **Linking** documentation and references relevant to risk and hazard discussion as structured plan content.
+- Defining climate actions for adaptation and mitigation.
+- Tracking monitoring indicators and progress for implementation visibility.
+- Preparing export-ready working outputs such as PDF drafts.
+- Supporting edit/archive workflows for user correction.
+- Preserving accountability through audit logs.
+- Providing section revision history and restore capability.
+- Protecting tenant data through server-side authorization and tenant scoping.
+- Complementing government and donor workflows rather than replacing mandated portals or guidance.
 
 ### MVP non-goals
 
-- Not an official national or agency **submission** channel for any government or donor program
-- Not a replacement for **NICCDIES** or other mandated national reporting systems
-- Not a replacement for **DILG**, **LGA**, or CCC **guidance, training, or policy interpretation**
-- Not a replacement for **PlanSmart**, **UNDP SHIELD**, or other **official risk diagnostic** or assessment platforms
-- Not a PSF or donor **application portal**; not funding-system-specific eligibility processing
-- Not a **government approval**, certification, or clearance system
-- Not a general-purpose **LGU document management** or records-management platform
-- Not a **national climate dashboard** or cross-country situational picture
-- Not a **full GIS / spatial analytics** platform in MVP (advanced spatial work is explicitly deferred to later phases)
+- Not an official national or agency **submission** channel for any government or donor program.
+- Not a replacement for **NICCDIES** or other mandated national reporting systems.
+- Not a replacement for **DILG**, **LGA**, or CCC **guidance, training, or policy interpretation**.
+- Not a replacement for **PlanSmart**, **UNDP SHIELD**, or other **official risk diagnostic** or assessment platforms.
+- Not a PSF or donor **application portal**.
+- Not funding-system-specific eligibility processing.
+- Not a **government approval**, certification, or clearance system.
+- Not a general-purpose **LGU document management** or records-management platform.
+- Not a **national climate dashboard** or cross-country situational picture.
+- Not a **full GIS / spatial analytics** platform in MVP.
+- Not a production BFF architecture.
+- Not a final high-scale enterprise SaaS deployment without production hardening.
 
 ---
 
 ## Phase roadmap
 
-Boundaries keep **MVP** narrowly focused on the LGU workspace; **Phase 2** adds preparation depth and richer outputs; **Phase 3** adds interoperability and advanced analytics. Features must not **bleed across phases** without an explicit decision.
+Boundaries keep **MVP** narrowly focused on the LGU workspace. **Phase 2** adds preparation depth and richer outputs. **Phase 3** adds interoperability and advanced analytics.
 
+Features must not **bleed across phases** without an explicit decision.
 
-| Phase               | Focus                                                                                                                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **MVP**             | LGU-facing operating workspace: plan sections, documents/evidence, action items, monitoring indicators, export-ready draft package                                                              |
-| **Phase 2** (later) | Evidence index; review comments; CCET / funding-readiness tagging; PSF proposal **package helper** (preparation aid, not a portal); richer exports; deeper monitoring and operational readiness |
-| **Phase 3** (later) | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports                                     |
-
+| Phase | Focus |
+| --- | --- |
+| **MVP** | LGU-facing operating workspace: plan sections, documents/evidence, action items, monitoring indicators, audit history, server-side RBAC, archive/restore, pagination, and export-ready draft package. |
+| **Phase 2** | Evidence index; review comments; CCET / funding-readiness tagging; PSF proposal package helper as preparation aid, not a portal; richer exports; deeper monitoring; operational readiness; stronger observability. |
+| **Phase 3** | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports. |
 
 ---
 
@@ -131,15 +224,30 @@ At the center of the system is the **Plan**, which acts as the aggregate root fo
 Account / LGU
   └── Plan
         ├── Plan Sections
+        ├── Section History from Audit Logs
         ├── Documents
         ├── File Assets
         ├── Action Items
         ├── Monitoring Indicators
         ├── Export Jobs
+        ├── Audit Logs
         └── Future AI / Maps / Analytics
 ```
 
 This architecture enables the system to organize climate planning work around a clear, auditable structure rather than treating LCCAP as a single static file.
+
+The updated MVP supports:
+
+- Workspace creation.
+- Workspace editing.
+- Workspace correction.
+- Soft archive instead of hard deletion.
+- Version-aware section restoration.
+- Audit visibility for authorized users.
+- Paginated list navigation.
+- Secure tenant boundaries.
+- Role-based operation control.
+- Draft export generation.
 
 ---
 
@@ -147,111 +255,142 @@ This architecture enables the system to organize climate planning work around a 
 
 ### LGU-Level Users
 
-- LGU Admin
-- Climate Planner
-- Technical Staff
-- Department Reviewer
-- Monitoring Officer
-- Viewer / Read-only Stakeholder
+- LGU Admin.
+- Climate Planner.
+- Technical Staff.
+- Department Reviewer.
+- Monitoring Officer.
+- Viewer / Read-only Stakeholder.
 
 ### Platform-Level Users
 
-- Platform Administrator
-- Technical Support Operator
-- Product / operations roles (tenant onboarding, configuration—where deployed)
+- Platform Administrator.
+- Technical Support Operator.
+- Product / operations roles for tenant onboarding and configuration where deployed.
 
-Enterprise deployments may define additional **internal** roles; MVP does **not** imply a national oversight or submission-review role for this product.
+Enterprise deployments may define additional **internal** roles. MVP does **not** imply a national oversight or submission-review role for this product.
 
 ### External / Future Users
 
-- Citizens
-- NGOs
-- Development partners
-- Funding agencies
-- Public portal viewers
+- Citizens.
+- NGOs.
+- Development partners.
+- Funding agencies.
+- Public portal viewers.
+
+External/public users are future-phase concepts and are not part of the current MVP workspace flow.
 
 ---
 
 ## Current MVP Status
 
-The MVP is now **locally end-to-end validated** for the core LGU workspace flow.
+The updated MVP is now **locally end-to-end validated** for the core LGU workspace flow and the major enterprise-style hardening layers.
 
 Validated flow:
 
 ```text
 Login
-  → View existing tenant plans
-  → Open real plan workspace
-  → Edit and save LCCAP section content
-  → Upload and list supporting documents
-  → Create action item
-  → Create monitoring indicator
-  → Generate PDF draft package
-  → Download generated PDF
+  -> Refresh-token-backed session
+  -> View paginated tenant plans
+  -> Open real plan workspace
+  -> Edit and archive plan metadata
+  -> Edit and save LCCAP section content
+  -> View section revision history
+  -> Restore a previous section version
+  -> Upload and list supporting documents
+  -> Edit and archive document records
+  -> Create, edit, and archive action items
+  -> Create, edit, and archive monitoring indicators
+  -> Generate PDF draft package
+  -> Download generated PDF
+  -> Review accountability history through Audit Viewer
 ```
 
 ### Completed Backend Slices
 
-
-| Module                             | Status   |
-| ---------------------------------- | -------- |
-| Solution structure                 | Complete |
-| PostgreSQL baseline schema         | Complete |
-| Clean Architecture project setup   | Complete |
-| Domain base entities               | Complete |
-| EF Core DbContext and mappings     | Complete |
-| Auth / JWT bearer authentication   | Complete |
-| Current user / tenant context      | Complete |
-| Development CORS configuration     | Complete |
+| Module | Status |
+| --- | --- |
+| Solution structure | Complete |
+| PostgreSQL baseline schema | Complete |
+| Additive refresh token migration | Complete |
+| Clean Architecture project setup | Complete |
+| Domain base entities | Complete |
+| EF Core DbContext and mappings | Complete |
+| Auth / JWT bearer authentication | Complete |
+| Refresh-token persistence foundation | Complete |
+| Refresh token rotation / logout / me endpoints | Complete |
+| Current user / tenant context | Complete |
+| Development CORS configuration | Complete |
 | Development-only demo seed service | Complete |
-| Plans API                          | Complete |
-| Tenant-scoped plans list API       | Complete |
-| Default plan section seeding       | Complete |
-| Plan Sections API                  | Complete |
-| Documents API                      | Complete |
-| Local File Storage Service         | Complete |
-| Monitoring API                     | Complete |
-| Action Items API                   | Complete |
-| Export Job / PDF generation        | Complete |
-| Export download endpoint           | Complete |
-| Mapping tests for key entities     | Complete |
-| API controller tests               | Complete |
-
+| Plans API | Complete |
+| Tenant-scoped paginated plans list API | Complete |
+| Default plan section seeding | Complete |
+| Plan metadata edit/archive/audit | Complete |
+| Plan Sections API | Complete |
+| Section revision history and restore | Complete |
+| Documents API | Complete |
+| Document metadata edit/archive/audit | Complete |
+| Local File Storage Service | Complete |
+| Monitoring API | Complete |
+| Monitoring indicator edit/archive/audit | Complete |
+| Action Items API | Complete |
+| Action item edit/archive/audit | Complete |
+| Export Job / PDF generation | Complete |
+| Export download endpoint | Complete |
+| Server-side RBAC enforcement | Complete |
+| Audit log viewer API | Complete |
+| Optimistic concurrency / rowVersion hardening | Complete |
+| Paginated workspace list APIs | Complete |
+| Mapping tests for key entities | Complete |
+| API controller tests | Complete |
+| Full .NET solution tests | Complete |
 
 ### Completed Frontend Slices
 
-
-| Module                             | Status   |
-| ---------------------------------- | -------- |
-| Next.js frontend foundation        | Complete |
-| Responsive enterprise UI shell     | Complete |
-| Tailwind CSS setup                 | Complete |
-| Local shadcn-style UI primitives   | Complete |
+| Module | Status |
+| --- | --- |
+| Next.js frontend foundation | Complete |
+| Responsive enterprise UI shell | Complete |
+| Tailwind CSS setup | Complete |
+| Local shadcn-style UI primitives | Complete |
 | Login UI and auth session handling | Complete |
-| API client and typed HTTP layer    | Complete |
-| Dashboard preview                  | Complete |
-| Existing plans list                | Complete |
-| Create plan UI                     | Complete |
-| Plan workspace UI                  | Complete |
-| Plan sections editor               | Complete |
-| Documents upload/list UI           | Complete |
-| Action items UI                    | Complete |
-| Monitoring indicators UI           | Complete |
-| PDF export/download UI             | Complete |
-| Production-like `npm start` flow   | Complete |
-
+| Memory-only access token session handling | Complete |
+| Refresh-on-reload auth restoration | Complete |
+| API client and typed HTTP layer | Complete |
+| One-time 401 refresh retry | Complete |
+| Dashboard preview | Complete |
+| Existing plans list | Complete |
+| Paginated plans navigation | Complete |
+| Create plan UI | Complete |
+| Plan workspace UI | Complete |
+| Plan metadata edit/archive UI | Complete |
+| Plan sections editor | Complete |
+| Section revision history / restore UI | Complete |
+| Documents upload/list UI | Complete |
+| Document edit/archive UI | Complete |
+| Paginated document list navigation | Complete |
+| Action items UI | Complete |
+| Action item edit/archive UI | Complete |
+| Paginated action list navigation | Complete |
+| Monitoring indicators UI | Complete |
+| Monitoring indicator edit/archive UI | Complete |
+| Paginated monitoring list navigation | Complete |
+| PDF export/download UI | Complete |
+| Audit history viewer UI | Complete |
+| RBAC-aware sidebar/actions | Complete |
+| Production-like `npm start` flow | Complete |
+| Frontend type-check and lint validation | Complete |
 
 ### Remaining MVP Polish Items
 
-
-| Module                              | Status      |
-| ----------------------------------- | ----------- |
-| Swagger/OpenAPI polish              | Planned     |
-| README/demo documentation refresh   | In progress |
-| UI polish and screenshot capture    | Planned     |
-| Optional cleanup of local test data | Planned     |
-| Broader E2E regression script       | Planned     |
-
+| Module | Status |
+| --- | --- |
+| Swagger/OpenAPI polish | Planned |
+| UI polish and screenshot capture | Planned |
+| Optional cleanup of local test data | Planned |
+| Broader E2E regression checklist or automated smoke script | Planned |
+| CI quality gate | Planned |
+| Production deployment hardening checklist | Planned |
 
 ---
 
@@ -259,20 +398,55 @@ Login
 
 ### 1. Authentication and Tenant Context
 
-Authentication is implemented using JWT bearer authentication.
+Authentication is implemented using JWT bearer authentication plus refresh-token-backed session hardening.
 
 Key capabilities:
 
-- Login endpoint
-- Secure password hashing
-- JWT token generation
-- Standard Microsoft JWT bearer middleware
-- `account_id` claim for tenant isolation
-- Current user context used by commands and queries
-- No public `accountId` accepted from request bodies, routes, or query strings
-- Development-only seeded demo users for local testing
+- Login endpoint.
+- Refresh endpoint.
+- Logout endpoint.
+- Current user endpoint.
+- Secure password hashing.
+- JWT token generation.
+- JWT access tokens held in frontend memory only.
+- HttpOnly refresh-token cookie.
+- Refresh-token hashes stored in PostgreSQL.
+- Refresh-token rotation on refresh.
+- Refresh-token family revocation on misuse where supported.
+- Logout revokes refresh token and clears cookie.
+- Refresh-on-reload restores session from HttpOnly cookie.
+- Standard Microsoft JWT bearer middleware.
+- `account_id` claim for tenant isolation.
+- `role` claim for RBAC.
+- Current user context used by commands and queries.
+- No public `accountId` accepted from request bodies, routes, or query strings.
+- Development-only seeded demo users for local testing.
+
+Current API surface:
+
+```text
+POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
+GET  /api/auth/me
+```
 
 Tenant isolation is enforced through the authenticated current user context.
+
+Session model:
+
+```text
+Access token:
+  - short-lived JWT
+  - stored in frontend memory only
+  - used as Bearer token for API requests
+
+Refresh token:
+  - stored as HttpOnly cookie
+  - hashed in PostgreSQL
+  - rotated on refresh
+  - revoked on logout
+```
 
 ---
 
@@ -282,21 +456,36 @@ Plans are the root LCCAP workspace entity.
 
 Capabilities:
 
-- Create plan
-- Update plan
-- List plans for the authenticated tenant
-- Get plan by ID
-- Tenant-scoped access
-- Default plan sections seeded after plan creation
-- Validation for title, years, status, and template mode
+- Create plan.
+- Update plan metadata.
+- Archive plan through soft delete.
+- List plans for the authenticated tenant.
+- Paginated tenant-scoped plan list.
+- Get plan by ID.
+- Tenant-scoped access.
+- Default plan sections seeded after plan creation.
+- Validation for title, years, status, and template mode.
+- Audit old/new metadata changes.
+- Optimistic concurrency with rowVersion.
+- Legacy empty rowVersion repair where supported.
 
 Current API surface:
 
 ```text
-GET  /api/plans
-POST /api/plans
-PUT  /api/plans/{planId}
-GET  /api/plans/{planId}
+GET    /api/plans?page=1&pageSize=25
+POST   /api/plans
+PUT    /api/plans/{planId}
+GET    /api/plans/{planId}
+DELETE /api/plans/{planId}
+```
+
+Archive behavior:
+
+```text
+Plan archive = soft delete + archived state
+No hard delete
+No child records are physically removed
+Audit log records the archive event
 ```
 
 ---
@@ -307,25 +496,45 @@ Plan sections represent editable sections of the LCCAP document.
 
 Default sections are created automatically when a plan is created:
 
+| Order | Section Key | Title |
+| --- | --- | --- |
+| 10 | executive_summary | Executive Summary |
+| 20 | introduction | Introduction and LGU Profile |
+| 30 | climate_risk_assessment | Climate and Disaster Risk Assessment |
+| 40 | adaptation_actions | Adaptation Actions |
+| 50 | mitigation_actions | Mitigation Actions |
+| 60 | implementation_plan | Implementation Plan |
+| 70 | monitoring_evaluation | Monitoring and Evaluation |
+| 80 | references_annexes | References and Annexes |
 
-| Order | Section Key             | Title                                |
-| ----- | ----------------------- | ------------------------------------ |
-| 10    | executive_summary       | Executive Summary                    |
-| 20    | introduction            | Introduction and LGU Profile         |
-| 30    | climate_risk_assessment | Climate and Disaster Risk Assessment |
-| 40    | adaptation_actions      | Adaptation Actions                   |
-| 50    | mitigation_actions      | Mitigation Actions                   |
-| 60    | implementation_plan     | Implementation Plan                  |
-| 70    | monitoring_evaluation   | Monitoring and Evaluation            |
-| 80    | references_annexes      | References and Annexes               |
+Capabilities:
 
+- List plan sections.
+- Get a section by key.
+- Save section content.
+- Skip no-op saves to reduce audit noise.
+- Record section update audit history.
+- View revision history from audit snapshots.
+- Restore a previous section version.
+- Tenant-scoped access.
+- Audit old/new content snapshots.
 
 Current API surface:
 
 ```text
-GET /api/plans/{planId}/sections
-GET /api/plans/{planId}/sections/{sectionKey}
-PUT /api/plans/{planId}/sections/{sectionKey}
+GET  /api/plans/{planId}/sections
+GET  /api/plans/{planId}/sections/{sectionKey}
+PUT  /api/plans/{planId}/sections/{sectionKey}
+GET  /api/plans/{planId}/sections/{sectionKey}/history
+POST /api/plans/{planId}/sections/{sectionKey}/restore
+```
+
+Restore behavior:
+
+```text
+Section restore uses audit snapshots
+Restore writes a new audit record
+Restore does not delete history
 ```
 
 ---
@@ -334,26 +543,43 @@ PUT /api/plans/{planId}/sections/{sectionKey}
 
 The system separates logical document usage from physical file storage.
 
-- `Document` = logical document record attached to a plan
-- `FileAsset` = physical file metadata and storage reference
+```text
+Document = logical document record attached to a plan
+FileAsset = physical file metadata and storage reference
+```
 
 Capabilities:
 
-- Upload document
-- List documents by plan
-- Tenant-scoped document visibility
-- Local file storage
-- SHA256 hashing
-- Safe generated stored filenames
-- Extension validation
-- Path traversal protection
-- Frontend-safe rendering without exposing stored server paths
+- Upload document.
+- List documents by plan.
+- Paginated document list.
+- Edit document metadata.
+- Archive document records through soft delete.
+- Audit metadata updates and archive actions.
+- Tenant-scoped document visibility.
+- Local file storage.
+- SHA256 hashing.
+- Safe generated stored filenames.
+- Extension validation.
+- Path traversal protection.
+- Frontend-safe rendering without exposing stored server paths.
 
 Current API surface:
 
 ```text
-POST /api/documents/upload
-GET  /api/plans/{planId}/documents
+POST   /api/documents/upload
+GET    /api/plans/{planId}/documents?page=1&pageSize=25
+PUT    /api/documents/{documentId}/metadata
+DELETE /api/documents/{documentId}
+```
+
+Document archive behavior:
+
+```text
+Document archive = soft delete of logical document record
+FileAsset is retained
+Audit log records the archive event
+Stored file path is not exposed to frontend
 ```
 
 ---
@@ -364,15 +590,15 @@ The MVP includes a local file storage abstraction.
 
 Capabilities:
 
-- Save uploaded file stream
-- Generate tenant-scoped storage path
-- Open file stream for download
-- Delete file
-- Reject path traversal
-- Reject empty streams
-- Enforce max upload size
-- Enforce allowed file extensions
-- Compute SHA256 hash
+- Save uploaded file stream.
+- Generate tenant-scoped storage path.
+- Open file stream for download.
+- Delete file where supported.
+- Reject path traversal.
+- Reject empty streams.
+- Enforce max upload size.
+- Enforce allowed file extensions.
+- Compute SHA256 hash.
 
 Storage path format:
 
@@ -382,6 +608,13 @@ uploads/{accountId}/{yyyy}/{MM}/{generatedGuid}{extension}
 
 This is implemented behind `IFileStorageService` so future cloud storage providers can be introduced without changing application logic.
 
+Future storage providers may include:
+
+- Azure Blob Storage.
+- AWS S3.
+- Google Cloud Storage.
+- Private object storage.
+
 ---
 
 ### 6. Action Items
@@ -390,12 +623,16 @@ Action Items represent structured climate interventions.
 
 Capabilities:
 
-- Create action item
-- Update action item
-- List action items by plan
-- Get action item by ID
-- Validate action type, sector, status, budget, and timeline
-- Tenant-scoped reads and writes
+- Create action item.
+- Update action item.
+- Archive action item.
+- List action items by plan.
+- Paginated action list.
+- Get action item by ID.
+- Validate action type, sector, status, budget, and timeline.
+- Tenant-scoped reads and writes.
+- Audit old/new action snapshots.
+- Optimistic concurrency with rowVersion.
 
 Supported action types:
 
@@ -418,10 +655,19 @@ Cancelled
 Current API surface:
 
 ```text
-POST /api/plans/{planId}/actions
-PUT  /api/actions/{actionItemId}
-GET  /api/plans/{planId}/actions
-GET  /api/actions/{actionItemId}
+POST   /api/plans/{planId}/actions
+GET    /api/plans/{planId}/actions?page=1&pageSize=25
+GET    /api/actions/{actionItemId}
+PUT    /api/actions/{actionItemId}
+DELETE /api/actions/{actionItemId}
+```
+
+Action archive behavior:
+
+```text
+Action archive = soft delete
+Admin-only archive operation
+Audit log records old/new archive state
 ```
 
 ---
@@ -432,11 +678,15 @@ Monitoring tracks climate action progress through indicators.
 
 Capabilities:
 
-- Create monitoring indicator
-- Update monitoring indicator
-- List indicators by plan
-- Tenant-scoped access
-- Validation for indicator name, status, and progress values
+- Create monitoring indicator.
+- Update monitoring indicator.
+- Archive monitoring indicator.
+- List indicators by plan.
+- Paginated indicator list.
+- Tenant-scoped access.
+- Validation for indicator name, status, and progress values.
+- Audit old/new indicator snapshots.
+- Optimistic concurrency with rowVersion.
 
 Supported statuses:
 
@@ -451,9 +701,18 @@ Completed
 Current API surface:
 
 ```text
-POST /api/monitoring/indicators
-PUT  /api/monitoring/indicators/{indicatorId}
-GET  /api/monitoring/plans/{planId}/indicators
+POST   /api/monitoring/indicators
+GET    /api/monitoring/plans/{planId}/indicators?page=1&pageSize=25
+PUT    /api/monitoring/indicators/{indicatorId}
+DELETE /api/monitoring/indicators/{indicatorId}
+```
+
+Monitoring archive behavior:
+
+```text
+Monitoring indicator archive = soft delete
+Admin-only archive operation
+Audit log records archive state
 ```
 
 ---
@@ -464,13 +723,14 @@ Export jobs generate LCCAP outputs from structured plan data.
 
 Capabilities:
 
-- Create PDF export job
-- Generate minimal valid PDF from plan and section data
-- Store generated PDF as FileAsset
-- Link export job to FileAsset
-- Download completed export safely
-- Prevent cross-tenant downloads
-- Return conflict for incomplete exports
+- Create PDF export job.
+- Generate minimal valid PDF from plan and section data.
+- Store generated PDF as FileAsset.
+- Link export job to FileAsset.
+- Download completed export safely.
+- Prevent cross-tenant downloads.
+- Return conflict for incomplete exports.
+- Use export status to determine readiness.
 
 Current API surface:
 
@@ -480,6 +740,163 @@ GET  /api/exports/{exportJobId}
 GET  /api/exports/{exportJobId}/download
 ```
 
+Export behavior:
+
+```text
+Export output = working draft package
+Export output is not official submission
+Export download checks tenant ownership
+Completed export must have a FileAsset
+```
+
+---
+
+### 9. Audit History
+
+Audit History provides tenant-scoped accountability for LGU workspace changes.
+
+Capabilities:
+
+- View audit logs for the authenticated tenant.
+- Filter by entity.
+- Filter by action.
+- Filter by user.
+- Filter by plan.
+- Filter by date range.
+- Review old values.
+- Review new values.
+- Review metadata snapshots.
+- Support Admin and Reviewer access.
+- Block Planner and Viewer access.
+- Read-only audit history.
+- No mutation endpoints.
+
+Current API surface:
+
+```text
+GET /api/audit-logs?page=1&pageSize=25
+```
+
+Common audit actions:
+
+```text
+PlanMetadataUpdated
+PlanArchived
+PlanSectionUpdated
+PlanSectionRestored
+DocumentMetadataUpdated
+DocumentArchived
+ActionItemUpdated
+ActionItemArchived
+MonitoringIndicatorUpdated
+MonitoringIndicatorArchived
+ExportJobCreated
+ExportJobCompleted
+```
+
+Audit logs are not a replacement for official government record-keeping systems. They are internal accountability records for the LCCAP workspace.
+
+---
+
+### 10. Server-Side RBAC
+
+Workspace operations are protected by server-side role checks.
+
+RBAC is not only a UI feature. Controllers and application flows enforce role-based authorization.
+
+MVP role behavior:
+
+| Role | Read | Create/Edit | Restore | Export | Archive | Audit Viewer |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Admin | Yes | Yes | Yes | Yes | Yes | Yes |
+| Reviewer | Yes | No | No | Yes | No | Yes |
+| Planner | Yes | Yes | Yes | Yes | No | No |
+| Viewer | Yes | No | No | No | No | No |
+| PublicViewer | No for tenant workspace APIs | No | No | No | No | No |
+
+Authorization behavior:
+
+```text
+Not logged in -> 401 Unauthorized
+Logged in but wrong role -> 403 Forbidden
+Wrong tenant resource -> 404 or existing tenant-safe result pattern
+```
+
+The frontend may hide controls for convenience, but the backend remains the authority.
+
+---
+
+### 11. Optimistic Concurrency and RowVersion
+
+The MVP uses rowVersion tokens to prevent accidental overwrites in editable records.
+
+Capabilities:
+
+- Detect stale updates.
+- Return conflict responses for stale rowVersion.
+- Rotate rowVersion after successful updates.
+- Repair legacy empty rowVersion values where supported.
+- Show refresh-required messages in the frontend.
+- Protect editable records from silent last-write-wins behavior.
+
+RowVersion is used for:
+
+- Plans.
+- Action items.
+- Monitoring indicators.
+- Documents where supported by backend contract.
+- Plan sections where supported by update flow.
+
+Frontend behavior:
+
+```text
+If rowVersion is missing:
+  show refresh-required message
+
+If rowVersion is stale:
+  show conflict message
+  user should refresh and retry
+```
+
+---
+
+### 12. Pagination
+
+Workspace list endpoints use pagination to avoid unbounded tenant responses.
+
+Paginated resources include:
+
+- Plans.
+- Documents.
+- Action items.
+- Monitoring indicators.
+- Audit logs.
+
+Standard query shape:
+
+```text
+?page=1&pageSize=25
+```
+
+Standard response shape:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "pageSize": 25,
+  "totalCount": 0
+}
+```
+
+Pagination rules:
+
+- Page defaults to 1.
+- Page size defaults to 25.
+- Page size is clamped to a maximum of 100.
+- Archived/deleted records are excluded from active lists.
+- Tenant isolation remains enforced before records are returned.
+
 ---
 
 ## Completed MVP Capabilities
@@ -487,19 +904,22 @@ GET  /api/exports/{exportJobId}/download
 The current MVP implements and validates the major LGU workspace workflow:
 
 ```text
-Authenticate
-  → View Existing Plans
-  → Create Plan
-  → Auto-create Default Sections
-  → Edit Sections
-  → Upload Documents
-  → Add Action Items
-  → Add Monitoring Indicators
-  → Generate PDF Export
-  → Download Export
+Authenticate with refresh-token-backed session
+  -> Restore session after reload through HttpOnly refresh cookie
+  -> View paginated existing plans
+  -> Create plan
+  -> Auto-create default sections
+  -> Edit and archive plan metadata
+  -> Edit sections
+  -> View and restore section history
+  -> Upload, list, edit, and archive documents
+  -> Add, edit, and archive action items
+  -> Add, edit, and archive monitoring indicators
+  -> Generate and download PDF export
+  -> Review audit history as Admin or Reviewer
 ```
 
-This is the core LCCAP planning loop.
+This is the core LCCAP planning loop plus the enterprise-style operating controls needed for correction, accountability, tenant isolation, and role-based access.
 
 ---
 
@@ -507,30 +927,36 @@ This is the core LCCAP planning loop.
 
 ### MVP Remaining
 
-- Swagger/OpenAPI polish
-- Demo script and screenshot capture
-- UI copy polish where needed
-- Optional local test-data cleanup
-- E2E regression checklist or automated smoke script
+- Swagger/OpenAPI polish.
+- UI polish and screenshot capture.
+- Optional local test-data cleanup.
+- Broader E2E regression checklist or automated smoke script.
+- Production deployment hardening checklist.
+- CI quality gate for backend tests and frontend checks.
 
 ### Phase 2 (later)
 
-- Evidence index
-- Review comments
-- CCET / funding-readiness tagging
-- PSF proposal package helper (draft preparation support—not a funding portal)
-- Richer exports
-- Monitoring and operational readiness depth
+- Evidence index.
+- Review comments.
+- CCET / funding-readiness tagging.
+- PSF proposal package helper as draft preparation support, not a funding portal.
+- Richer exports.
+- Monitoring and operational readiness depth.
+- Structured logging and request correlation.
+- Rate limiting for auth and uploads.
+- Audit retention or compaction strategy.
 
 ### Phase 3 (later)
 
-- Interoperability with external systems
-- PostGIS / spatial analytics
-- Exposure summaries
-- Scenario comparison
-- Recommendation engine
-- Integration-ready APIs and exports
-- Advanced observability, security hardening, operational runbooks as needed
+- Interoperability with external systems.
+- PostGIS / spatial analytics.
+- Exposure summaries.
+- Scenario comparison.
+- Recommendation engine.
+- Integration-ready APIs and exports.
+- Advanced observability.
+- Operational runbooks.
+- Production BFF or cookie-auth architecture if required.
 
 ---
 
@@ -578,50 +1004,73 @@ Planned AI layer:
 └────────────────────────────────────┘
 ```
 
+Architecture principles:
+
+- Domain entities do not depend on HTTP or EF-specific infrastructure.
+- Application layer depends on abstractions.
+- Infrastructure implements persistence and storage.
+- API layer maps HTTP requests to application commands and queries.
+- Frontend uses typed clients and defensive parsers.
+- Tenant scoping is server-side.
+- Authorization is server-side.
+- Audit logging is system-level accountability.
+
 ---
 
 ## Technology Stack
 
 ### Backend
 
-- .NET 8
-- ASP.NET Core Web API
-- Clean Architecture
-- Entity Framework Core
-- PostgreSQL
-- Npgsql
-- JWT bearer authentication
-- Local file storage abstraction
+- .NET 8.
+- ASP.NET Core Web API.
+- Clean Architecture.
+- Entity Framework Core.
+- PostgreSQL.
+- Npgsql.
+- JWT bearer authentication.
+- HttpOnly refresh-token cookies.
+- Refresh-token rotation.
+- PostgreSQL-backed refresh token hashes.
+- Local file storage abstraction.
 
 ### Frontend
 
-- Next.js
-- TypeScript
-- Tailwind CSS
-- Local shadcn-style UI primitives
-- Responsive dashboard shell
-- Mobile-friendly layouts
-- Typed API clients and defensive response parsing
+- Next.js.
+- TypeScript.
+- Tailwind CSS.
+- Local shadcn-style UI primitives.
+- Responsive dashboard shell.
+- Mobile-friendly layouts.
+- Typed API clients and defensive response parsing.
+- Memory-only access-token session handling.
+- Refresh-on-reload session restoration.
+- One-time 401 refresh retry.
 
 ### AI Planned
 
-- Python FastAPI
-- Async AI jobs
-- Document intelligence
-- Summarization
-- RAG search
-- Recommendation engine
+- Python FastAPI.
+- Async AI jobs.
+- Document intelligence.
+- Summarization.
+- RAG search.
+- Recommendation engine.
 
 ### Testing
 
-- xUnit
-- EF model mapping tests
-- API/controller tests
-- Storage service tests
-- Frontend type-checking
-- Frontend linting
-- Production frontend build validation
-- Targeted build/test validation per slice
+- xUnit.
+- EF model mapping tests.
+- API/controller tests.
+- Storage service tests.
+- Authentication tests.
+- Refresh-token tests.
+- RBAC tests.
+- Audit viewer tests.
+- Optimistic concurrency tests.
+- Pagination tests.
+- Frontend type-checking.
+- Frontend linting.
+- Production frontend build validation for release checkpoints.
+- Targeted build/test validation per slice.
 
 ---
 
@@ -637,16 +1086,73 @@ account_id = tenant boundary
 
 Security principles:
 
-- No cross-tenant reads
-- No cross-tenant writes
-- No public `accountId` accepted from requests
-- Tenant context comes from authenticated JWT claims
-- Commands and queries enforce account scope
-- Export downloads return 404 for cross-tenant access
-- File storage paths are tenant-scoped
-- Stored server paths are not exposed in API responses
-- Development demo seed is disabled by default and must be explicitly enabled
-- LocalStorage JWT is acceptable for MVP development only; production should move toward httpOnly cookies, CSRF protection, CSP, and refresh-token rotation
+- No cross-tenant reads.
+- No cross-tenant writes.
+- No public `accountId` accepted from requests.
+- Tenant context comes from authenticated JWT claims.
+- Commands and queries enforce account scope.
+- Export downloads return 404 for cross-tenant access.
+- File storage paths are tenant-scoped.
+- Stored server paths are not exposed in API responses.
+- Development demo seed is disabled by default and must be explicitly enabled.
+- Refresh tokens are stored in HttpOnly cookies and hashed in PostgreSQL.
+- Access tokens are held in frontend memory only, not localStorage.
+- Sessions are restored after reload through the refresh endpoint.
+- 401 responses trigger a single refresh retry before forcing re-login.
+- Server-side RBAC protects workspace operations.
+- Archive actions use soft-delete behavior.
+- Audit logs preserve old/new/metadata accountability snapshots.
+- Production deployments should still add CSRF strategy, CSP, rate limiting, structured logging, stricter cookie/CORS policies, and monitoring.
+
+### Refresh-token security model
+
+```text
+Raw refresh token:
+  - generated server-side
+  - sent only as HttpOnly cookie
+  - never stored in database
+  - never stored in localStorage
+
+Refresh token hash:
+  - stored in PostgreSQL
+  - matched during refresh
+  - rotated on refresh
+  - revoked on logout
+```
+
+### Access-token security model
+
+```text
+Access token:
+  - JWT bearer token
+  - returned by login/refresh
+  - held in frontend memory
+  - not persisted to localStorage
+  - restored after reload through refresh cookie
+```
+
+---
+
+## Server-Side RBAC Matrix
+
+| Role | Read Plans | Edit Records | Restore Sections | Export | Archive | Audit Viewer |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Admin | Yes | Yes | Yes | Yes | Yes | Yes |
+| Reviewer | Yes | No | No | Yes | No | Yes |
+| Planner | Yes | Yes | Yes | Yes | No | No |
+| Viewer | Yes | No | No | No | No | No |
+| PublicViewer | No for tenant workspace APIs | No | No | No | No | No |
+
+Role policy notes:
+
+- Admin has full tenant workspace control.
+- Reviewer can read and export, and can view audit history.
+- Planner can create and edit workspace records, restore sections, and export, but cannot archive.
+- Viewer is read-only.
+- PublicViewer is not part of authenticated tenant workspace operations.
+- Platform roles are not automatically granted tenant mutation access in the MVP.
+- UI hiding is convenience only.
+- Backend authorization is the source of truth.
 
 ---
 
@@ -657,6 +1163,7 @@ Core entities:
 ```text
 Account
 User
+RefreshToken
 Plan
 PlanSection
 Document
@@ -686,6 +1193,24 @@ FundingProgram
 FundingApplication
 ```
 
+### Core entity responsibilities
+
+| Entity | Responsibility |
+| --- | --- |
+| Account | Tenant boundary for LGU workspace data. |
+| User | Authenticated account user with role and scope. |
+| RefreshToken | Hashed refresh-token session record. |
+| Plan | Root LCCAP workspace aggregate. |
+| PlanSection | Editable plan document section. |
+| Document | Logical document attached to a plan. |
+| FileAsset | Physical file metadata and storage pointer. |
+| ActionItem | Structured climate intervention. |
+| MonitoringIndicator | Climate action progress indicator. |
+| MonitoringUpdate | Future indicator update history support. |
+| ExportJob | PDF/package export job status and file link. |
+| AuditLog | Accountability record for changes and restores. |
+| Role / Permission / UserRole | Future richer role/permission model support. |
+
 ---
 
 ## AI and Intelligence Roadmap
@@ -694,21 +1219,29 @@ AI is intentionally designed as an asynchronous support layer, not inline applic
 
 Planned AI capabilities:
 
-- Draft plan sections
-- Summarize uploaded documents
-- Extract document metadata
-- Recommend adaptation and mitigation actions
-- Generate evidence-linked insights
-- Support RAG over LCCAP documents and plan data
-- Support future exposure analysis and prioritization workflows
+- Draft plan sections.
+- Summarize uploaded documents.
+- Extract document metadata.
+- Recommend adaptation and mitigation actions.
+- Generate evidence-linked insights.
+- Support RAG over LCCAP documents and plan data.
+- Support future exposure analysis and prioritization workflows.
 
 AI outputs should be:
 
-- explainable
-- auditable
-- linked to source data
-- stored as jobs/results
-- reviewed by humans before adoption
+- Explainable.
+- Auditable.
+- Linked to source data.
+- Stored as jobs/results.
+- Reviewed by humans before adoption.
+
+AI should not:
+
+- Replace official policy interpretation.
+- Replace mandated diagnostics.
+- Automatically submit plans.
+- Automatically approve actions.
+- Produce unreviewed official documents.
 
 ---
 
@@ -716,14 +1249,14 @@ AI outputs should be:
 
 The frontend is implemented as an enterprise SaaS interface using:
 
-- Next.js
-- TypeScript
-- Tailwind CSS
-- Local shadcn-style UI primitives
-- Responsive layouts
-- Accessible components
-- Dashboard-oriented design
-- Typed API client modules for auth, plans, documents, actions, monitoring, and exports
+- Next.js.
+- TypeScript.
+- Tailwind CSS.
+- Local shadcn-style UI primitives.
+- Responsive layouts.
+- Accessible components.
+- Dashboard-oriented design.
+- Typed API client modules for auth, plans, documents, actions, monitoring, audit logs, and exports.
 
 Recommended visual identity:
 
@@ -745,24 +1278,36 @@ Not a generic green environmental brochure.
 
 The UI should be:
 
-- white-based
-- clean
-- responsive
-- enterprise-grade
-- map and dashboard friendly
-- usable on desktop, laptop, tablet, and mobile
+- White-based.
+- Clean.
+- Responsive.
+- Enterprise-grade.
+- Map and dashboard friendly.
+- Usable on desktop, laptop, tablet, and mobile.
+
+Frontend behavior priorities:
+
+- No broken empty states.
+- Clear forbidden/not-found states.
+- No raw JSON-only user experience except as fallback in audit details.
+- No client-side tenant selection for data access.
+- No refresh token visible to JavaScript.
+- No access token persisted to localStorage.
+- Simple pagination controls for workspace lists.
+- Fast enough for local demo and small pilot datasets.
 
 ---
 
-## Local Setup & Development
+## Local Setup and Development
 
 ### Prerequisites
 
-- .NET 8 SDK
-- Docker Desktop or a local PostgreSQL 16 instance
-- PowerShell
-- Node.js / npm
-- Python for future AI service
+- .NET 8 SDK.
+- Docker Desktop or a local PostgreSQL 16 instance.
+- PowerShell.
+- Node.js / npm.
+- Python for future AI service.
+- DBeaver or psql for local database inspection and SQL script execution.
 
 ### Start PostgreSQL
 
@@ -784,6 +1329,28 @@ Password: lccap_password
 ```
 
 If your existing Docker volume was initialized earlier with a different password, use the password stored in that local volume or recreate the volume. During local testing, one existing environment used `Password=123456`.
+
+### Apply Database Migrations
+
+After the baseline schema, apply the additive refresh-token migration:
+
+```powershell
+psql "Host=localhost;Port=55432;Database=lccap_db;Username=lccap_user;Password=lccap_password" -f db/migrations/002_add_refresh_tokens.sql
+```
+
+Or run this file through DBeaver before starting the backend:
+
+```text
+db/migrations/002_add_refresh_tokens.sql
+```
+
+The migration adds:
+
+```text
+public.refresh_tokens
+```
+
+This table stores hashed refresh-token session records. It does not store raw refresh tokens.
 
 ### Restore and Build Backend
 
@@ -850,6 +1417,100 @@ $env:DemoSeed__Enabled="false"
 
 Do not commit real passwords. Do not enable demo seed outside local development.
 
+### Optional Local Admin / Reviewer Users
+
+Admin and Reviewer roles are required for full RBAC and Audit Viewer testing.
+
+If the current demo seed does not automatically create tenant Admin or Reviewer users, create local test users by copying the planner password hash for local development only.
+
+Example tenant Admin creation:
+
+```sql
+INSERT INTO public.users (
+  id,
+  account_id,
+  email,
+  password_hash,
+  full_name,
+  role,
+  status,
+  user_scope,
+  created_at_utc,
+  updated_at_utc,
+  is_deleted,
+  row_version
+)
+SELECT
+  gen_random_uuid(),
+  account_id,
+  'naga.admin@lccap.local',
+  password_hash,
+  'Naga Admin Demo',
+  'Admin',
+  'Active',
+  'Tenant',
+  now(),
+  now(),
+  false,
+  gen_random_bytes(8)
+FROM public.users
+WHERE email = 'naga.planner@lccap.local'
+  AND is_deleted = false
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE email = 'naga.admin@lccap.local'
+      AND is_deleted = false
+  );
+```
+
+Example tenant Reviewer creation:
+
+```sql
+INSERT INTO public.users (
+  id,
+  account_id,
+  email,
+  password_hash,
+  full_name,
+  role,
+  status,
+  user_scope,
+  created_at_utc,
+  updated_at_utc,
+  is_deleted,
+  row_version
+)
+SELECT
+  gen_random_uuid(),
+  account_id,
+  'naga.reviewer@lccap.local',
+  password_hash,
+  'Naga Reviewer Demo',
+  'Reviewer',
+  'Active',
+  'Tenant',
+  now(),
+  now(),
+  false,
+  gen_random_bytes(8)
+FROM public.users
+WHERE email = 'naga.planner@lccap.local'
+  AND is_deleted = false
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE email = 'naga.reviewer@lccap.local'
+      AND is_deleted = false
+  );
+```
+
+Both users use:
+
+```text
+DemoPassword123!
+```
+
 ### Run Frontend
 
 Create or update `frontend/.env.local`:
@@ -877,23 +1538,13 @@ http://localhost:3010
 
 Use `npm start` after `npm run build` for local demo testing. Use `npm run dev` only when actively developing frontend code and needing hot reload.
 
-### Run Tests
+### Run Backend Tests
 
 ```powershell
-dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj
-dotnet test tests/Lccap.Infrastructure.Tests/Lccap.Infrastructure.Tests.csproj
+dotnet test Lccap.sln
 ```
 
-### Frontend Quality Checks
-
-```powershell
-cd C:\projects\LCCAP\frontend
-npm run type-check
-npm run lint
-npm run build
-```
-
-### Targeted Test Examples
+Targeted examples:
 
 ```powershell
 dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter PlansControllerTests
@@ -902,7 +1553,40 @@ dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter DocumentsContr
 dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter ActionItemsControllerTests
 dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter MonitoringControllerTests
 dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter ExportControllerTests
+dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter AuditLogsControllerTests
+dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter AuthTests
+dotnet test tests/Lccap.Infrastructure.Tests/Lccap.Infrastructure.Tests.csproj --filter RefreshToken
 ```
+
+### Frontend Quality Checks
+
+```powershell
+cd C:\projects\LCCAP\frontend
+npm run type-check
+npm run lint
+```
+
+Before release/demo checkpoint:
+
+```powershell
+npm run build
+```
+
+### Session Verification
+
+After login:
+
+- Open DevTools.
+- Go to Application.
+- Check Local Storage.
+- Confirm no JWT access token is stored.
+- Check Cookies.
+- Confirm `lccap_refresh_token` exists and is HttpOnly.
+- Hard-refresh `/plans`.
+- Confirm the session restores through `/api/auth/refresh`.
+- Logout.
+- Confirm `/api/auth/logout` is called.
+- Confirm `/plans` requires login after logout.
 
 ---
 
@@ -914,22 +1598,36 @@ All demo users use this local development password when seeded with the instruct
 DemoPassword123!
 ```
 
-
-| User type      | Email                        | Role          | Scope    | LGU / Account        | Login status                                                            |
-| -------------- | ---------------------------- | ------------- | -------- | -------------------- | ----------------------------------------------------------------------- |
-| Platform admin | `platform.admin@lccap.local` | `SystemAdmin` | Platform | None                 | Seeded, but may not log in until platform-user login support is enabled |
-| LGU planner    | `naga.planner@lccap.local`   | `Planner`     | Tenant   | Naga City Demo LGU   | Use for primary MVP demo                                                |
-| LGU viewer     | `naga.viewer@lccap.local`    | `Viewer`      | Tenant   | Naga City Demo LGU   | Tenant demo user                                                        |
-| LGU planner    | `pasig.planner@lccap.local`  | `Planner`     | Tenant   | Pasig City Demo LGU  | Tenant demo user                                                        |
-| LGU viewer     | `pasig.viewer@lccap.local`   | `Viewer`      | Tenant   | Pasig City Demo LGU  | Tenant demo user                                                        |
-| LGU planner    | `quezon.planner@lccap.local` | `Planner`     | Tenant   | Quezon City Demo LGU | Tenant demo user                                                        |
-| LGU viewer     | `quezon.viewer@lccap.local`  | `Viewer`      | Tenant   | Quezon City Demo LGU | Tenant demo user                                                        |
-
+| User type | Email | Role | Scope | LGU / Account | Login status |
+| --- | --- | --- | --- | --- | --- |
+| Platform admin | `platform.admin@lccap.local` | `SystemAdmin` | Platform | None | Seeded, but may not log in until platform-user login support is enabled |
+| LGU planner | `naga.planner@lccap.local` | `Planner` | Tenant | Naga City Demo LGU | Use for primary MVP demo |
+| LGU viewer | `naga.viewer@lccap.local` | `Viewer` | Tenant | Naga City Demo LGU | Tenant demo user |
+| LGU planner | `pasig.planner@lccap.local` | `Planner` | Tenant | Pasig City Demo LGU | Tenant demo user |
+| LGU viewer | `pasig.viewer@lccap.local` | `Viewer` | Tenant | Pasig City Demo LGU | Tenant demo user |
+| LGU planner | `quezon.planner@lccap.local` | `Planner` | Tenant | Quezon City Demo LGU | Tenant demo user |
+| LGU viewer | `quezon.viewer@lccap.local` | `Viewer` | Tenant | Quezon City Demo LGU | Tenant demo user |
+| Optional LGU admin | `naga.admin@lccap.local` | `Admin` | Tenant | Naga City Demo LGU | Create manually if not seeded |
+| Optional LGU reviewer | `naga.reviewer@lccap.local` | `Reviewer` | Tenant | Naga City Demo LGU | Create manually if not seeded |
 
 Recommended MVP demo login:
 
 ```text
 Email: naga.planner@lccap.local
+Password: DemoPassword123!
+```
+
+Recommended Audit Viewer login:
+
+```text
+Email: naga.admin@lccap.local
+Password: DemoPassword123!
+```
+
+or:
+
+```text
+Email: naga.reviewer@lccap.local
 Password: DemoPassword123!
 ```
 
@@ -958,9 +1656,11 @@ DemoPassword123!
 
 Expected result:
 
-- Login succeeds
-- User lands on `/dashboard`
-- Topbar shows `naga.planner@lccap.local`
+- Login succeeds.
+- User lands on `/dashboard` or can navigate to `/plans`.
+- Topbar shows `naga.planner@lccap.local`.
+- Backend sets the `lccap_refresh_token` HttpOnly cookie.
+- Local Storage does not contain a JWT access token.
 
 ### 2. Open or Create Plan
 
@@ -972,8 +1672,9 @@ Go to:
 
 Expected result:
 
-- Existing tenant plans appear in **Your workspaces**
-- Click **Open workspace** for an existing plan, or create a new one
+- Existing tenant plans appear in **Your workspaces**.
+- Plan list uses pagination.
+- Click **Open workspace** for an existing plan, or create a new one.
 
 Suggested new plan values:
 
@@ -987,10 +1688,21 @@ Template mode: New
 
 Expected result:
 
-- The app redirects to `/plans/{realPlanId}`
-- Default sections appear in the workspace
+- The app redirects to `/plans/{realPlanId}`.
+- Default sections appear in the workspace.
 
-### 3. Edit Section
+### 3. Edit Plan Metadata
+
+Open the plan summary card and edit the description or status.
+
+Expected result:
+
+- Save succeeds.
+- The plan summary updates.
+- Audit history records `PlanMetadataUpdated`.
+- A stale rowVersion update should return a conflict and ask the user to refresh.
+
+### 4. Edit Section
 
 Open the **Executive Summary** section and enter:
 
@@ -1002,11 +1714,34 @@ Click **Save section**.
 
 Expected result:
 
-- Save succeeds
-- Last edited timestamp appears
-- Refreshing the page keeps the saved content
+- Save succeeds.
+- Last edited timestamp appears.
+- Refreshing the page keeps the saved content.
+- Audit history records `PlanSectionUpdated`.
 
-### 4. Upload Document
+### 5. View Section History and Restore
+
+Save a second version of the Executive Summary.
+
+Example second version:
+
+```text
+This second draft adds more detail about local flood exposure, priority barangays, and monitoring responsibilities for the planning cycle.
+```
+
+Then:
+
+1. Open **Revision History**.
+2. Select the earlier version.
+3. Restore it.
+
+Expected result:
+
+- The previous content is restored.
+- Restore creates a new audit entry.
+- History remains available.
+
+### 6. Upload Document
 
 Use a small PDF, DOCX, XLSX, PNG, JPG, or JPEG.
 
@@ -1020,11 +1755,36 @@ Description: Sample supporting document for local climate planning evidence.
 
 Expected result:
 
-- Upload succeeds
-- Document appears in the attached documents list
-- Refreshing the workspace reloads the document list
+- Upload succeeds.
+- Document appears in the attached documents list.
+- Refreshing the workspace reloads the document list.
+- Document list uses pagination.
 
-### 5. Create Action Item
+### 7. Edit and Archive Document
+
+Edit the document metadata.
+
+Suggested update:
+
+```text
+Title: CLUP Reference Map - Updated Metadata
+Description: Updated evidence description for the draft workspace.
+```
+
+Expected result:
+
+- Metadata update succeeds.
+- Audit history records `DocumentMetadataUpdated`.
+
+Archive only a test/duplicate document.
+
+Expected result:
+
+- Document disappears from the active list.
+- FileAsset remains retained.
+- Audit history records `DocumentArchived`.
+
+### 8. Create Action Item
 
 Suggested values:
 
@@ -1045,10 +1805,28 @@ Priority score: 8
 
 Expected result:
 
-- Action is created
-- Action appears in the action items list
+- Action is created.
+- Action appears in the action items list.
+- Action list uses pagination.
 
-### 6. Create Monitoring Indicator
+### 9. Edit and Archive Action Item
+
+Edit the action item status or budget.
+
+Expected result:
+
+- Update succeeds.
+- Audit history records `ActionItemUpdated`.
+- Stale rowVersion updates return conflict.
+
+Archive only a test/duplicate action item.
+
+Expected result:
+
+- Active list no longer shows the archived action.
+- Audit history records `ActionItemArchived`.
+
+### 10. Create Monitoring Indicator
 
 Suggested values:
 
@@ -1067,40 +1845,142 @@ Responsible office: City DRRMO
 
 Expected result:
 
-- Indicator is created
-- Indicator appears in the monitoring indicators list
+- Indicator is created.
+- Indicator appears in the monitoring indicators list.
+- Monitoring list uses pagination.
 
-### 7. Generate and Download PDF Draft Package
+### 11. Edit and Archive Monitoring Indicator
 
-In the export section:
-
-1. Click **Generate PDF draft**
-2. Wait for the latest export job to show **Completed**
-3. Click **Download PDF**
+Edit the monitoring indicator values or status.
 
 Expected result:
 
-- PDF downloads as `lccap-draft-package.pdf`
-- PDF contains the plan title and saved section content
+- Update succeeds.
+- Audit history records `MonitoringIndicatorUpdated`.
+- Stale rowVersion updates return conflict.
+
+Archive only a test/duplicate monitoring indicator.
+
+Expected result:
+
+- Active list no longer shows the archived indicator.
+- Audit history records `MonitoringIndicatorArchived`.
+
+### 12. Generate and Download PDF Draft Package
+
+In the export section:
+
+1. Click **Generate PDF draft**.
+2. Wait for the latest export job to show **Completed**.
+3. Click **Download PDF**.
+
+Expected result:
+
+- PDF downloads as `lccap-draft-package.pdf`.
+- PDF contains the plan title and saved section content.
 
 This PDF is a draft working output for internal preparation. It is not an official submission package.
+
+### 13. Review Audit History
+
+Login as Admin or Reviewer.
+
+Open:
+
+```text
+/audit
+```
+
+Expected result:
+
+- Audit History page loads.
+- Recent plan, section, document, action, monitoring, and archive events appear.
+- Filters work by entity/action/date.
+- Detail view shows old values, new values, and metadata.
+- Planner and Viewer cannot access this page.
+
+### 14. RBAC Check
+
+Login as Viewer:
+
+```text
+naga.viewer@lccap.local
+DemoPassword123!
+```
+
+Expected result:
+
+- Viewer can read plan workspace data.
+- Viewer cannot create, edit, restore, export, or archive.
+- Unauthorized API calls return 403.
+
+Login as Planner:
+
+```text
+naga.planner@lccap.local
+DemoPassword123!
+```
+
+Expected result:
+
+- Planner can create, edit, restore, and export.
+- Planner cannot archive.
+- Archive API calls return 403.
+
+Login as Admin:
+
+```text
+naga.admin@lccap.local
+DemoPassword123!
+```
+
+Expected result:
+
+- Admin can archive.
+- Admin can view Audit History.
+
+### 15. Session Check
+
+After login:
+
+1. Open DevTools.
+2. Go to Application.
+3. Check Local Storage.
+4. Confirm no JWT appears in Local Storage.
+5. Check Cookies.
+6. Confirm `lccap_refresh_token` exists as an HttpOnly cookie.
+7. Hard-refresh `/plans`.
+8. Confirm the session restores.
+9. Logout.
+10. Confirm `/api/auth/logout` is called.
+11. Confirm `/plans` requires login after logout.
 
 ---
 
 ## Testing and Quality Gates
 
-Every completed backend slice must pass:
+For normal backend feature slices:
 
 ```powershell
 dotnet build Lccap.sln
+dotnet test tests/Lccap.Api.Tests/Lccap.Api.Tests.csproj --filter <AffectedTests>
 ```
 
-And targeted tests for the affected module.
-
-Every completed frontend slice must pass:
+For normal frontend feature slices:
 
 ```powershell
-cd frontend
+cd C:\projects\LCCAP\frontend
+npm run type-check
+npm run lint
+```
+
+Before release/demo checkpoint:
+
+```powershell
+cd C:\projects\LCCAP
+dotnet test Lccap.sln
+
+cd C:\projects\LCCAP\frontend
 npm run type-check
 npm run lint
 npm run build
@@ -1108,22 +1988,45 @@ npm run build
 
 Current test categories:
 
-- API/controller tests
-- EF Core mapping tests
-- storage service tests
-- authentication tests
-- frontend type-check / lint / build checks
-- manual MVP E2E validation
+- API/controller tests.
+- EF Core mapping tests.
+- Storage service tests.
+- Authentication tests.
+- Refresh-token persistence tests.
+- Refresh-token rotation tests.
+- RBAC tests.
+- Audit viewer tests.
+- Optimistic concurrency tests.
+- Pagination tests.
+- Frontend type-check.
+- Frontend lint.
+- Manual MVP E2E validation.
 
 Quality rules:
 
-- Do not deliver code with compile errors
-- Do not deliver code with failing tests
-- Do not update tracker unless build/tests pass
-- Do not guess database schema
-- Always preserve tenant isolation
-- Use exact schema when implementing database-facing tasks
-- Keep MVP, Phase 2, and Phase 3 scope separated
+- Do not deliver code with compile errors.
+- Do not deliver code with failing tests.
+- Do not update tracker unless build/tests pass.
+- Do not guess database schema.
+- Always preserve tenant isolation.
+- Use exact schema when implementing database-facing tasks.
+- Keep MVP, Phase 2, and Phase 3 scope separated.
+- Preserve server-side RBAC as source of truth.
+- Do not rely on UI hiding as authorization.
+- Do not store refresh tokens in JavaScript-accessible storage.
+- Do not store access tokens in localStorage.
+
+Suggested regression commands:
+
+```powershell
+dotnet test Lccap.sln
+```
+
+```powershell
+cd C:\projects\LCCAP\frontend
+npm run type-check
+npm run lint
+```
 
 ---
 
@@ -1131,48 +2034,116 @@ Quality rules:
 
 ### MVP
 
-- Backend core APIs
-- Auth and tenant context
-- Plan workspace
-- Plan sections
-- Documents and file storage
-- Action items
-- Monitoring
-- PDF exports
-- Download exports
-- Frontend foundation
-- Demo workflow
+- Backend core APIs.
+- Auth and tenant context.
+- Refresh-token-backed sessions.
+- Memory-only access-token handling.
+- Plan workspace.
+- Plan sections.
+- Section history and restore.
+- Documents and file storage.
+- Document edit/archive/audit.
+- Action items.
+- Action item edit/archive/audit.
+- Monitoring.
+- Monitoring edit/archive/audit.
+- PDF exports.
+- Download exports.
+- Server-side RBAC.
+- Audit viewer.
+- Optimistic concurrency.
+- Pagination.
+- Frontend foundation.
+- Demo workflow.
 
 ### Phase 2 (later)
 
-- Evidence index and review comments
-- CCET / funding-readiness tagging
-- PSF proposal package helper (preparation aid)
-- Richer exports and monitoring / operational readiness features
+- Evidence index and review comments.
+- CCET / funding-readiness tagging.
+- PSF proposal package helper as preparation aid.
+- Richer exports and monitoring / operational readiness features.
+- Audit retention strategy.
+- Structured logging.
+- Rate limiting.
+- CI quality gates.
+- Screenshot/demo polish.
 
 ### Phase 3 (later)
 
-- Interoperability
-- PostGIS / spatial analytics and exposure summaries
-- Scenario comparison and recommendation engine
-- Integration-ready APIs and exports
-- Operational hardening
+- Interoperability.
+- PostGIS / spatial analytics and exposure summaries.
+- Scenario comparison and recommendation engine.
+- Integration-ready APIs and exports.
+- Operational hardening.
+- Advanced observability.
+- Potential BFF-style auth if production deployment requires it.
 
 ---
 
 ## Enterprise Design Principles
 
-- Plan-centric architecture
-- Strict multi-tenant isolation
-- Clean Architecture boundaries
-- Explicit database schema fidelity
-- FileAsset storage abstraction
-- Async AI processing
-- Auditable workflows
-- Test-first hardening
-- Secure-by-default API behavior
-- Responsive enterprise UI
-- Phase discipline: MVP, Phase 2, and Phase 3 must not be mixed without explicit product approval
+- Plan-centric architecture.
+- Strict multi-tenant isolation.
+- Clean Architecture boundaries.
+- Explicit database schema fidelity.
+- FileAsset storage abstraction.
+- Async AI processing.
+- Auditable workflows.
+- Test-first hardening.
+- Secure-by-default API behavior.
+- Responsive enterprise UI.
+- Server-side authorization, not UI-only permissions.
+- Memory-only access-token handling.
+- HttpOnly refresh-token rotation.
+- Optimistic concurrency for editable records.
+- Soft-delete archive with audit history.
+- Pagination by default for tenant lists.
+- No client-supplied account IDs.
+- No hard deletes for user-correctable workspace records.
+- No official-submission claims in MVP.
+- Phase discipline: MVP, Phase 2, and Phase 3 must not be mixed without explicit product approval.
+
+---
+
+## Current Enterprise MVP Caveats
+
+The updated MVP is suitable for internal demos and controlled pilot conversations, with the following caveats:
+
+- It is not an official submission platform.
+- It is not a national reporting platform.
+- It is not a funding portal.
+- It is not a replacement for official risk assessment systems.
+- It is not yet a fully production-hardened SaaS deployment.
+- Production should add stricter CORS/cookie settings.
+- Production should add CSRF strategy if cookie-auth expands.
+- Production should add rate limiting for auth and uploads.
+- Production should add structured logging and correlation IDs.
+- Production should add deployment runbooks.
+- Production should add CI quality gates.
+- Production should add monitoring/alerting.
+- Production should define audit retention policy.
+
+Safe to demo now:
+
+- LGU workspace planning flow.
+- Plan creation and editing.
+- Section save/history/restore.
+- Documents upload/edit/archive.
+- Action create/edit/archive.
+- Monitoring create/edit/archive.
+- PDF draft export.
+- RBAC behavior.
+- Audit history.
+- Refresh-token-backed session behavior.
+
+Do not claim yet:
+
+- Official government submission.
+- Production-scale national deployment.
+- Funding eligibility processing.
+- Full GIS analytics.
+- Automated AI decision-making.
+- Replacement for CCC/DILG/NICCDIES/PlanSmart/UNDP SHIELD systems.
 
 ---
 
@@ -1189,3 +2160,286 @@ Calgary, Canada
 [jmjabayon@gmail.com](mailto:jmjabayon@gmail.com)
 
 [LinkedIn Profile](https://www.linkedin.com/in/jeff-martin-abayon-calgary/)
+
+
+---
+
+## Appendix A - Manual Verification Checklist
+
+Use this appendix as a concise checklist before screenshots, demos, or local release checkpoints.
+
+### Backend verification
+
+- Run `dotnet build Lccap.sln`.
+- Run `dotnet test Lccap.sln`.
+- Confirm all Domain tests pass.
+- Confirm all Application tests pass.
+- Confirm all Infrastructure tests pass.
+- Confirm all API tests pass.
+- Confirm AuthTests pass.
+- Confirm PlansControllerTests pass.
+- Confirm PlanSectionsControllerTests pass.
+- Confirm DocumentsControllerTests pass.
+- Confirm ActionItemsControllerTests pass.
+- Confirm MonitoringControllerTests pass.
+- Confirm ExportControllerTests pass.
+- Confirm AuditLogsControllerTests pass.
+- Confirm RefreshToken mapping tests pass.
+
+### Frontend verification
+
+- Run `npm run type-check`.
+- Run `npm run lint`.
+- Run `npm run build` before demo checkpoint.
+- Confirm login page loads.
+- Confirm dashboard shell loads.
+- Confirm `/plans` loads after login.
+- Confirm `/audit` loads only for Admin/Reviewer.
+- Confirm responsive layout still works on smaller viewport.
+
+### Database verification
+
+- Confirm `public.refresh_tokens` exists.
+- Confirm `public.audit_logs` exists.
+- Confirm `public.users` includes demo tenant users.
+- Confirm `public.plans` has tenant records.
+- Confirm archived records use `is_deleted = true` and remain in database.
+- Confirm audit logs are tenant-scoped by `account_id`.
+- Confirm refresh-token rows store hashes only.
+
+### Auth/session verification
+
+- Login as `naga.planner@lccap.local`.
+- Confirm login succeeds.
+- Confirm `lccap_refresh_token` cookie exists.
+- Confirm `lccap_refresh_token` is HttpOnly.
+- Confirm Local Storage has no JWT token.
+- Hard refresh `/plans`.
+- Confirm `/api/auth/refresh` restores the session.
+- Logout.
+- Confirm `/api/auth/logout` runs.
+- Confirm UI returns to logged-out state.
+
+### RBAC verification
+
+- Login as Viewer.
+- Confirm Viewer can read workspace data.
+- Confirm Viewer cannot create or edit.
+- Confirm Viewer cannot export.
+- Confirm Viewer cannot archive.
+- Confirm unauthorized mutation calls return 403.
+- Login as Planner.
+- Confirm Planner can create/edit/restore/export.
+- Confirm Planner cannot archive.
+- Login as Admin.
+- Confirm Admin can archive.
+- Login as Reviewer.
+- Confirm Reviewer can view audit history.
+
+### Audit verification
+
+- Edit plan metadata.
+- Confirm `PlanMetadataUpdated` appears.
+- Save section.
+- Confirm `PlanSectionUpdated` appears.
+- Restore section.
+- Confirm `PlanSectionRestored` appears.
+- Edit document metadata.
+- Confirm `DocumentMetadataUpdated` appears.
+- Archive test document.
+- Confirm `DocumentArchived` appears.
+- Edit action item.
+- Confirm `ActionItemUpdated` appears.
+- Archive test action item.
+- Confirm `ActionItemArchived` appears.
+- Edit monitoring indicator.
+- Confirm `MonitoringIndicatorUpdated` appears.
+- Archive test monitoring indicator.
+- Confirm `MonitoringIndicatorArchived` appears.
+
+### Pagination verification
+
+- Open `/plans`.
+- Confirm Previous is disabled on first page.
+- Confirm Next enables when more records exist.
+- Confirm active page items display correctly.
+- Confirm archived records do not appear.
+- Confirm documents list pagination works.
+- Confirm action list pagination works.
+- Confirm monitoring list pagination works.
+- Confirm audit log pagination works.
+
+### Export verification
+
+- Open a plan with saved section content.
+- Generate PDF draft package.
+- Confirm export job reaches Completed.
+- Download PDF.
+- Confirm PDF opens.
+- Confirm plan title appears.
+- Confirm section content appears.
+- Confirm download is tenant-scoped.
+
+### Positioning verification
+
+- Confirm UI and docs do not claim official submission.
+- Confirm PDF is described as draft working output.
+- Confirm product language says complement, not replacement.
+- Confirm no language implies funding approval.
+- Confirm no language implies national reporting authority.
+
+---
+
+## Appendix B - Suggested Future Hardening Slices
+
+These slices are intentionally deferred beyond the updated MVP.
+
+### P1 - Production auth and browser security
+
+- Add CSP.
+- Add stricter production CORS.
+- Add CSRF strategy if access-token cookies are introduced.
+- Add auth and upload rate limiting.
+- Add fail-fast guard when demo seed is enabled outside Development.
+
+### P1 - Observability
+
+- Add structured logging.
+- Add request correlation IDs.
+- Add export failure diagnostics.
+- Add upload failure diagnostics.
+- Add operational health/readiness checks.
+
+### P1 - CI quality gate
+
+- Run `dotnet test Lccap.sln`.
+- Run frontend type-check.
+- Run frontend lint.
+- Run frontend build.
+- Reject PR on failure.
+
+### P2 - Audit management
+
+- Define audit retention policy.
+- Add audit export for tenant admins if needed.
+- Add audit summary dashboard.
+- Add retention or compaction job.
+
+### P2 - Richer exports
+
+- Add DOCX export.
+- Add richer PDF layout.
+- Add annex/evidence listing.
+- Add action and monitoring summary sections.
+- Add export templates.
+
+### P2 - Collaboration
+
+- Add section comments.
+- Add assignment workflow.
+- Add review status.
+- Add reviewer notes.
+- Add notification events.
+
+### P3 - Interoperability
+
+- Add integration-ready APIs.
+- Add structured import/export formats.
+- Add PostGIS support.
+- Add external system mapping.
+- Add formal data exchange contracts.
+
+### P3 - AI support
+
+- Add AI job queue.
+- Add evidence-grounded section drafting.
+- Add document summarization.
+- Add recommendation-style assistance.
+- Add RAG search over tenant evidence.
+- Add human review workflow before adopting AI output.
+
+---
+
+## Appendix C - Common Local Commands
+
+### Backend
+
+```powershell
+cd C:\projects\LCCAP
+dotnet build Lccap.sln
+dotnet test Lccap.sln
+```
+
+### Frontend
+
+```powershell
+cd C:\projects\LCCAP\frontend
+npm run type-check
+npm run lint
+npm run build
+```
+
+### Run API
+
+```powershell
+cd C:\projects\LCCAP
+dotnet run --project .\src\Lccap.Api\Lccap.Api.csproj
+```
+
+### Run frontend production-like
+
+```powershell
+cd C:\projects\LCCAP\frontend
+$env:PORT="3010"
+npm start
+```
+
+### Git checkpoint
+
+```powershell
+git status -u
+git add -A
+git diff --cached --name-status
+git commit -m "feat: describe change"
+```
+
+---
+
+## Appendix D - Documentation Maintenance Rules
+
+When updating the project:
+
+- Keep README aligned with implemented behavior.
+- Keep local-development.md aligned with actual commands.
+- Keep security-notes.md aligned with current auth and RBAC behavior.
+- Keep environment-variables.md aligned with real config keys.
+- Keep tracker JSON updated only after verification passes.
+- Do not document features as complete until tests and manual checks pass.
+- Keep MVP, Phase 2, and Phase 3 boundaries clear.
+- Avoid official-submission language unless a future integration is formally approved.
+
+---
+
+## Appendix E - Safe Demo Claims
+
+Safe claims:
+
+- LGU-facing planning workspace.
+- Structured LCCAP preparation.
+- Tenant-scoped workspace.
+- Server-side RBAC.
+- Audit history.
+- Section restore.
+- Draft PDF package.
+- Memory-only access token with HttpOnly refresh cookie.
+- Locally validated end-to-end MVP.
+
+Avoid claims:
+
+- Official government platform.
+- National reporting system.
+- Funding approval system.
+- Replacement for CCC/DILG/NICCDIES/PlanSmart/UNDP SHIELD.
+- Production-scale national deployment.
+- Fully automated climate action recommendation authority.
+- AI-generated official plan approval.
