@@ -17,6 +17,8 @@ This document describes configuration that can be supplied via environment varia
 
 **Note:** Default `appsettings*.json` files use the connection name **`Postgres`**, not `DefaultConnection`.
 
+**Slice 1 auth hardening note**: The new `public.refresh_tokens` table (added via `002_add_refresh_tokens.sql`) uses the existing Postgres connection string. No new environment variables required. Raw refresh tokens are never stored; only hashes and metadata. Login behavior unchanged in this slice.
+
 ## JWT / Auth
 
 | Variable | Required | Used by | Safe local example | Production |

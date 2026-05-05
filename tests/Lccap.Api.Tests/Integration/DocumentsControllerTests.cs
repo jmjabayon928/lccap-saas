@@ -661,6 +661,7 @@ public sealed class DocumentsControllerTests
         public DbSet<ExportJob> ExportJobs => null!;
 
         public DbSet<AuditLog> AuditLogs => null!;
+        public DbSet<RefreshToken> RefreshTokens => null!;
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
     }

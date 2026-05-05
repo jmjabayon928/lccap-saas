@@ -183,3 +183,11 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Accountability**: The viewer provides a history of who changed what, when, and includes snapshots of old and new values for transparency.
 - **Metadata Visibility**: Metadata such as `planId` or `sectionKey` is exposed where available to provide context for the changes.
 - **Positioning**: Audit history supports **LGU-facing accountability** and internal review. It is not a formal government audit report or national reporting channel.
+
+## Auth/Session Hardening — Slice 1 (Refresh Token Persistence Foundation)
+
+- **Schema added**: New table `public.refresh_tokens` (additive migration `002_add_refresh_tokens.sql`) provides the persistence foundation for future production-grade refresh token rotation, revocation, family tracking, and IP/user-agent auditing.
+- **No raw tokens**: Only secure `token_hash` (varchar 128) is ever stored. Raw refresh tokens are never persisted.
+- **Slice 1 scope**: This slice adds only the domain entity, EF mapping, DbSet registration, and mapping tests. Login, refresh, logout, `/me` endpoints, cookie issuance, and any runtime auth behavior are **unchanged**.
+- **Later slices**: Cookie-based session delivery, refresh token rotation/revocation endpoints, and BFF-style auth hardening will follow in subsequent slices.
+- **DB constraints**: Check constraints enforce non-blank hash, expiry > issued, and optional non-blank revoke_reason. Partial unique index prevents duplicate active hashes; filtered indexes support efficient active-token and family queries.

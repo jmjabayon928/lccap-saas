@@ -13,6 +13,7 @@ public interface ILccapDbContext
     DbSet<Document> Documents { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<ExportJob> ExportJobs { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

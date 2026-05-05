@@ -297,3 +297,4 @@ Development CORS is configured in `Program.cs` to allow local frontend origins (
 
 - [Environment variables](environment-variables.md) — names, binding, and production cautions.
 - [Security notes](security-notes.md) — MVP security assumptions and future hardening.
+- Slice 1 of auth/session hardening added `public.refresh_tokens` table, `RefreshToken` entity, EF config, and mapping tests (no runtime login/refresh behavior changed yet; cookie and endpoint work in later slices). Raw tokens are never stored.

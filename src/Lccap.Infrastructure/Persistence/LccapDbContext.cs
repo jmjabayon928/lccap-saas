@@ -38,6 +38,7 @@ public class LccapDbContext : DbContext, ILccapDbContext
     public DbSet<Document> Documents => Set<Document>();
 
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<MonitoringIndicator> MonitoringIndicators => Set<MonitoringIndicator>();
 
