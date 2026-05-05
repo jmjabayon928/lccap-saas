@@ -769,6 +769,25 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Update_plan_with_stale_row_version_returns_conflict()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var seeded = await SeedPlan(db, accountId, "Stale Test");
+        var staleVersion = new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 };
+        var controller = CreateController(db, accountId, userId, WorkspaceRoles.Admin);
+
+        var result = await controller.UpdatePlan(
+            seeded.Id,
+            new UpdatePlanApiRequest("After", 2025, 2027, "InProgress", "Enhancement", 2, "updated", null, null, staleVersion),
+            new UpdatePlanCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
+            CancellationToken.None);
+
+        _ = Assert.IsType<ConflictResult>(result);
+    }
+
+    [Fact]
     public async Task Planner_can_read_plans()
     {
         using var db = CreateDbContext();

@@ -657,6 +657,41 @@ public sealed class ActionItemsControllerTests
     }
 
     [Fact]
+    public async Task Update_action_with_stale_row_version_returns_conflict()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId);
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+        var created = await new CreateActionItemCommand(db, ctx).ExecuteAsync(plan.Id, ToApp(ValidCreateBody()), CancellationToken.None);
+        var persisted = created.Item!;
+        var staleVersion = new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 };
+
+        var result = await new ActionItemsController(ctx).Update(
+            persisted.Id,
+            new UpdateActionItemApiRequest(
+                "Updated",
+                null,
+                persisted.ActionType,
+                persisted.Sector,
+                null,
+                persisted.BudgetAmount,
+                null,
+                null,
+                null,
+                null,
+                null,
+                persisted.Status,
+                null,
+                staleVersion),
+            new UpdateActionItemCommand(db, ctx),
+            CancellationToken.None);
+
+        _ = Assert.IsType<ConflictResult>(result);
+    }
+
+    [Fact]
     public async Task Archive_action_item_sets_soft_delete_fields()
     {
         using var db = CreateDbContext();
