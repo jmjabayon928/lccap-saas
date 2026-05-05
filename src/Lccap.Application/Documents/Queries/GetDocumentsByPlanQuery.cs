@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Common.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lccap.Application.Documents.Queries;
@@ -48,24 +49,30 @@ public class GetDocumentsByPlanQuery
         _currentUserContext = currentUserContext;
     }
 
-    public virtual async Task<IReadOnlyList<DocumentListItem>> ExecuteAsync(Guid planId, CancellationToken cancellationToken = default)
+    public virtual async Task<PagedResult<DocumentListItem>> ExecuteAsync(Guid planId, int? page = null, int? pageSize = null, CancellationToken cancellationToken = default)
     {
         if (!_currentUserContext.AccountId.HasValue)
         {
-            return Array.Empty<DocumentListItem>();
+            return new PagedResult<DocumentListItem>(Array.Empty<DocumentListItem>(), 1, 25, 0);
         }
 
         var accountId = _currentUserContext.AccountId.Value;
+        var (p, ps) = PaginationHelper.Normalize(page, pageSize);
 
-        var rows = await (
-                from d in _dbContext.Documents.AsNoTracking()
-                join f in _dbContext.FileAssets.AsNoTracking() on d.FileAssetId equals f.Id
-                where d.AccountId == accountId && d.PlanId == planId && !d.IsDeleted
-                orderby d.CreatedAtUtc descending
-                select new { d, f })
+        var baseQuery = from d in _dbContext.Documents.AsNoTracking()
+                        join f in _dbContext.FileAssets.AsNoTracking() on d.FileAssetId equals f.Id
+                        where d.AccountId == accountId && d.PlanId == planId && !d.IsDeleted
+                        select new { d, f };
+
+        var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+        var rows = await baseQuery
+            .OrderByDescending(x => x.d.CreatedAtUtc)
+            .Skip((p - 1) * ps)
+            .Take(ps)
             .ToListAsync(cancellationToken);
 
-        return rows.ConvertAll(
+        var items = rows.ConvertAll(
             r => new DocumentListItem(
                 r.d.Id,
                 r.d.PlanId,
@@ -81,6 +88,8 @@ public class GetDocumentsByPlanQuery
                 r.f.FileSizeBytes,
                 r.f.CreatedAtUtc,
                 r.d.CreatedAtUtc));
+
+        return new PagedResult<DocumentListItem>(items, p, ps, totalCount);
     }
 }
 

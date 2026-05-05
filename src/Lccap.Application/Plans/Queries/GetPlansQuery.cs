@@ -1,4 +1,5 @@
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Common.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lccap.Application.Plans.Queries;
@@ -30,23 +31,23 @@ public sealed class GetPlansQuery
         _currentUserContext = currentUserContext;
     }
 
-    public async Task<GetPlansResult> Execute(CancellationToken cancellationToken = default)
+    public async Task<PagedResult<PlanListItemDto>> Execute(int? page = null, int? pageSize = null, CancellationToken cancellationToken = default)
     {
-        if (!_currentUserContext.IsAuthenticated)
+        if (!_currentUserContext.IsAuthenticated || _currentUserContext.AccountId is null)
         {
-            return GetPlansResult.Unauthorized();
-        }
-
-        if (_currentUserContext.AccountId is null)
-        {
-            return GetPlansResult.Forbidden();
+            return new PagedResult<PlanListItemDto>(Array.Empty<PlanListItemDto>(), 1, 25, 0);
         }
 
         var accountId = _currentUserContext.AccountId.Value;
+        var (p, ps) = PaginationHelper.Normalize(page, pageSize);
 
-        var plans = await _dbContext.Plans
+        var baseQuery = _dbContext.Plans
             .AsNoTracking()
-            .Where(p => p.AccountId == accountId && !p.IsDeleted && p.Status != "Archived")
+            .Where(p => p.AccountId == accountId && !p.IsDeleted && p.Status != "Archived");
+
+        var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+        var items = await baseQuery
             .OrderByDescending(p => p.UpdatedAtUtc ?? p.CreatedAtUtc)
             .Select(p => new PlanListItemDto(
                 p.Id,
@@ -60,31 +61,10 @@ public sealed class GetPlansQuery
                 p.Description,
                 p.CreatedAtUtc,
                 p.UpdatedAtUtc))
+            .Skip((p - 1) * ps)
+            .Take(ps)
             .ToListAsync(cancellationToken);
 
-        return GetPlansResult.Success(plans);
+        return new PagedResult<PlanListItemDto>(items, p, ps, totalCount);
     }
-}
-
-public sealed class GetPlansResult
-{
-    private GetPlansResult(bool isSuccess, int statusCode, IReadOnlyList<PlanListItemDto>? plans)
-    {
-        IsSuccess = isSuccess;
-        StatusCode = statusCode;
-        Plans = plans;
-    }
-
-    public bool IsSuccess { get; }
-
-    public int StatusCode { get; }
-
-    public IReadOnlyList<PlanListItemDto>? Plans { get; }
-
-    public static GetPlansResult Success(IReadOnlyList<PlanListItemDto> plans) =>
-        new(true, 200, plans);
-
-    public static GetPlansResult Unauthorized() => new(false, 401, null);
-
-    public static GetPlansResult Forbidden() => new(false, 403, null);
 }

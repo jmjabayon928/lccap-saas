@@ -19,21 +19,30 @@ public sealed class PlansController : ControllerBase
 
     [HttpGet]
     [RequireWorkspaceRole("Read")]
-    public async Task<IActionResult> GetPlans([FromServices] GetPlansQuery query, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetPlans(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        [FromServices] GetPlansQuery query,
+        CancellationToken cancellationToken)
     {
         if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
         {
             return Forbid();
         }
 
-        var result = await query.Execute(cancellationToken);
-        return result.StatusCode switch
+        if (_currentUser.AccountId is null)
         {
-            StatusCodes.Status200OK => Ok(new { plans = result.Plans }),
-            StatusCodes.Status401Unauthorized => Unauthorized(),
-            StatusCodes.Status403Forbidden => Forbid(),
-            _ => StatusCode(result.StatusCode),
-        };
+            return Forbid();
+        }
+
+        var paged = await query.Execute(page, pageSize, cancellationToken);
+        return Ok(new
+        {
+            items = paged.Items,
+            page = paged.Page,
+            pageSize = paged.PageSize,
+            totalCount = paged.TotalCount
+        });
     }
 
     [HttpPost]

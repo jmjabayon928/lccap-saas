@@ -70,15 +70,25 @@ public sealed class DocumentsController : ControllerBase
 
     [HttpGet("api/plans/{planId:guid}/documents")]
     [RequireWorkspaceRole("Read")]
-    public async Task<IActionResult> GetByPlan([FromRoute] Guid planId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetByPlan(
+        [FromRoute] Guid planId,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        CancellationToken cancellationToken)
     {
         if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
         {
             return Forbid();
         }
 
-        var documents = await _getDocumentsByPlanQuery.ExecuteAsync(planId, cancellationToken);
-        return Ok(documents);
+        var paged = await _getDocumentsByPlanQuery.ExecuteAsync(planId, page, pageSize, cancellationToken);
+        return Ok(new
+        {
+            items = paged.Items,
+            page = paged.Page,
+            pageSize = paged.PageSize,
+            totalCount = paged.TotalCount
+        });
     }
 
     [HttpPut("api/documents/{documentId:guid}/metadata")]

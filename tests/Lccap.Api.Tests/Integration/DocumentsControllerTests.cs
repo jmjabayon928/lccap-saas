@@ -3,6 +3,7 @@ using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Common.Models;
+using Lccap.Application.Common.Pagination;
 using Lccap.Application.Documents.Commands;
 using Lccap.Application.Documents.Queries;
 using Lccap.Domain.Entities;
@@ -69,10 +70,14 @@ public sealed class DocumentsControllerTests
 
         var controller = CreateController(getDocumentsResult: expected);
 
-        var result = await controller.GetByPlan(planId, CancellationToken.None);
+        var result = await controller.GetByPlan(planId, null, null, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        var payload = Assert.IsAssignableFrom<IReadOnlyList<DocumentListItem>>(ok.Value);
+        var value = ok.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        var payload = itemsProp != null
+            ? (IReadOnlyList<DocumentListItem>)itemsProp.GetValue(value)!
+            : Assert.IsAssignableFrom<IReadOnlyList<DocumentListItem>>(value);
         Assert.Single(payload);
         Assert.Equal(planId, payload[0].PlanId);
     }
@@ -88,7 +93,7 @@ public sealed class DocumentsControllerTests
 
         var controller = CreateController(getDocumentsResult: items);
 
-        var result = await controller.GetByPlan(planId, CancellationToken.None);
+        var result = await controller.GetByPlan(planId, null, null, CancellationToken.None);
         var ok = Assert.IsType<OkObjectResult>(result);
         var json = JsonSerializer.Serialize(ok.Value);
         Assert.DoesNotContain("storedPath", json, StringComparison.OrdinalIgnoreCase);
@@ -286,8 +291,8 @@ public sealed class DocumentsControllerTests
         _ = await controller.Archive(doc.Id, CancellationToken.None);
 
         var query = new GetDocumentsByPlanQuery(db, ctx);
-        var list = await query.ExecuteAsync(plan.Id, CancellationToken.None);
-        Assert.Empty(list);
+        var list = await query.ExecuteAsync(plan.Id, null, null, CancellationToken.None);
+        Assert.Empty(list.Items);
     }
 
     [Fact]
@@ -635,8 +640,8 @@ public sealed class DocumentsControllerTests
             _items = items;
         }
 
-        public override Task<IReadOnlyList<DocumentListItem>> ExecuteAsync(Guid planId, CancellationToken cancellationToken = default)
-            => Task.FromResult(_items);
+        public override Task<PagedResult<DocumentListItem>> ExecuteAsync(Guid planId, int? page = null, int? pageSize = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(new PagedResult<DocumentListItem>(_items, 1, _items.Count, _items.Count));
     }
 
     private sealed class FakeUpdateDocumentMetadataCommand : UpdateDocumentMetadataCommand

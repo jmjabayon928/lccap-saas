@@ -3,6 +3,7 @@ using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Monitoring.Commands;
+using Lccap.Application.Monitoring.Queries;
 using Lccap.Domain.Entities;
 using Lccap.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -203,10 +204,15 @@ public sealed class MonitoringControllerTests
         currentUser.UserId = Guid.NewGuid();
         currentUser.IsAuthenticated = true;
         currentUser.Role = WorkspaceRoles.Admin;
-        var result = await controller.GetIndicators(plan1, dbContext, CancellationToken.None);
+        var indicatorsQuery = new GetIndicatorsByPlanQuery(dbContext, currentUser);
+        var result = await controller.GetIndicators(plan1, null, null, indicatorsQuery, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        var payload = Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(ok.Value);
+        var value = ok.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        var payload = itemsProp != null
+            ? (IEnumerable<MonitoringController.IndicatorResponse>)itemsProp.GetValue(value)!
+            : Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(value);
         var responses = payload.ToList();
         Assert.Single(responses);
         Assert.Equal("Included", responses[0].Name);
@@ -524,9 +530,14 @@ public sealed class MonitoringControllerTests
 
         _ = await new MonitoringController(ctx).ArchiveIndicator(id, archive, CancellationToken.None);
 
-        var list = await new MonitoringController(ctx).GetIndicators(planId, db, CancellationToken.None);
+        var indicatorsQuery = new GetIndicatorsByPlanQuery(db, ctx);
+        var list = await new MonitoringController(ctx).GetIndicators(planId, null, null, indicatorsQuery, CancellationToken.None);
         var ok = Assert.IsType<OkObjectResult>(list);
-        var payload = Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(ok.Value);
+        var value = ok.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        var payload = itemsProp != null
+            ? (IEnumerable<MonitoringController.IndicatorResponse>)itemsProp.GetValue(value)!
+            : Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(value);
         Assert.Empty(payload);
     }
 
@@ -662,10 +673,15 @@ public sealed class MonitoringControllerTests
         currentUser.IsAuthenticated = true;
         currentUser.Role = WorkspaceRoles.Admin;
 
-        var result = await controller.GetIndicators(planId, dbContext, CancellationToken.None);
+        var indicatorsQuery = new GetIndicatorsByPlanQuery(dbContext, currentUser);
+        var result = await controller.GetIndicators(planId, null, null, indicatorsQuery, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        var list = Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(ok.Value).ToList();
+        var value = ok.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        var list = (itemsProp != null
+            ? (IEnumerable<MonitoringController.IndicatorResponse>)itemsProp.GetValue(value)!
+            : Assert.IsAssignableFrom<IEnumerable<MonitoringController.IndicatorResponse>>(value)).ToList();
         var dto = list.Single(x => x.Id == indicator.Id);
         Assert.False(string.IsNullOrEmpty(dto.RowVersion));
         var bytes = Convert.FromBase64String(dto.RowVersion);

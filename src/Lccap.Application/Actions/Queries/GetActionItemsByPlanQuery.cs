@@ -1,5 +1,6 @@
 using Lccap.Application.Actions.Commands;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Common.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lccap.Application.Actions.Queries;
@@ -15,13 +16,15 @@ public class GetActionItemsByPlanQuery
         _currentUserContext = currentUserContext;
     }
 
-    public async Task<GetActionItemsByPlanOutcome> ExecuteAsync(
+    public async Task<PagedResult<ActionItemDto>> ExecuteAsync(
         Guid planId,
+        int? page = null,
+        int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
         if (!_currentUserContext.AccountId.HasValue)
         {
-            return GetActionItemsByPlanOutcome.ForbiddenOutcome();
+            return new PagedResult<ActionItemDto>(Array.Empty<ActionItemDto>(), 1, 25, 0);
         }
 
         var accountId = _currentUserContext.AccountId.Value;
@@ -30,13 +33,21 @@ public class GetActionItemsByPlanQuery
             cancellationToken);
         if (!planExists)
         {
-            return GetActionItemsByPlanOutcome.PlanMissingOutcome();
+            return new PagedResult<ActionItemDto>(Array.Empty<ActionItemDto>(), 1, 25, 0);
         }
 
-        var entities = await _dbContext.ActionItems
-            .Where(x => x.AccountId == accountId && x.PlanId == planId && !x.IsDeleted)
+        var (p, ps) = PaginationHelper.Normalize(page, pageSize);
+
+        var baseQuery = _dbContext.ActionItems
+            .Where(x => x.AccountId == accountId && x.PlanId == planId && !x.IsDeleted);
+
+        var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+        var entities = await baseQuery
             .OrderBy(x => x.CreatedAtUtc)
             .ThenBy(x => x.Title)
+            .Skip((p - 1) * ps)
+            .Take(ps)
             .ToListAsync(cancellationToken);
 
         var repaired = false;
@@ -56,34 +67,6 @@ public class GetActionItemsByPlanQuery
 
         var items = entities.Select(x => new ActionItemDto(x)).ToList();
 
-        return GetActionItemsByPlanOutcome.Found(items);
+        return new PagedResult<ActionItemDto>(items, p, ps, totalCount);
     }
-}
-
-public sealed class GetActionItemsByPlanOutcome
-{
-    private GetActionItemsByPlanOutcome(bool isSuccess, bool forbiddenAccess, bool missingPlan, IReadOnlyList<ActionItemDto>? items)
-    {
-        IsSuccess = isSuccess;
-        ForbiddenAccess = forbiddenAccess;
-        MissingPlan = missingPlan;
-        Items = items;
-    }
-
-    public bool IsSuccess { get; }
-
-    public bool ForbiddenAccess { get; }
-
-    public bool MissingPlan { get; }
-
-    public IReadOnlyList<ActionItemDto>? Items { get; }
-
-    public static GetActionItemsByPlanOutcome Found(IReadOnlyList<ActionItemDto> items) =>
-        new(true, false, false, items);
-
-    public static GetActionItemsByPlanOutcome ForbiddenOutcome() =>
-        new(false, true, false, null);
-
-    public static GetActionItemsByPlanOutcome PlanMissingOutcome() =>
-        new(false, false, true, null);
 }

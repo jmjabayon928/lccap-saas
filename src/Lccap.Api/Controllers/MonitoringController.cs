@@ -3,6 +3,7 @@ using Lccap.Api.Auth;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Monitoring;
 using Lccap.Application.Monitoring.Commands;
+using Lccap.Application.Monitoring.Queries;
 using Lccap.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -215,7 +216,9 @@ public sealed class MonitoringController : ControllerBase
     [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetIndicators(
         Guid planId,
-        [FromServices] ILccapDbContext dbContext,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        [FromServices] GetIndicatorsByPlanQuery query,
         CancellationToken cancellationToken)
     {
         if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
@@ -223,46 +226,15 @@ public sealed class MonitoringController : ControllerBase
             return Forbid();
         }
 
-        var accountId = _currentUser.AccountId;
-        if (accountId is null)
+        var paged = await query.ExecuteAsync(planId, page, pageSize, cancellationToken);
+        // Note: rowVersion repair is handled inside query for the page slice.
+        return Ok(new
         {
-            return Unauthorized("Authenticated account context is required.");
-        }
-
-        var planExists = await dbContext.Plans
-            .AsNoTracking()
-            .AnyAsync(
-                p => p.Id == planId
-                    && p.AccountId == accountId.Value
-                    && !p.IsDeleted,
-                cancellationToken);
-
-        if (!planExists)
-        {
-            return NotFound("Plan not found for the current account.");
-        }
-
-        var rows = await dbContext.MonitoringIndicators
-            .Where(i => i.AccountId == accountId.Value && i.PlanId == planId && !i.IsDeleted)
-            .OrderBy(i => i.Name)
-            .ToListAsync(cancellationToken);
-
-        var repaired = false;
-        foreach (var row in rows)
-        {
-            if (row.RowVersion == null || row.RowVersion.Length == 0)
-            {
-                row.EnsureRowVersion();
-                repaired = true;
-            }
-        }
-
-        if (repaired)
-        {
-            _ = await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        return Ok(rows.Select(ToIndicatorResponse));
+            items = paged.Items.Select(ToIndicatorResponse).ToList(),
+            page = paged.Page,
+            pageSize = paged.PageSize,
+            totalCount = paged.TotalCount
+        });
     }
 
     private static bool IsValidStatus(string status)

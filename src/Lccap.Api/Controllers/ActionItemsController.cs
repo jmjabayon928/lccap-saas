@@ -165,6 +165,8 @@ public sealed class ActionItemsController : ControllerBase
     [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> ListForPlan(
         Guid planId,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
         [FromServices] GetActionItemsByPlanQuery query,
         CancellationToken cancellationToken)
     {
@@ -173,18 +175,14 @@ public sealed class ActionItemsController : ControllerBase
             return Forbid();
         }
 
-        var outcome = await query.ExecuteAsync(planId, cancellationToken);
-        if (outcome.ForbiddenAccess)
+        var paged = await query.ExecuteAsync(planId, page, pageSize, cancellationToken);
+        return Ok(new
         {
-            return Forbid();
-        }
-
-        if (outcome.MissingPlan)
-        {
-            return NotFound();
-        }
-
-        return Ok(outcome.Items);
+            items = paged.Items,
+            page = paged.Page,
+            pageSize = paged.PageSize,
+            totalCount = paged.TotalCount
+        });
     }
 
     [HttpGet("actions/{actionItemId:guid}")]

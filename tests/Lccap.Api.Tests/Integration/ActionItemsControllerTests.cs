@@ -157,11 +157,16 @@ public sealed class ActionItemsControllerTests
 
         var result = await new ActionItemsController(ctx).ListForPlan(
             plan1.Id,
+            null, null,
             new GetActionItemsByPlanQuery(db, ctx),
             CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        var list = Assert.IsAssignableFrom<IReadOnlyList<ActionItemDto>>(ok.Value);
+        var value = ok.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        var list = itemsProp != null
+            ? (IReadOnlyList<ActionItemDto>)itemsProp.GetValue(value)!
+            : Assert.IsAssignableFrom<IReadOnlyList<ActionItemDto>>(value);
         Assert.Equal(2, list.Count);
         Assert.All(list, x => Assert.Equal(accountId, x.AccountId));
         Assert.All(list, x => Assert.Equal(plan1.Id, x.PlanId));
@@ -569,11 +574,16 @@ public sealed class ActionItemsControllerTests
         var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
         var result = await new ActionItemsController(ctx).ListForPlan(
             plan.Id,
+            null, null,
             new GetActionItemsByPlanQuery(db, ctx),
             CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        var list = Assert.IsAssignableFrom<IReadOnlyList<ActionItemDto>>(ok.Value);
+        var value = ok.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        var list = itemsProp != null
+            ? (IReadOnlyList<ActionItemDto>)itemsProp.GetValue(value)!
+            : Assert.IsAssignableFrom<IReadOnlyList<ActionItemDto>>(value);
         var dto = list.Single(x => x.Id == action.Id);
         Assert.NotNull(dto.RowVersion);
         Assert.Equal(8, dto.RowVersion.Length);
@@ -730,10 +740,9 @@ public sealed class ActionItemsControllerTests
             new ArchiveActionItemCommand(db, ctx),
             CancellationToken.None);
 
-        var listOutcome = await new GetActionItemsByPlanQuery(db, ctx).ExecuteAsync(plan.Id, CancellationToken.None);
-        Assert.True(listOutcome.IsSuccess);
-        Assert.NotNull(listOutcome.Items);
-        Assert.Empty(listOutcome.Items);
+        var paged = await new GetActionItemsByPlanQuery(db, ctx).ExecuteAsync(plan.Id, null, null, CancellationToken.None);
+        Assert.NotNull(paged.Items);
+        Assert.Empty(paged.Items);
     }
 
     [Fact]

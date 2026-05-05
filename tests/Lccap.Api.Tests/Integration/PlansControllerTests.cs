@@ -162,6 +162,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -183,6 +184,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -202,6 +204,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -223,6 +226,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -242,6 +246,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -264,6 +269,7 @@ public sealed class PlansControllerTests
         controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -280,6 +286,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, null, userId, WorkspaceRoles.Admin);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(null, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -439,6 +446,7 @@ public sealed class PlansControllerTests
             CancellationToken.None);
 
         var listResult = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin)),
             CancellationToken.None);
 
@@ -797,6 +805,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId, WorkspaceRoles.Planner);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Planner)),
             CancellationToken.None);
 
@@ -813,6 +822,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId, WorkspaceRoles.Viewer);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Viewer)),
             CancellationToken.None);
 
@@ -829,6 +839,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId, WorkspaceRoles.Reviewer);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Reviewer)),
             CancellationToken.None);
 
@@ -844,6 +855,7 @@ public sealed class PlansControllerTests
         var controller = CreateController(db, accountId, userId, null);
 
         var result = await controller.GetPlans(
+            null, null,
             new GetPlansQuery(db, new TestCurrentUserContext(accountId, userId, true, null)),
             CancellationToken.None);
 
@@ -893,9 +905,13 @@ public sealed class PlansControllerTests
     {
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(ok.Value);
-        var prop = ok.Value.GetType().GetProperty("plans");
+        var prop = ok.Value.GetType().GetProperty("items") ?? ok.Value.GetType().GetProperty("plans");
         Assert.NotNull(prop);
         var raw = prop.GetValue(ok.Value);
+        if (raw is System.Collections.IEnumerable enumerable && !(raw is string))
+        {
+            return enumerable.Cast<PlanListItemDto>().ToList();
+        }
         return Assert.IsType<List<PlanListItemDto>>(raw);
     }
 
