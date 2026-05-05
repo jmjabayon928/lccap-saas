@@ -10,7 +10,7 @@ export interface UseAuthSessionResult {
   readonly session: AuthSession | null;
   readonly isAuthenticated: boolean;
   readonly isLoading: boolean;
-  readonly logout: () => void;
+  readonly logout: () => Promise<void>;
   readonly refreshSession: () => void;
 }
 
@@ -46,8 +46,8 @@ export function useAuthSession(): UseAuthSessionResult {
     return () => window.removeEventListener("storage", onStorage);
   }, [refreshSession]);
 
-  const logout = useCallback(() => {
-    authClient.logout();
+  const logout = useCallback(async () => {
+    await authClient.logout();
     setSession(null);
   }, []);
 

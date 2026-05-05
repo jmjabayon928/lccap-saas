@@ -2,6 +2,14 @@ import { config } from "@/lib/config";
 import { ApiError } from "@/lib/api/api-error";
 import { getAccessToken } from "@/lib/auth/auth-storage";
 
+type UnauthorizedHandler = () => Promise<boolean>;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
 export type HttpMethod = "GET" | "POST" | "PUT";
 
 export interface RequestJsonOptions {
@@ -22,6 +30,28 @@ function buildUrl(path: string): string {
   const base = config.apiBaseUrl;
   const prefix = path.startsWith("/") ? path : `/${path}`;
   return `${base}${prefix}`;
+}
+
+function isAuthEndpoint(path: string): boolean {
+  return (
+    path.includes("/api/auth/login") ||
+    path.includes("/api/auth/refresh") ||
+    path.includes("/api/auth/logout")
+  );
+}
+
+async function withUnauthorizedRetry<T>(path: string, perform: () => Promise<T>): Promise<T> {
+  try {
+    return await perform();
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401 && !isAuthEndpoint(path) && unauthorizedHandler) {
+      const refreshed = await unauthorizedHandler();
+      if (refreshed) {
+        return await perform();
+      }
+    }
+    throw err;
+  }
 }
 
 function authHeaders(): HeadersInit {
@@ -52,19 +82,23 @@ export async function requestJson(options: RequestJsonOptions): Promise<unknown>
     ...(body !== undefined ? { "Content-Type": "application/json" } : {})
   };
 
-  const response = await fetch(buildUrl(path), {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    signal,
-    credentials: "omit"
-  });
+  const perform = async () => {
+    const response = await fetch(buildUrl(path), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
+      credentials: "omit"
+    });
 
-  if (!response.ok) {
-    throw await ApiError.fromResponse(response);
-  }
+    if (!response.ok) {
+      throw await ApiError.fromResponse(response);
+    }
 
-  return parseOkJsonBody(response);
+    return parseOkJsonBody(response);
+  };
+
+  return withUnauthorizedRetry(path, perform);
 }
 
 export async function requestFormData(options: RequestFormDataOptions): Promise<unknown> {
@@ -74,35 +108,43 @@ export async function requestFormData(options: RequestFormDataOptions): Promise<
     Accept: "application/json"
   };
 
-  const response = await fetch(buildUrl(path), {
-    method,
-    headers,
-    body,
-    signal,
-    credentials: "omit"
-  });
+  const perform = async () => {
+    const response = await fetch(buildUrl(path), {
+      method,
+      headers,
+      body,
+      signal,
+      credentials: "omit"
+    });
 
-  if (!response.ok) {
-    throw await ApiError.fromResponse(response);
-  }
+    if (!response.ok) {
+      throw await ApiError.fromResponse(response);
+    }
 
-  return parseOkJsonBody(response);
+    return parseOkJsonBody(response);
+  };
+
+  return withUnauthorizedRetry(path, perform);
 }
 
 export async function requestVoid(path: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetch(buildUrl(path), {
-    method: "DELETE",
-    headers: {
-      ...authHeaders(),
-      Accept: "application/json"
-    },
-    signal,
-    credentials: "omit"
-  });
+  const perform = async () => {
+    const response = await fetch(buildUrl(path), {
+      method: "DELETE",
+      headers: {
+        ...authHeaders(),
+        Accept: "application/json"
+      },
+      signal,
+      credentials: "omit"
+    });
 
-  if (!response.ok) {
-    throw await ApiError.fromResponse(response);
-  }
+    if (!response.ok) {
+      throw await ApiError.fromResponse(response);
+    }
+  };
+
+  return withUnauthorizedRetry(path, perform);
 }
 
 export const http = {

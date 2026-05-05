@@ -190,7 +190,7 @@ See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the st
 - **Endpoints added**: POST /api/auth/refresh, POST /api/auth/logout, GET /api/auth/me (authorized). Refresh rotates token (same family), revokes on reuse/expired/invalid user.
 - **No raw tokens**: Only SHA-256 hashes stored in refresh_tokens.token_hash.
 - **Backward compatible**: Existing login response JSON shape unchanged; current frontend continues to work.
-- **Frontend integration**: Cookie reading, 401 retry, and UI session handling planned for Slice 3.
+- **Frontend integration (Slice 3)**: HttpOnly cookie sent via credentials: "include" on refresh/logout; 401 responses trigger one-time refresh retry via registered handler (skips login/refresh/logout to prevent loops); localStorage stores only access token + user snapshot; logout calls backend revoke then clears state. No raw refresh token exposure.
 - **Security**: 7-day refresh expiry, family revocation on misuse, active user checks, IP/UA logging.
 
 - **Schema added**: New table `public.refresh_tokens` (additive migration `002_add_refresh_tokens.sql`) provides the persistence foundation for future production-grade refresh token rotation, revocation, family tracking, and IP/user-agent auditing.

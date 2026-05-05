@@ -298,4 +298,5 @@ Development CORS is configured in `Program.cs` to allow local frontend origins (
 - [Environment variables](environment-variables.md) — names, binding, and production cautions.
 - [Security notes](security-notes.md) — MVP security assumptions and future hardening.
 - Slice 1 of auth/session hardening added `public.refresh_tokens` table, `RefreshToken` entity, EF config, and mapping tests (no runtime login/refresh behavior changed yet; cookie and endpoint work in later slices). Raw tokens are never stored.
-- Slice 2 added backend RefreshTokenService, AuthSessionService, AuthCookieOptions, and updated AuthController with login (now sets HttpOnly refresh cookie), refresh, logout, and me endpoints. Response shape for login remains compatible; frontend integration in Slice 3.
+- Slice 2 added backend RefreshTokenService, AuthSessionService, AuthCookieOptions, and updated AuthController with login (now sets HttpOnly refresh cookie), refresh, logout, and me endpoints. Response shape for login remains compatible.
+- Slice 3: Frontend now integrates HttpOnly refresh cookie flow: auth-client.refreshSession / logout, http 401 auto-refresh retry (once, skips auth endpoints, no loop), credentials include for refresh/logout. No refresh token ever in localStorage. Login UX and RBAC unchanged.

@@ -5,6 +5,9 @@
 
 const api = {
   authLogin: () => `/api/auth/login`,
+  authRefresh: () => `/api/auth/refresh`,
+  authLogout: () => `/api/auth/logout`,
+  authMe: () => `/api/auth/me`,
 
   /** POST /api/plans */
   createPlan: () => `/api/plans`,

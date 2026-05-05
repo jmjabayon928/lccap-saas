@@ -157,6 +157,40 @@
         ]
       },
       {
+        "id": "FILE-0006e",
+        "path": "frontend/lib/api/http.ts",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "ts",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "withUnauthorizedRetry + setUnauthorizedHandler",
+            "kind": "http",
+            "status": "done",
+            "description": "401 once-retry using registered handler; skips auth endpoints; no refresh loops"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0006f",
+        "path": "frontend/lib/auth/auth-client.ts",
+        "layer": "frontend",
+        "module": "auth",
+        "file_type": "ts",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "refreshSession + logout + handler registration",
+            "kind": "client",
+            "status": "done",
+            "description": "POST refresh (include creds, parse, store session), logout (include, always clear); registers 401 handler"
+          }
+        ]
+      },
+      {
         "id": "FILE-0007",
         "path": "scripts/verify-dotnet.ps1",
         "layer": "scripts",

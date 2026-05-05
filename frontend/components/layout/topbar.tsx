@@ -12,8 +12,8 @@ export function Topbar() {
   const router = useRouter();
   const { session, logout, isLoading } = useAuthSession();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     router.push("/login");
     router.refresh();
   }
