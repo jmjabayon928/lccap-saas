@@ -31,6 +31,8 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { session } = useAuthSession();
+  // During initial load/refresh-on-reload, session may be null until restore completes.
+  // Use optional chaining so role-based filtering stays safe.
   const role = session?.user.role;
 
   const filteredItems = navItems.filter((item) => {

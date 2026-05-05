@@ -11,6 +11,7 @@ import { useAuthSession } from "@/lib/auth/use-auth-session";
 export function Topbar() {
   const router = useRouter();
   const { session, logout, isLoading } = useAuthSession();
+  // isLoading true during initial memory restore / silent refresh-on-reload
 
   async function handleLogout() {
     await logout();

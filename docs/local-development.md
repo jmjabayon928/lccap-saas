@@ -300,3 +300,19 @@ Development CORS is configured in `Program.cs` to allow local frontend origins (
 - Slice 1 of auth/session hardening added `public.refresh_tokens` table, `RefreshToken` entity, EF config, and mapping tests (no runtime login/refresh behavior changed yet; cookie and endpoint work in later slices). Raw tokens are never stored.
 - Slice 2 added backend RefreshTokenService, AuthSessionService, AuthCookieOptions, and updated AuthController with login (now sets HttpOnly refresh cookie), refresh, logout, and me endpoints. Response shape for login remains compatible.
 - Slice 3: Frontend now integrates HttpOnly refresh cookie flow: auth-client.refreshSession / logout, http 401 auto-refresh retry (once, skips auth endpoints, no loop), credentials include for refresh/logout. No refresh token ever in localStorage. Login UX and RBAC unchanged.
+- Slice 4: Access token moved to memory-only storage (no localStorage). On reload, useAuthSession calls POST /api/auth/refresh using the HttpOnly cookie to restore token in memory. Existing Bearer clients and 401 retry continue to work. Cross-tab storage events removed.
+
+## Slice 4 manual browser verification (memory-only auth)
+
+After starting both API and frontend dev server:
+
+1. Login as `naga.planner@lccap.local` (or any seeded demo user) — succeeds, redirected to /dashboard or /plans.
+2. Open DevTools → Application → Local Storage → http://localhost:3000 — confirm `lccap.auth.session.v1` key is **absent** (or was cleaned).
+3. Application → Cookies → http://localhost:5243 (or API origin) — confirm `lccap_refresh_token` exists, **HttpOnly** checked, no raw refresh token visible in JS.
+4. Navigate to /plans — list loads using Bearer token from memory.
+5. Hard refresh (Ctrl+Shift+R) on /plans — session restores transparently via /api/auth/refresh (no login page flash, isLoading handles skeleton/guard).
+6. Perform logout from topbar — calls /api/auth/logout, clears memory session, redirects to /login.
+7. After logout, direct visit to /plans shows login gate (isAuthenticated false after load).
+8. (Advanced) Manually corrupt memory token or let short expiry simulate 401 — one /api/auth/refresh retry succeeds, original request retries with fresh token; no infinite loop.
+
+These checks confirm no access token in JS storage, refresh-on-reload works, and UX parity with prior slices.

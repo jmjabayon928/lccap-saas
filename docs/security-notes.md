@@ -69,16 +69,18 @@ The following are **not** necessarily implemented in the MVP but are expected di
 
 For environment-specific secret handling, see [Environment variables](environment-variables.md).
 
-## Frontend auth (MVP)
+## Frontend auth (Slice 4 - Memory-only access token)
 
 - The Next.js app calls the API using **`NEXT_PUBLIC_API_BASE_URL`** (public origin only; never put secrets in `NEXT_PUBLIC_*` variables).
-- After **login**, the browser stores the JWT in **`localStorage`** for MVP velocity. This is **not** equivalent to httpOnly cookie sessions; XSS within the origin could theoretically access the token. Treat this as a development-oriented tradeoff until hardened.
-- **Cross-tab behavior:** the UI listens for the browser `storage` event on `localStorage` so sign-in or sign-out in **another tab** updates session state in this tab. Same-tab updates still rely on navigation and in-app state; `localStorage` does not fire `storage` in the same document that wrote the value.
-- **Production hardening target (non-exhaustive):** prefer **httpOnly, Secure, SameSite** cookies (or BFF) for session delivery; pair cookie sessions with a deliberate **CSRF** strategy for mutating requests if cookies are used cross-site; deploy a strict **Content-Security-Policy** and other security headers to reduce XSS reach; use **short-lived access tokens** with **refresh token rotation** (or equivalent) where a refresh flow exists — design token lifetimes and revocation with your API team.
-- **Recommended later:** issue short-lived tokens with refresh handled server-side, store session identifiers in **httpOnly, Secure, SameSite** cookies, add **CSP** and XSS defenses, and avoid storing bearer tokens in `localStorage` for production tenant workloads.
+- Access token is held **in memory only** (React state + module variable in `auth-storage.ts`). It is **never** written to `localStorage`, `sessionStorage`, or any JS-readable storage.
+- On hard reload / browser navigation to protected route, `useAuthSession` detects missing memory session and performs a silent `POST /api/auth/refresh` (sends HttpOnly `lccap_refresh_token` cookie) to restore the access token in memory.
+- Refresh token remains exclusively HttpOnly cookie + server-side SHA-256 hash; never exposed to JS.
+- 401 responses on non-auth endpoints trigger exactly one refresh retry via the registered handler; memory token is updated before retry.
+- **Cross-tab sync:** no longer automatic (memory is per-tab). Logout/login in one tab does not instantly update others; manual refresh or navigation required. Acceptable for current scope.
+- **Production hardening target (unchanged):** prefer **httpOnly, Secure, SameSite** cookies for access token too (or BFF pattern); add CSRF protection for cookie-based mutating calls; strict CSP; short-lived JWTs + refresh rotation.
 - The frontend must **never** log tokens, show tokens in the UI, or persist passwords client-side.
 
-See `frontend/lib/auth/auth-storage.ts` for the isolated storage layer so the strategy can be swapped without rewriting API callers.
+See `frontend/lib/auth/auth-storage.ts` for the memory-only implementation and `use-auth-session.ts` for the refresh-on-reload logic.
 
 ## Frontend action items (MVP)
 

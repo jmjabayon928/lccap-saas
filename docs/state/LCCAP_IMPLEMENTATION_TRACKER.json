@@ -4187,7 +4187,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Fetch wrapper with JSON and FormData, Bearer token from auth storage."
+        "notes": "Slice 4: Bearer token from memory-only getAccessToken. 401 handler updates memory token before single retry. No localStorage."
       },
       {
         "id": "FILE-0212",
@@ -4220,7 +4220,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "MVP localStorage session; AUTH_SESSION_STORAGE_KEY exported for cross-tab listeners; SSR guarded."
+        "notes": "Slice 4: memory-only AuthSession (module var, never localStorage). Legacy key defensively cleared on import/clear. getAuthSession/set/getAccessToken preserved for callers. clearPersistedLegacyAuthSession helper added."
       },
       {
         "id": "FILE-0215",
@@ -4231,7 +4231,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "login, logout, getCurrentSession; logout clears storage only (no redirects)."
+        "notes": "login, refreshSession, logout, getCurrentSession. Uses memory set/get only; refresh uses credentials:include for cookie. No localStorage."
       },
       {
         "id": "FILE-0216",
@@ -4308,7 +4308,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "useAuthSession for session, loading skeleton, logout vs Login link."
+        "notes": "useAuthSession (isLoading respected), logout via hook; memory session restore safe."
       },
       {
         "id": "FILE-0223",
@@ -4323,10 +4323,10 @@
             "name": "useAuthSession",
             "kind": "hook",
             "status": "done",
-            "description": "Client session state with mount read and cross-tab storage sync."
+            "description": "Memory session + async refresh-on-reload restore; isLoading prevents flash; no storage listener."
           }
         ],
-        "notes": "Mount-only session read; storage event listener; logout clears local state."
+        "notes": "Slice 4: async restore via authClient.refreshSession when memory empty; keeps existing return shape (session, isAuthenticated, isLoading, logout, refreshSession: void). Respects isLoading in guards."
       },
       {
         "id": "FILE-0224",

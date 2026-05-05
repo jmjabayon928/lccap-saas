@@ -2,6 +2,10 @@ import { config } from "@/lib/config";
 import { ApiError } from "@/lib/api/api-error";
 import { getAccessToken } from "@/lib/auth/auth-storage";
 
+// getAccessToken now reads from in-memory session only (no localStorage).
+// 401 retry uses the registered handler (set in auth-client) which calls refresh
+// and updates memory token before retry. No loops due to isAuthEndpoint guard.
+
 type UnauthorizedHandler = () => Promise<boolean>;
 
 let unauthorizedHandler: UnauthorizedHandler | null = null;

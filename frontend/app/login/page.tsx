@@ -38,7 +38,7 @@ export default function LoginPage() {
             </li>
             <li className="flex gap-2">
               <Shield className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <span>MVP local session storage — token held in the browser for development; migrate to httpOnly cookies for production hardening.</span>
+              <span>Memory-only access token (never in localStorage) — restored on reload via HttpOnly refresh cookie; production target remains httpOnly cookies.</span>
             </li>
           </ul>
         </div>

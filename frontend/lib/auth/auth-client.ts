@@ -12,6 +12,9 @@ import {
   setAuthSession
 } from "@/lib/auth/auth-storage";
 
+// Auth client uses memory-only session storage (via auth-storage).
+// Refresh token never touches JS; only the HttpOnly cookie set by backend.
+
 export async function login(request: LoginRequest): Promise<AuthSession> {
   const { token, user } = await apiClient.login(request);
   const session: AuthSession = { token, user };
