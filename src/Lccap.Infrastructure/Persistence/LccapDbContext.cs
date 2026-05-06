@@ -66,6 +66,8 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<HazardLayer> HazardLayers => Set<HazardLayer>();
 
+    public DbSet<ExposureAnalysisJob> ExposureAnalysisJobs => Set<ExposureAnalysisJob>();
+
     public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
 
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();

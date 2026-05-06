@@ -1381,6 +1381,8 @@ public sealed class DocumentsControllerTests
         public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
         public DbSet<HazardLayer> HazardLayers => null!;
 
+        public DbSet<ExposureAnalysisJob> ExposureAnalysisJobs => null!;
+
         public DbSet<User> Users => null!;
 
         public DbSet<NotificationEvent> NotificationEvents => null!;
