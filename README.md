@@ -11,6 +11,8 @@ License
 
 It **complements existing official government and donor systems**. It does **not** supersede, replace, or act as an official submission, approval, national reporting, funding, certification, or diagnostic platform.
 
+**Current product state.** The **MVP plus Phase 2** workspace foundation is **locally validated**: evidence organization (index and links), section review comments, CCET and funding-readiness surfaces, funding source/program catalogs and planned action allocations, richer export helpers (package manifest and CSV working outputs), monitoring update history, an operational dashboard-style activity view, a GeoJSON/map-layer workspace foundation, and an in-app **notifications and read-only collaboration summary** foundation with **notification events wired from real workspace actions**. This remains an **LGU preparation workspace** only—not a production-national SaaS, official submission portal, PSF application system, government approval platform, national reporting system, PostGIS exposure engine, full GIS analytics product, or AI decision-making platform.
+
 The same workspace treats climate planning as structured, lifecycle-aware preparation rather than a single static file:
 
 - Plans are governed workspace entities.
@@ -29,7 +31,7 @@ The same workspace treats climate planning as structured, lifecycle-aware prepar
 - Refresh-token-backed sessions support safer local demo and pilot workflows.
 - AI features are planned as asynchronous, auditable jobs in later phases.
 
-Later phases extend capability, including evidence indexing, richer exports, interoperability, spatial analytics, exposure summaries, and recommendation-style assistance. The **MVP** remains an internal preparation and organization workspace for LGU teams.
+Later phases extend capability with interoperability, PostGIS / spatial analytics, exposure summaries, scenario comparison, recommendation-style assistance, and optional AI/Python services if adopted. The shipped **MVP plus Phase 2** scope remains an **internal preparation and organization** workspace for LGU teams, not a mandated channel or analytics authority.
 
 ---
 
@@ -41,7 +43,7 @@ Later phases extend capability, including evidence indexing, richer exports, int
 - Phase roadmap
 - Product Overview
 - Target Users
-- Current MVP Status
+- Current MVP + Phase 2 Status
 - Core Modules
 - Completed MVP Capabilities
 - In Progress / Planned Capabilities
@@ -58,7 +60,7 @@ Later phases extend capability, including evidence indexing, richer exports, int
 - Testing and Quality Gates
 - Roadmap
 - Enterprise Design Principles
-- Current Enterprise MVP Caveats
+- Current Enterprise MVP and Phase 2 Caveats
 - Author
 
 ---
@@ -86,7 +88,9 @@ It **complements** official government and donor systems. It does not replace ma
 
 The MVP is implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, **PostgreSQL**, and a **Next.js / TypeScript / Tailwind CSS** frontend.
 
-The updated MVP flow has been locally validated end-to-end:
+**Phase 2** adds evidence index and CSV exports, document evidence links to sections and actions, **section review comments**, **CCET / funding-readiness** tagging and panels, **funding source and program catalogs** with **action funding allocations** (planned allocations only; not a funding portal), **monitoring update history**, **richer export package** helpers (manifest and matrices as working outputs), **operational dashboard** data for the plan workspace, **map workspace / GeoJSON layer** registration, and **in-app notifications** plus a **read-only collaboration summary** (groups populated via tenant-admin or seed data in Phase 2—no self-service group CRUD, invites, email, or WebSocket delivery).
+
+The updated **MVP plus Phase 2** flow has been locally validated end-to-end for the core preparation workspace:
 
 ```text
 Login
@@ -105,7 +109,7 @@ Login
   -> Review audit history as Admin or Reviewer
 ```
 
-The updated MVP has also been hardened with:
+The updated **MVP plus Phase 2** codebase has also been hardened with:
 
 - Server-side RBAC enforcement.
 - Tenant isolation through authenticated current-user context.
@@ -121,7 +125,7 @@ The updated MVP has also been hardened with:
 - Frontend type-check and lint validation.
 - Backend solution-wide test coverage.
 
-This is an enterprise-style MVP foundation for demos and controlled pilot preparation. It is not yet a finished production SaaS and should not be presented as a national submission platform or high-scale production deployment without the remaining production hardening work.
+This is an enterprise-style **MVP plus Phase 2** foundation for demos and controlled pilot preparation. It is not yet a finished production SaaS and should not be presented as a national submission platform, official PSF channel, or high-scale production deployment without the remaining production hardening work.
 
 ---
 
@@ -202,15 +206,15 @@ The product should be described as:
 
 ## Phase roadmap
 
-Boundaries keep **MVP** narrowly focused on the LGU workspace. **Phase 2** adds preparation depth and richer outputs. **Phase 3** adds interoperability and advanced analytics.
+**MVP** delivered the core LGU workspace foundation. **Phase 2** (now reflected in this codebase) deepened preparation workflows, exports, monitoring history, operational visibility, map-layer registration, and notifications/collaboration awareness. **Phase 3** remains future scope: interoperability, PostGIS / spatial analytics, exposure analysis, scenario comparison, recommendation-style assistance, and AI/Python services if planned.
 
 Features must not **bleed across phases** without an explicit decision.
 
 | Phase | Focus |
 | --- | --- |
-| **MVP** | LGU-facing operating workspace: plan sections, documents/evidence, action items, monitoring indicators, audit history, server-side RBAC, archive/restore, pagination, and export-ready draft package. |
-| **Phase 2** | Evidence index; review comments; CCET / funding-readiness tagging; PSF proposal package helper as preparation aid, not a portal; richer exports; deeper monitoring; operational readiness; stronger observability. |
-| **Phase 3** | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports. |
+| **MVP** | Core LGU workspace foundation: plan sections, documents/evidence, action items, monitoring indicators, audit history, server-side RBAC, archive/restore, pagination, and export-ready draft PDF package. |
+| **Phase 2** | Evidence index (JSON/CSV); document evidence links to sections and actions; section review comments; CCET / funding-readiness tagging; funding source and program catalogs; action funding allocations (preparation aid, **not** a PSF or funding portal); richer export package helpers (manifest and CSV working outputs); **monitoring update history**; **operational dashboard / activity feed**; **GeoJSON / map layer foundation**; **collaboration and notifications foundation** (in-app feed; events from workspace actions; read-only collaboration summary; groups tenant-admin/seed-managed). |
+| **Phase 3** | Interoperability; **PostGIS** / **spatial analytics**; **exposure summaries**; **scenario comparison**; **recommendation-style** assistance; **AI / Python** services if planned; integration-ready APIs and exports. |
 
 ### Phase 2: Collaboration and notifications (boundary)
 
@@ -238,12 +242,14 @@ Account / LGU
         ├── Monitoring Indicators
         ├── Export Jobs
         ├── Audit Logs
-        └── Future AI / Maps / Analytics
+        ├── Monitoring updates, evidence index, comments, funding readiness, richer exports
+        ├── Operational dashboard, map workspace layers, notifications (Phase 2)
+        └── Future AI / advanced spatial analytics (Phase 3)
 ```
 
 This architecture enables the system to organize climate planning work around a clear, auditable structure rather than treating LCCAP as a single static file.
 
-The updated MVP supports:
+The updated **MVP plus Phase 2** workspace supports:
 
 - Workspace creation.
 - Workspace editing.
@@ -255,6 +261,14 @@ The updated MVP supports:
 - Secure tenant boundaries.
 - Role-based operation control.
 - Draft export generation.
+- Evidence index and document evidence linking.
+- Section review comments.
+- CCET / funding readiness surfaces, catalogs, and planned action funding allocations (preparation only).
+- Monitoring update history.
+- Export package manifest and CSV working outputs.
+- Operational dashboard / activity views.
+- Map workspace / GeoJSON layer registration (foundation).
+- In-app notifications and read-only collaboration summary (admin/seed-managed groups).
 
 ---
 
@@ -289,11 +303,25 @@ External/public users are future-phase concepts and are not part of the current 
 
 ---
 
-## Current MVP Status
+## Current MVP + Phase 2 Status
 
-The updated MVP is now **locally end-to-end validated** for the core LGU workspace flow and the major enterprise-style hardening layers.
+The updated **MVP plus Phase 2** scope is **locally end-to-end validated** for the core LGU workspace flow, the Phase 2 preparation modules listed below, and the major enterprise-style hardening layers.
 
-Validated flow:
+### Phase 2 closure status
+
+| Phase 2 module | Status |
+| --- | --- |
+| Monitoring update history | Complete |
+| Evidence index and evidence links | Complete |
+| Section review comments | Complete |
+| Funding readiness and CCET catalogs | Complete |
+| Funding allocation foundation | Complete |
+| Richer export packages (manifest / CSV working outputs) | Complete |
+| Operational dashboard / activity feed | Complete |
+| GeoJSON / map layer foundation | Complete |
+| Collaboration / notifications foundation | Complete |
+
+Validated flow (MVP core):
 
 ```text
 Login
@@ -311,6 +339,21 @@ Login
   -> Generate PDF draft package
   -> Download generated PDF
   -> Review accountability history through Audit Viewer
+```
+
+Phase 2 extensions exercised in the same workspace (local validation):
+
+```text
+  -> Add monitoring updates and view indicator update history
+  -> Link documents to section/action evidence fields
+  -> View evidence index (JSON) and download evidence index CSV
+  -> Create, resolve, reopen, and archive section review comments
+  -> View CCET and funding-readiness surfaces; use funding source/program catalogs
+  -> Create and archive planned action funding allocations (preparation aid; not a portal)
+  -> Download export package manifest and working CSV exports (actions, monitoring, funding readiness)
+  -> View operational dashboard / activity feed for the plan
+  -> Register a GeoJSON layer and inspect map workspace metadata
+  -> View in-app notifications (events from workspace actions) and read-only collaboration summary
 ```
 
 ### Completed Backend Slices
@@ -340,10 +383,22 @@ Login
 | Local File Storage Service | Complete |
 | Monitoring API | Complete |
 | Monitoring indicator edit/archive/audit | Complete |
+| **Monitoring update history API** | **Complete** |
+| **Evidence index JSON/CSV APIs** | **Complete** |
+| **Section comments API** | **Complete** |
 | Action Items API | Complete |
 | Action item edit/archive/audit | Complete |
+| **Funding / CCET APIs (tags, sources, programs, allocations)** | **Complete** |
+| **Funding source/program catalog APIs** | **Complete** |
+| **Action funding allocation APIs** | **Complete** |
 | Export Job / PDF generation | Complete |
 | Export download endpoint | Complete |
+| **Export package manifest and CSV endpoints** | **Complete** |
+| **Operational dashboard endpoint** | **Complete** |
+| **Map workspace / GeoJSON layer APIs** | **Complete** |
+| **Notifications API (feed, mark read, mark all read)** | **Complete** |
+| **Collaboration summary API** | **Complete** |
+| **Notification event wiring from workspace actions** | **Complete** |
 | Server-side RBAC enforcement | Complete |
 | Audit log viewer API | Complete |
 | Optimistic concurrency / rowVersion hardening | Complete |
@@ -376,13 +431,25 @@ Login
 | Documents upload/list UI | Complete |
 | Document edit/archive UI | Complete |
 | Paginated document list navigation | Complete |
+| **Evidence link dropdown UX (section/action)** | **Complete** |
+| **Evidence index panel** | **Complete** |
+| **Section comments panel** | **Complete** |
 | Action items UI | Complete |
 | Action item edit/archive UI | Complete |
 | Paginated action list navigation | Complete |
+| **CCET catalog / funding readiness panel** | **Complete** |
+| **Funding allocation UI** | **Complete** |
+| **Funding source/program dropdown UX** | **Complete** |
 | Monitoring indicators UI | Complete |
 | Monitoring indicator edit/archive UI | Complete |
 | Paginated monitoring list navigation | Complete |
+| **Monitoring update form/history** | **Complete** |
 | PDF export/download UI | Complete |
+| **Export package panel (manifest / CSV downloads)** | **Complete** |
+| **Operational dashboard / activity feed panel** | **Complete** |
+| **Map workspace metadata panel** | **Complete** |
+| **Notification center panel** | **Complete** |
+| **Collaboration summary panel** | **Complete** |
 | Audit history viewer UI | Complete |
 | RBAC-aware sidebar/actions | Complete |
 | Production-like `npm start` flow | Complete |
@@ -534,6 +601,11 @@ GET  /api/plans/{planId}/sections/{sectionKey}
 PUT  /api/plans/{planId}/sections/{sectionKey}
 GET  /api/plans/{planId}/sections/{sectionKey}/history
 POST /api/plans/{planId}/sections/{sectionKey}/restore
+GET  /api/plans/{planId}/sections/{sectionKey}/comments
+POST /api/plans/{planId}/sections/{sectionKey}/comments
+POST /api/section-comments/{commentId}/resolve
+POST /api/section-comments/{commentId}/reopen
+DELETE /api/section-comments/{commentId}
 ```
 
 Restore behavior:
@@ -560,7 +632,7 @@ Capabilities:
 - Upload document.
 - List documents by plan.
 - Paginated document list.
-- Edit document metadata.
+- Edit document metadata (including optional **plan section** and **action item** evidence links).
 - Archive document records through soft delete.
 - Audit metadata updates and archive actions.
 - Tenant-scoped document visibility.
@@ -576,6 +648,8 @@ Current API surface:
 ```text
 POST   /api/documents/upload
 GET    /api/plans/{planId}/documents?page=1&pageSize=25
+GET    /api/plans/{planId}/documents/evidence-index
+GET    /api/plans/{planId}/documents/evidence-index.csv
 PUT    /api/documents/{documentId}/metadata
 DELETE /api/documents/{documentId}
 ```
@@ -694,6 +768,7 @@ Capabilities:
 - Validation for indicator name, status, and progress values.
 - Audit old/new indicator snapshots.
 - Optimistic concurrency with rowVersion.
+- Record **monitoring updates** (history) per indicator with dated notes/metrics.
 
 Supported statuses:
 
@@ -712,6 +787,8 @@ POST   /api/monitoring/indicators
 GET    /api/monitoring/plans/{planId}/indicators?page=1&pageSize=25
 PUT    /api/monitoring/indicators/{indicatorId}
 DELETE /api/monitoring/indicators/{indicatorId}
+POST   /api/monitoring/indicators/{indicatorId}/updates
+GET    /api/monitoring/indicators/{indicatorId}/updates
 ```
 
 Monitoring archive behavior:
@@ -738,6 +815,7 @@ Capabilities:
 - Prevent cross-tenant downloads.
 - Return conflict for incomplete exports.
 - Use export status to determine readiness.
+- Download **export package manifest** and **working CSV** outputs (actions matrix, monitoring matrix, funding readiness summary) as preparation aids—not official submission packages.
 
 Current API surface:
 
@@ -745,6 +823,10 @@ Current API surface:
 POST /api/plans/{planId}/exports/pdf
 GET  /api/exports/{exportJobId}
 GET  /api/exports/{exportJobId}/download
+GET  /api/plans/{planId}/exports/package-manifest
+GET  /api/plans/{planId}/exports/action-matrix.csv
+GET  /api/plans/{planId}/exports/monitoring-matrix.csv
+GET  /api/plans/{planId}/exports/funding-readiness.csv
 ```
 
 Export behavior:
@@ -879,6 +961,8 @@ Paginated resources include:
 - Monitoring indicators.
 - Audit logs.
 
+Phase 2 adds other tenant-scoped list/feed surfaces (pagination shape varies by endpoint), such as **section comment** listings and the **in-app notifications** feed.
+
 Standard query shape:
 
 ```text
@@ -906,6 +990,131 @@ Pagination rules:
 
 ---
 
+### 13. Evidence index and evidence links
+
+Capabilities:
+
+- Plan-scoped **evidence index** (JSON) consolidating document metadata, linked section/action context, and tags.
+- **CSV export** of the same index for offline review (working output; not an official report).
+- Document metadata supports optional links to a **plan section** and/or **action item** for evidence traceability.
+
+Current API surface (representative):
+
+```text
+GET /api/plans/{planId}/documents/evidence-index
+GET /api/plans/{planId}/documents/evidence-index.csv
+PUT /api/documents/{documentId}/metadata   (optional planSectionId, actionItemId, evidence fields)
+```
+
+---
+
+### 14. Section review comments
+
+Capabilities:
+
+- Threaded-style **review comments** on plan sections (create, list, resolve, reopen, archive).
+- Tenant isolation and workspace RBAC apply; comments are preparation workflow only (not a government approval queue).
+
+Current API surface (representative):
+
+```text
+GET    /api/plans/{planId}/sections/{sectionKey}/comments
+POST   /api/plans/{planId}/sections/{sectionKey}/comments
+POST   /api/section-comments/{commentId}/resolve
+POST   /api/section-comments/{commentId}/reopen
+DELETE /api/section-comments/{commentId}
+```
+
+---
+
+### 15. Funding readiness and catalogs
+
+Capabilities:
+
+- **Climate expenditure (CCET-style) tags** for tagging actions and readiness views.
+- **Funding source** and **funding program** catalogs for structured dropdowns (not raw identifier entry).
+- **Funding readiness** panels and CSV exports summarize preparation signals only—**not** PSF eligibility, submission, or funding approval.
+
+Current API surface (representative):
+
+```text
+GET /api/funding/climate-expenditure-tags
+GET /api/funding/sources
+GET /api/funding/programs
+GET /api/plans/{planId}/exports/funding-readiness.csv
+```
+
+---
+
+### 16. Action funding allocations
+
+Capabilities:
+
+- Record **planned** funding allocations against actions using cataloged sources/programs.
+- List allocations by plan or by action; archive allocations through soft-delete patterns where supported.
+
+Current API surface (representative):
+
+```text
+GET    /api/plans/{planId}/funding-allocations
+GET    /api/actions/{actionItemId}/funding-allocations
+POST   /api/plans/{planId}/funding-allocations
+DELETE /api/funding-allocations/{allocationId}
+```
+
+---
+
+### 17. Operational dashboard
+
+Capabilities:
+
+- Plan-scoped **operational dashboard** data summarizing recent activity and workspace signals for pilot demos.
+- Read-oriented; not a national operations command center.
+
+Current API surface (representative):
+
+```text
+GET /api/plans/{planId}/operational-dashboard
+```
+
+---
+
+### 18. Map workspace foundation
+
+Capabilities:
+
+- **Map workspace** metadata per plan and registration of **GeoJSON** layer assets.
+- Feature read and map asset archive flows for the foundation layer—**not** PostGIS exposure analysis, dynamic GIS tools, or mandated spatial compliance outputs.
+
+Current API surface (representative):
+
+```text
+GET    /api/plans/{planId}/map-workspace
+POST   /api/plans/{planId}/geojson-layers
+GET    /api/map-assets/{mapAssetId}/features
+DELETE /api/map-assets/{mapAssetId}
+```
+
+---
+
+### 19. Collaboration and notifications
+
+Capabilities:
+
+- **In-app notification** feed with mark-read and mark-all-read; **notification events** are created from real workspace actions (best-effort, non-blocking to primary operations).
+- **Collaboration summary** is **read-only** in Phase 2 and reflects **tenant-administrator or seed-configured** groups and members—no self-service group CRUD, invitations, email delivery, WebSocket/real-time feeds, or end-user notification preference management.
+
+Current API surface (representative):
+
+```text
+GET  /api/notifications
+POST /api/notifications/{notificationId}/read
+POST /api/notifications/read-all
+GET  /api/collaboration/summary
+```
+
+---
+
 ## Completed MVP Capabilities
 
 The current MVP implements and validates the major LGU workspace workflow:
@@ -926,13 +1135,15 @@ Authenticate with refresh-token-backed session
   -> Review audit history as Admin or Reviewer
 ```
 
+**Phase 2** (same workspace, locally validated) additionally covers monitoring update history, evidence index and links, section review comments, funding readiness/catalog/allocation preparation flows, richer CSV/manifest export helpers, operational dashboard views, map layer registration, and the notifications/collaboration awareness surfaces described in the Phase 2 closure table—always as **draft/preparation outputs**, not official submission or approval systems.
+
 This is the core LCCAP planning loop plus the enterprise-style operating controls needed for correction, accountability, tenant isolation, and role-based access.
 
 ---
 
 ## In Progress / Planned Capabilities
 
-### MVP Remaining
+### MVP and Phase 2 remaining polish
 
 - Swagger/OpenAPI polish.
 - UI polish and screenshot capture.
@@ -940,26 +1151,18 @@ This is the core LCCAP planning loop plus the enterprise-style operating control
 - Broader E2E regression checklist or automated smoke script.
 - Production deployment hardening checklist.
 - CI quality gate for backend tests and frontend checks.
-
-### Phase 2 (later)
-
-- Evidence index.
-- Review comments.
-- CCET / funding-readiness tagging.
-- PSF proposal package helper as draft preparation support, not a funding portal.
-- Richer exports.
-- Monitoring and operational readiness depth.
 - Structured logging and request correlation.
 - Rate limiting for auth and uploads.
 - Audit retention or compaction strategy.
 
-### Phase 3 (later)
+### Phase 3 and longer-term roadmap
 
 - Interoperability with external systems.
 - PostGIS / spatial analytics.
 - Exposure summaries.
 - Scenario comparison.
 - Recommendation engine.
+- AI / Python services (if planned).
 - Integration-ready APIs and exports.
 - Advanced observability.
 - Operational runbooks.
@@ -1183,21 +1386,29 @@ AuditLog
 Role
 Permission
 UserRole
-```
-
-Planned / phase entities:
-
-```text
+SectionComment
+ClimateExpenditureTag
+FundingSource
+FundingProgram
+ActionFundingAllocation
 Barangay
 CriticalFacility
+MapAsset
+MapAnnotation
 GeoJsonLayerFeature
-SectionComment
+NotificationEvent
+UserNotification
+NotificationTemplate
+CollaborationGroup
+CollaborationGroupMember
+```
+
+Future / Phase 3-oriented entities (not implemented as first-class product surfaces here):
+
+```text
 AiJob
 ExposureAnalysisJob
 ExposureSummary
-FundingSource
-FundingProgram
-FundingApplication
 ```
 
 ### Core entity responsibilities
@@ -1213,7 +1424,18 @@ FundingApplication
 | FileAsset | Physical file metadata and storage pointer. |
 | ActionItem | Structured climate intervention. |
 | MonitoringIndicator | Climate action progress indicator. |
-| MonitoringUpdate | Future indicator update history support. |
+| MonitoringUpdate | **Indicator update history** (dated entries / progress notes). |
+| SectionComment | **Section review comment** for preparation workflows (not an approval system). |
+| ClimateExpenditureTag | **CCET-style** expenditure tag for readiness views. |
+| FundingSource | Tenant-scoped **funding source** catalog entry. |
+| FundingProgram | Tenant-scoped **funding program** catalog entry. |
+| ActionFundingAllocation | **Planned** funding allocation against an action (preparation; not portal submission). |
+| Barangay / CriticalFacility | Baseline geographic/facility reference records used by readiness and map foundations. |
+| MapAsset / MapAnnotation / GeoJsonLayerFeature | **Map workspace foundation** assets and features (not PostGIS analytics). |
+| NotificationEvent | Immutable **notification event** record from workspace activity. |
+| UserNotification | Per-user **in-app notification** inbox row. |
+| NotificationTemplate | Templates for fan-out when creating user notifications. |
+| CollaborationGroup / CollaborationGroupMember | **Read-only collaboration summary** support; Phase 2 population is **tenant-admin or seed-managed** (no self-service CRUD in-product). |
 | ExportJob | PDF/package export job status and file link. |
 | AuditLog | Accountability record for changes and restores. |
 | Role / Permission / UserRole | Future richer role/permission model support. |
@@ -1263,7 +1485,7 @@ The frontend is implemented as an enterprise SaaS interface using:
 - Responsive layouts.
 - Accessible components.
 - Dashboard-oriented design.
-- Typed API client modules for auth, plans, documents, actions, monitoring, audit logs, and exports.
+- Typed API client modules for auth, plans, documents, actions, monitoring, audit logs, exports, **evidence index**, **section comments**, **funding readiness and allocations**, **operational dashboard**, **map workspace**, **notifications**, and **collaboration summary**.
 
 Recommended visual identity:
 
@@ -1962,6 +2184,21 @@ After login:
 10. Confirm `/api/auth/logout` is called.
 11. Confirm `/plans` requires login after logout.
 
+### Phase 2 demo extension (optional; same workspace)
+
+After completing the MVP script through PDF export and audit checks, you can walk these additional preparation flows locally. All remain **draft workspace outputs**—not official submissions, funding approvals, national reporting, PostGIS exposure products, full GIS analytics, real-time collaboration, email notifications, or AI-generated mandates.
+
+1. **Monitoring update history** — Open a monitoring indicator, add an update, and confirm history lists the new entry (`POST`/`GET` monitoring updates APIs).
+2. **Evidence linking** — Edit a document and link it to a section and/or an action via metadata; confirm the evidence index reflects the link.
+3. **Evidence index** — Open the evidence index panel; download **evidence-index.csv** as a working extract.
+4. **Section comments** — Create a comment on a section; resolve and reopen; archive when finished testing.
+5. **Funding readiness** — Open CCET/readiness panels; review cataloged sources/programs; avoid implying PSF eligibility or portal submission.
+6. **Funding allocation** — Create a **planned** allocation against an action; archive a test allocation if needed.
+7. **Richer exports** — Download **package manifest** and one or more CSV exports (actions matrix, monitoring matrix, funding readiness).
+8. **Operational dashboard** — Open the plan operational dashboard / activity view and confirm recent workspace activity appears.
+9. **Map foundation** — Register a GeoJSON layer from the plan workspace; confirm map workspace metadata updates (foundation feature, not exposure analytics).
+10. **Notifications and collaboration** — Trigger a workspace action that produces an in-app notification (for example a comment event); open the notification center; view the read-only collaboration summary and confirm there is **no** group configuration UI in Phase 2.
+
 ---
 
 ## Testing and Quality Gates
@@ -2007,7 +2244,7 @@ Current test categories:
 - Pagination tests.
 - Frontend type-check.
 - Frontend lint.
-- Manual MVP E2E validation.
+- Manual MVP and Phase 2 E2E validation.
 
 Quality rules:
 
@@ -2039,7 +2276,7 @@ npm run lint
 
 ## Roadmap
 
-### MVP
+### MVP (complete)
 
 - Backend core APIs.
 - Auth and tenant context.
@@ -2052,8 +2289,8 @@ npm run lint
 - Document edit/archive/audit.
 - Action items.
 - Action item edit/archive/audit.
-- Monitoring.
-- Monitoring edit/archive/audit.
+- Monitoring indicators.
+- Monitoring indicator edit/archive/audit.
 - PDF exports.
 - Download exports.
 - Server-side RBAC.
@@ -2063,17 +2300,18 @@ npm run lint
 - Frontend foundation.
 - Demo workflow.
 
-### Phase 2 (later)
+### Phase 2 (complete in codebase; preparation workspace only)
 
-- Evidence index and review comments.
-- CCET / funding-readiness tagging.
-- PSF proposal package helper as preparation aid.
-- Richer exports and monitoring / operational readiness features.
-- Audit retention strategy.
-- Structured logging.
-- Rate limiting.
-- CI quality gates.
-- Screenshot/demo polish.
+- Evidence index (JSON/CSV) and document evidence links.
+- Section review comments.
+- CCET / funding-readiness tagging and panels.
+- Funding source/program catalogs and planned action funding allocations (not a funding portal).
+- Monitoring update history.
+- Richer export package manifest and CSV working outputs.
+- Operational dashboard / activity feed.
+- Map workspace / GeoJSON layer foundation.
+- In-app notifications with workspace-driven events; read-only collaboration summary; tenant-admin/seed-managed groups.
+- Continued positioning: complement official systems; no official submission, approval, national reporting, PostGIS exposure engine, full GIS analytics product, or AI decision platform.
 
 ### Phase 3 (later)
 
@@ -2107,19 +2345,21 @@ npm run lint
 - Pagination by default for tenant lists.
 - No client-supplied account IDs.
 - No hard deletes for user-correctable workspace records.
-- No official-submission claims in MVP.
+- No official-submission claims in MVP or Phase 2 shipped scope.
 - Phase discipline: MVP, Phase 2, and Phase 3 must not be mixed without explicit product approval.
 
 ---
 
-## Current Enterprise MVP Caveats
+## Current Enterprise MVP and Phase 2 Caveats
 
-The updated MVP is suitable for internal demos and controlled pilot conversations, with the following caveats:
+The updated **MVP plus Phase 2** codebase is suitable for internal demos and controlled pilot conversations, with the following caveats:
 
 - It is not an official submission platform.
 - It is not a national reporting platform.
-- It is not a funding portal.
+- It is not a funding portal or PSF application system.
 - It is not a replacement for official risk assessment systems.
+- It is not a PostGIS exposure analysis engine or full enterprise GIS product.
+- It is not an AI decision-making or official recommendation authority.
 - It is not yet a fully production-hardened SaaS deployment.
 - Production should add stricter CORS/cookie settings.
 - Production should add CSRF strategy if cookie-auth expands.
@@ -2135,9 +2375,16 @@ Safe to demo now:
 - LGU workspace planning flow.
 - Plan creation and editing.
 - Section save/history/restore.
-- Documents upload/edit/archive.
+- Documents upload/edit/archive and evidence linking.
+- Evidence index (JSON) and CSV export as a working output.
+- Section review comments (create/resolve/reopen/archive).
 - Action create/edit/archive.
-- Monitoring create/edit/archive.
+- Monitoring create/edit/archive and **monitoring update history**.
+- CCET / funding readiness panels and catalog-driven allocation UI (**planned** allocations only).
+- Export package manifest and CSV matrix downloads as preparation aids.
+- Operational dashboard / activity views for the plan.
+- Map workspace metadata and GeoJSON layer registration (foundation).
+- In-app notification feed fed by workspace events; read-only collaboration summary (admin/seed-managed groups).
 - PDF draft export.
 - RBAC behavior.
 - Audit history.
@@ -2148,7 +2395,9 @@ Do not claim yet:
 - Official government submission.
 - Production-scale national deployment.
 - Funding eligibility processing.
-- Full GIS analytics.
+- Full GIS analytics or mandated spatial compliance outputs.
+- PostGIS exposure analysis or national exposure reporting.
+- Real-time collaboration, email notification delivery, or end-user notification centers tied to external channels.
 - Automated AI decision-making.
 - Replacement for CCC/DILG/NICCDIES/PlanSmart/UNDP SHIELD systems.
 
@@ -2299,7 +2548,7 @@ Use this appendix as a concise checklist before screenshots, demos, or local rel
 
 ## Appendix B - Suggested Future Hardening Slices
 
-These slices are intentionally deferred beyond the updated MVP.
+These slices are intentionally deferred beyond the **MVP plus Phase 2** preparation workspace shipped in this repository.
 
 ### P1 - Production auth and browser security
 
@@ -2340,13 +2589,13 @@ These slices are intentionally deferred beyond the updated MVP.
 - Add action and monitoring summary sections.
 - Add export templates.
 
-### P2 - Collaboration
+### P2 - Collaboration (future hardening beyond Phase 2 foundation)
 
-- Add section comments.
-- Add assignment workflow.
-- Add review status.
-- Add reviewer notes.
-- Add notification events.
+- Collaboration group **CRUD** and self-service administration.
+- User **invitations** and onboarding workflows.
+- **Notification preferences** and channel routing.
+- **Email** and **WebSocket**/push delivery.
+- Richer **role-based routing** for notifications and reviews.
 
 ### P3 - Interoperability
 
@@ -2438,14 +2687,17 @@ Safe claims:
 - Audit history.
 - Section restore.
 - Draft PDF package.
+- Phase 2 preparation aids: evidence index, review comments, funding readiness views, richer CSV exports, operational dashboard, map layer foundation, in-app notification feed, read-only collaboration summary (admin/seed groups).
 - Memory-only access token with HttpOnly refresh cookie.
-- Locally validated end-to-end MVP.
+- Locally validated end-to-end **MVP plus Phase 2** workspace foundation.
 
 Avoid claims:
 
-- Official government platform.
+- Official government platform or submission channel.
 - National reporting system.
-- Funding approval system.
+- Funding approval system or PSF portal replacement.
+- Full GIS analytics or PostGIS exposure authority.
+- Real-time co-editing, email-delivered notifications, or self-service collaboration administration in Phase 2.
 - Replacement for CCC/DILG/NICCDIES/PlanSmart/UNDP SHIELD.
 - Production-scale national deployment.
 - Fully automated climate action recommendation authority.
