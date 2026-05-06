@@ -31,6 +31,8 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<PlanSection> PlanSections => Set<PlanSection>();
 
+    public DbSet<SectionComment> SectionComments => Set<SectionComment>();
+
     public DbSet<ActionItem> ActionItems => Set<ActionItem>();
 
     public DbSet<FileAsset> FileAssets => Set<FileAsset>();

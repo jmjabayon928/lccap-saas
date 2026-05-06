@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T15:35:00Z",
+      "last_updated_utc": "2026-05-06T16:10:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -15,8 +15,8 @@
   
   "current_state": {
     "phase": "Phase 2",
-    "active_module": "Exports",
-    "active_task": "Slice 2 Evidence Index Export",
+    "active_module": "Review",
+    "active_task": "Slice 3.1 Section Comments Hardening",
     "status": "done"
   },
 
@@ -1057,29 +1057,17 @@
         "layer": "domain",
         "module": "comments",
         "file_type": "csharp",
-        "status": "needs_review",
-        "source": "planned_phase_2",
+        "status": "done",
+        "source": "actual",
         "functions": [
           {
-            "name": "Resolve",
-            "kind": "domain_method",
-            "status": "needs_review",
-            "description": "Marks a section comment as resolved."
-          },
-          {
-            "name": "Reopen",
-            "kind": "domain_method",
-            "status": "needs_review",
-            "description": "Reopens a resolved section comment."
-          },
-          {
-            "name": "Edit",
-            "kind": "domain_method",
-            "status": "needs_review",
-            "description": "Edits comment text and type."
+            "name": "SectionComment",
+            "kind": "domain_entity",
+            "status": "done",
+            "description": "Section-level review comment entity mapped to public.section_comments."
           }
         ],
-        "notes": "Planned Phase 2 collaboration entity."
+        "notes": "Phase 2 Slice 3: review comments tied to plan sections with tenant scoping and soft delete."
       },
       {
         "id": "FILE-0041",

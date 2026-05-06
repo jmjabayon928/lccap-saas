@@ -45,6 +45,11 @@ public static class DependencyInjection
         _ = services.AddScoped<GetPlanSectionsQuery>();
         _ = services.AddScoped<GetPlanSectionByKeyQuery>();
         _ = services.AddScoped<GetPlanSectionHistoryQuery>();
+        _ = services.AddScoped<GetSectionCommentsQuery>();
+        _ = services.AddScoped<CreateSectionCommentCommand>();
+        _ = services.AddScoped<ResolveSectionCommentCommand>();
+        _ = services.AddScoped<ReopenSectionCommentCommand>();
+        _ = services.AddScoped<ArchiveSectionCommentCommand>();
         _ = services.AddScoped<CreateActionItemCommand>();
         _ = services.AddScoped<UpdateActionItemCommand>();
         _ = services.AddScoped<ArchiveActionItemCommand>();

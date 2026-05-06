@@ -109,3 +109,25 @@ export interface RestorePlanSectionRequest {
   readonly auditLogId: string;
   readonly restoreReason?: string;
 }
+
+export type SectionCommentType = "General" | "DataGap" | "Validation" | "RevisionRequest";
+
+export interface SectionCommentSummary {
+  readonly id: string;
+  readonly planId: string;
+  readonly sectionKey: string;
+  readonly commentType: SectionCommentType;
+  readonly commentText: string;
+  readonly createdByUserId: string;
+  readonly createdAtUtc: string;
+  readonly isResolved: boolean;
+  readonly resolvedAtUtc: string | null;
+  readonly resolvedByUserId: string | null;
+  readonly updatedAtUtc: string | null;
+  readonly rowVersion: string | null;
+}
+
+export interface CreateSectionCommentRequest {
+  readonly commentType: SectionCommentType;
+  readonly commentText: string;
+}

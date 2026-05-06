@@ -1,10 +1,13 @@
 import { ApiError } from "@/lib/api/api-error";
 import type {
   CreatePlanResult,
+  CreateSectionCommentRequest,
   PlanSectionHistoryEntry,
   PlanSectionSummary,
   PlanStatus,
   PlanSummary,
+  SectionCommentSummary,
+  SectionCommentType,
   SavePlanSectionResult,
   TemplateMode
 } from "@/types/plans";
@@ -392,4 +395,102 @@ export function parsePlanSectionHistoryList(payload: unknown): PlanSectionHistor
       throw new ApiError(`Invalid history list: entry ${i} is malformed`, 502, payload);
     }
   });
+}
+
+const ALLOWED_SECTION_COMMENT_TYPES = new Set<string>([
+  "General",
+  "DataGap",
+  "Validation",
+  "RevisionRequest"
+]);
+
+function isAllowedSectionCommentType(value: string): value is SectionCommentType {
+  return ALLOWED_SECTION_COMMENT_TYPES.has(value);
+}
+
+function optionalBase64OrNull(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  return null;
+}
+
+export function parseSectionCommentSummary(payload: unknown): SectionCommentSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid section comment: expected object", 502, payload);
+  }
+
+  const id = payload.id;
+  const planId = payload.planId;
+  const sectionKey = payload.sectionKey;
+  const commentType = payload.commentType;
+  const commentText = payload.commentText;
+  const createdByUserId = payload.createdByUserId;
+  const createdAtUtc = payload.createdAtUtc;
+  const isResolved = payload.isResolved;
+  const resolvedAtUtc = optionalIsoOrNull(payload.resolvedAtUtc);
+  const resolvedByUserId = payload.resolvedByUserId;
+  const updatedAtUtc = optionalIsoOrNull(payload.updatedAtUtc);
+  const rowVersion = optionalBase64OrNull(payload.rowVersion);
+
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(planId) ||
+    !isNonEmptyString(sectionKey) ||
+    !isNonEmptyString(commentType) ||
+    !isAllowedSectionCommentType(commentType) ||
+    typeof commentText !== "string" ||
+    !isNonEmptyString(createdByUserId) ||
+    !isNonEmptyString(createdAtUtc) ||
+    typeof isResolved !== "boolean"
+  ) {
+    throw new ApiError("Invalid section comment: malformed fields", 502, payload);
+  }
+
+  return {
+    id,
+    planId,
+    sectionKey,
+    commentType,
+    commentText,
+    createdByUserId,
+    createdAtUtc,
+    isResolved,
+    resolvedAtUtc,
+    resolvedByUserId: typeof resolvedByUserId === "string" ? resolvedByUserId : null,
+    updatedAtUtc,
+    rowVersion
+  };
+}
+
+export function parseSectionCommentsResponse(payload: unknown): SectionCommentSummary[] {
+  let list: unknown[] = [];
+
+  if (Array.isArray(payload)) {
+    list = payload;
+  } else if (isRecord(payload) && Array.isArray(payload.comments)) {
+    list = payload.comments;
+  } else {
+    throw new ApiError("Invalid section comments response: expected array or comments wrapper", 502, payload);
+  }
+
+  return list.map((item, i) => {
+    try {
+      return parseSectionCommentSummary(item);
+    } catch {
+      throw new ApiError(`Invalid section comments response: entry ${i} is malformed`, 502, payload);
+    }
+  });
+}
+
+export function normalizeCreateSectionCommentRequest(
+  request: CreateSectionCommentRequest
+): CreateSectionCommentRequest {
+  return {
+    commentType: request.commentType,
+    commentText: request.commentText
+  };
 }

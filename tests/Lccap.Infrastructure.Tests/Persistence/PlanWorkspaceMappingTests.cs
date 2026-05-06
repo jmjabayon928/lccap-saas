@@ -22,6 +22,7 @@ public class PlanWorkspaceMappingTests
 
         Assert.Equal("plans", ctx.Model.FindEntityType(typeof(Plan))!.GetTableName());
         Assert.Equal("plan_sections", ctx.Model.FindEntityType(typeof(PlanSection))!.GetTableName());
+        Assert.Equal("section_comments", ctx.Model.FindEntityType(typeof(SectionComment))!.GetTableName());
         Assert.Equal("file_assets", ctx.Model.FindEntityType(typeof(FileAsset))!.GetTableName());
         Assert.Equal("documents", ctx.Model.FindEntityType(typeof(Document))!.GetTableName());
         Assert.Equal("export_jobs", ctx.Model.FindEntityType(typeof(ExportJob))!.GetTableName());
@@ -38,6 +39,7 @@ public class PlanWorkspaceMappingTests
                  {
                      typeof(Plan),
                      typeof(PlanSection),
+                     typeof(SectionComment),
                      typeof(FileAsset),
                      typeof(Document),
                      typeof(ExportJob),
@@ -50,6 +52,35 @@ public class PlanWorkspaceMappingTests
             Assert.True(rv!.IsConcurrencyToken);
             Assert.Equal("bytea", rv.GetRelationalTypeMapping()?.StoreType);
         }
+    }
+
+    [Fact]
+    public void SectionComment_required_columns_are_mapped()
+    {
+        using var ctx = CreateContext();
+        var entity = ctx.Model.FindEntityType(typeof(SectionComment));
+
+        Assert.NotNull(entity);
+        Assert.Equal("account_id", entity!.FindProperty(nameof(SectionComment.AccountId))!.GetColumnName());
+        Assert.Equal("plan_id", entity.FindProperty(nameof(SectionComment.PlanId))!.GetColumnName());
+        Assert.Equal("section_key", entity.FindProperty(nameof(SectionComment.SectionKey))!.GetColumnName());
+        Assert.Equal("comment_type", entity.FindProperty(nameof(SectionComment.CommentType))!.GetColumnName());
+        Assert.Equal("comment_text", entity.FindProperty(nameof(SectionComment.CommentText))!.GetColumnName());
+        Assert.Equal("created_by_user_id", entity.FindProperty(nameof(SectionComment.CreatedByUserId))!.GetColumnName());
+        Assert.Equal("resolved_at_utc", entity.FindProperty(nameof(SectionComment.ResolvedAtUtc))!.GetColumnName());
+        Assert.Equal("resolved_by_user_id", entity.FindProperty(nameof(SectionComment.ResolvedByUserId))!.GetColumnName());
+        Assert.Equal("is_resolved", entity.FindProperty(nameof(SectionComment.IsResolved))!.GetColumnName());
+        Assert.Equal("created_at_utc", entity.FindProperty(nameof(SectionComment.CreatedAtUtc))!.GetColumnName());
+        Assert.Equal("updated_at_utc", entity.FindProperty(nameof(SectionComment.UpdatedAtUtc))!.GetColumnName());
+        Assert.Equal("updated_by_user_id", entity.FindProperty(nameof(SectionComment.UpdatedByUserId))!.GetColumnName());
+        Assert.Equal("is_deleted", entity.FindProperty(nameof(SectionComment.IsDeleted))!.GetColumnName());
+        Assert.Equal("deleted_at_utc", entity.FindProperty(nameof(SectionComment.DeletedAtUtc))!.GetColumnName());
+        Assert.Equal("deleted_by_user_id", entity.FindProperty(nameof(SectionComment.DeletedByUserId))!.GetColumnName());
+        Assert.Equal("row_version", entity.FindProperty(nameof(SectionComment.RowVersion))!.GetColumnName());
+
+        Assert.Equal("varchar(100)", entity.FindProperty(nameof(SectionComment.SectionKey))!.GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal("varchar(80)", entity.FindProperty(nameof(SectionComment.CommentType))!.GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal("text", entity.FindProperty(nameof(SectionComment.CommentText))!.GetRelationalTypeMapping()?.StoreType);
     }
 
     [Fact]

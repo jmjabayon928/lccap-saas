@@ -13,6 +13,7 @@ import { DocumentsList } from "@/components/documents/documents-list";
 import { PlanSectionEditor } from "@/components/plans/plan-section-editor";
 import { PlanSectionsPreview } from "@/components/plans/plan-sections-preview";
 import { PlanSummaryCard } from "@/components/plans/plan-summary-card";
+import { SectionCommentsPanel } from "@/components/plans/section-comments-panel";
 import { ActionForm } from "@/components/actions/action-form";
 import { ActionItemsList } from "@/components/actions/action-items-list";
 import { IndicatorForm } from "@/components/monitoring/indicator-form";
@@ -482,7 +483,10 @@ export default function PlanWorkspacePage() {
             />
             <div className="min-w-0 space-y-4">
               {selectedSection ? (
-                <PlanSectionEditor planId={planId} section={selectedSection} onSaved={handleSectionSaved} />
+                <>
+                  <PlanSectionEditor planId={planId} section={selectedSection} onSaved={handleSectionSaved} />
+                  <SectionCommentsPanel planId={planId} sectionKey={selectedSection.sectionKey} />
+                </>
               ) : (
                 <Card className="border-dashed border-border">
                   <CardHeader>

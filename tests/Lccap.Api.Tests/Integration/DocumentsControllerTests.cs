@@ -1352,6 +1352,8 @@ public sealed class DocumentsControllerTests
     {
         public DbSet<Plan> Plans => null!;
 
+        public DbSet<SectionComment> SectionComments => null!;
+
         public DbSet<FileAsset> FileAssets => null!;
 
         public DbSet<Document> Documents => null!;

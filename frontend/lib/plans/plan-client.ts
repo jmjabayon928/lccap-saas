@@ -7,20 +7,39 @@ import {
   parsePlanSections,
   parsePlanSummary,
   parsePlansList,
+  parseSectionCommentsResponse,
   parseSavePlanSectionResult
 } from "@/lib/plans/plan-parsers";
 import type {
   CreatePlanRequest,
   CreatePlanResult,
+  CreateSectionCommentRequest,
   PlanSectionDetail,
   PlanSectionHistoryEntry,
   PlanSectionSummary,
   PlanSummary,
   RestorePlanSectionRequest,
+  SectionCommentSummary,
   SavePlanSectionRequest,
   SavePlanSectionResult,
   UpdatePlanMetadataRequest
 } from "@/types/plans";
+
+function sectionCommentsUrl(planId: string, sectionKey: string): string {
+  return `/api/plans/${encodeURIComponent(planId)}/sections/${encodeURIComponent(sectionKey)}/comments`;
+}
+
+function resolveCommentUrl(commentId: string): string {
+  return `/api/section-comments/${encodeURIComponent(commentId)}/resolve`;
+}
+
+function reopenCommentUrl(commentId: string): string {
+  return `/api/section-comments/${encodeURIComponent(commentId)}/reopen`;
+}
+
+function archiveCommentUrl(commentId: string): string {
+  return `/api/section-comments/${encodeURIComponent(commentId)}`;
+}
 
 export const planClient = {
   async createPlan(request: CreatePlanRequest): Promise<CreatePlanResult> {
@@ -81,5 +100,32 @@ export const planClient = {
   ): Promise<SavePlanSectionResult> {
     const data = await http.postJson(endpoints.restorePlanSection(planId, sectionKey), request);
     return parseSavePlanSectionResult(data);
+  },
+
+  async getSectionComments(planId: string, sectionKey: string): Promise<SectionCommentSummary[]> {
+    const data = await http.get(sectionCommentsUrl(planId, sectionKey));
+    return parseSectionCommentsResponse(data);
+  },
+
+  async createSectionComment(
+    planId: string,
+    sectionKey: string,
+    request: CreateSectionCommentRequest
+  ): Promise<SectionCommentSummary> {
+    const data = await http.postJson(sectionCommentsUrl(planId, sectionKey), request);
+    // create returns single comment DTO
+    return parseSectionCommentsResponse([data])[0];
+  },
+
+  async resolveSectionComment(commentId: string): Promise<void> {
+    await http.postJson(resolveCommentUrl(commentId), {});
+  },
+
+  async reopenSectionComment(commentId: string): Promise<void> {
+    await http.postJson(reopenCommentUrl(commentId), {});
+  },
+
+  async archiveSectionComment(commentId: string): Promise<void> {
+    await http.deleteVoid(archiveCommentUrl(commentId));
   }
 } as const;
