@@ -13,7 +13,13 @@ import { MapFeatureList } from "@/components/plans/map-feature-list";
 import { MapLayerList } from "@/components/plans/map-layer-list";
 import { isApiError } from "@/lib/api/api-error";
 import { planClient } from "@/lib/plans/plan-client";
-import type { ExposureAnalysisJobSummary, HazardLayerSummary, MapAssetSummary, PlanMapWorkspaceResult } from "@/types/plans";
+import type {
+  ExposureAnalysisJobSummary,
+  HazardLayerSummary,
+  MapAssetSummary,
+  ExposureSummary,
+  PlanMapWorkspaceResult
+} from "@/types/plans";
 
 interface PlanMapWorkspaceProps {
   readonly planId: string;
@@ -31,8 +37,10 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
   const [hazardLayers, setHazardLayers] = useState<readonly HazardLayerSummary[]>([]);
   const [exposureJobs, setExposureJobs] = useState<readonly ExposureAnalysisJobSummary[]>([]);
+  const [exposureSummaries, setExposureSummaries] = useState<readonly ExposureSummary[]>([]);
   const [isLoadingHazardLayers, setIsLoadingHazardLayers] = useState(false);
   const [isLoadingExposureJobs, setIsLoadingExposureJobs] = useState(false);
+  const [isLoadingExposureSummaries, setIsLoadingExposureSummaries] = useState(false);
   const [isRegisteringHazardLayer, setIsRegisteringHazardLayer] = useState(false);
   const [isCreatingExposureJob, setIsCreatingExposureJob] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -67,6 +75,20 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
     }
   }, [planId]);
 
+  const loadExposureSummaries = useCallback(async () => {
+    if (!planId) return;
+
+    setIsLoadingExposureSummaries(true);
+    try {
+      const items = await planClient.getExposureSummaries(planId);
+      setExposureSummaries(items);
+    } catch {
+      setStatusMessage("Unable to load exposure summaries.");
+    } finally {
+      setIsLoadingExposureSummaries(false);
+    }
+  }, [planId]);
+
   const load = useCallback(async () => {
     if (!planId) {
       setPanel({ status: "error", message: "Missing plan identifier.", retryable: false });
@@ -91,6 +113,7 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
 
       void loadHazardLayers();
       void loadExposureJobs();
+      void loadExposureSummaries();
     } catch (err: unknown) {
       if (isApiError(err)) {
         const notFound = err.status === 404;
@@ -111,7 +134,7 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
         });
       }
     }
-  }, [planId, loadHazardLayers, loadExposureJobs]);
+  }, [planId, loadHazardLayers, loadExposureJobs, loadExposureSummaries]);
 
   useEffect(() => {
     void load();
@@ -177,10 +200,12 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
         hazardLayerId: hazardLayer.id
       });
       await loadExposureJobs();
+      await loadExposureSummaries();
       setStatusMessage("Exposure analysis job queued.");
     } catch (err: unknown) {
       if (isApiError(err) && err.status === 409) {
         await loadExposureJobs();
+        await loadExposureSummaries();
         setStatusMessage("A queued or running exposure job already exists for this hazard layer.");
       } else {
         setStatusMessage("Unable to queue exposure analysis job.");
@@ -271,6 +296,8 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
                 evacuationSiteCount={panel.data.counts.evacuationSites}
                 isLoadingHazardLayers={isLoadingHazardLayers}
                 isLoadingExposureJobs={isLoadingExposureJobs}
+              exposureSummaries={exposureSummaries}
+              isLoadingExposureSummaries={isLoadingExposureSummaries}
                 isRegisteringHazardLayer={isRegisteringHazardLayer}
                 isCreatingExposureJob={isCreatingExposureJob}
                 onRegisterHazardLayer={(mapAsset) => handleRegisterHazardLayer(mapAsset)}

@@ -28,6 +28,7 @@ import type {
   PlanSummary,
   HazardLayerSummary,
   ExposureAnalysisJobSummary,
+  ExposureSummary,
   NotificationEventType,
   MyNotificationSummary,
   MyNotificationsResult,
@@ -1268,6 +1269,94 @@ export function parseExposureAnalysisJobSummaries(
 
 export function parseCreatedExposureAnalysisJob(payload: unknown): ExposureAnalysisJobSummary {
   return parseExposureAnalysisJobSummary(payload);
+}
+
+export function parseExposureSummary(payload: unknown): ExposureSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid exposure summary: expected object", 502, payload);
+  }
+
+  const id = payload.id;
+  const planId = payload.planId;
+  const exposureAnalysisJobId = payload.exposureAnalysisJobId;
+  const barangayId = payload.barangayId;
+  const criticalFacilityId = payload.criticalFacilityId;
+  const hazardLayerId = payload.hazardLayerId;
+  const hazardType = payload.hazardType;
+  const severity = payload.severity;
+  const exposedAreaHectares = payload.exposedAreaHectares;
+  const exposedFacilityCount = payload.exposedFacilityCount;
+  const exposedPopulation = payload.exposedPopulation;
+  const riskScore = payload.riskScore;
+  const summaryJson = payload.summaryJson;
+  const createdAtUtc = payload.createdAtUtc;
+
+  const severityOk = severity === null || severity === undefined || typeof severity === "string";
+  const hazardLayerIdOk = hazardLayerId === null || hazardLayerId === undefined || typeof hazardLayerId === "string";
+  const exposureAnalysisJobIdOk =
+    exposureAnalysisJobId === null || exposureAnalysisJobId === undefined || typeof exposureAnalysisJobId === "string";
+  const barangayIdOk = barangayId === null || barangayId === undefined || typeof barangayId === "string";
+  const criticalFacilityIdOk =
+    criticalFacilityId === null || criticalFacilityId === undefined || typeof criticalFacilityId === "string";
+  const decimalNullableOk = (v: unknown): boolean =>
+    v === null || v === undefined || (typeof v === "number" && Number.isFinite(v));
+
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(planId) ||
+    !hazardLayerIdOk ||
+    !exposureAnalysisJobIdOk ||
+    !barangayIdOk ||
+    !criticalFacilityIdOk ||
+    !isNonEmptyString(hazardType) ||
+    !severityOk ||
+    !decimalNullableOk(exposedAreaHectares) ||
+    typeof exposedFacilityCount !== "number" ||
+    !Number.isFinite(exposedFacilityCount) ||
+    !decimalNullableOk(exposedPopulation) ||
+    !decimalNullableOk(riskScore) ||
+    summaryJson === undefined ||
+    !isNonEmptyString(createdAtUtc)
+  ) {
+    throw new ApiError("Invalid exposure summary: malformed fields", 502, payload);
+  }
+
+  return {
+    id,
+    planId,
+    exposureAnalysisJobId: typeof exposureAnalysisJobId === "string" ? exposureAnalysisJobId : null,
+    barangayId: typeof barangayId === "string" ? barangayId : null,
+    criticalFacilityId: typeof criticalFacilityId === "string" ? criticalFacilityId : null,
+    hazardLayerId: typeof hazardLayerId === "string" ? hazardLayerId : null,
+    hazardType,
+    severity: typeof severity === "string" ? severity : null,
+    exposedAreaHectares: exposedAreaHectares === null || exposedAreaHectares === undefined ? null : (exposedAreaHectares as number),
+    exposedFacilityCount: exposedFacilityCount as number,
+    exposedPopulation: exposedPopulation === null || exposedPopulation === undefined ? null : (exposedPopulation as number),
+    riskScore: riskScore === null || riskScore === undefined ? null : (riskScore as number),
+    summaryJson,
+    createdAtUtc
+  };
+}
+
+export function parseExposureSummaries(payload: unknown): readonly ExposureSummary[] {
+  let list: unknown[] = [];
+
+  if (isRecord(payload) && Array.isArray(payload.items)) {
+    list = payload.items;
+  } else if (Array.isArray(payload)) {
+    list = payload;
+  } else {
+    throw new ApiError("Invalid exposure summaries response: expected items wrapper", 502, payload);
+  }
+
+  return list.map((item, i) => {
+    try {
+      return parseExposureSummary(item);
+    } catch {
+      throw new ApiError(`Invalid exposure summaries list: entry ${i} is malformed`, 502, payload);
+    }
+  });
 }
 
 export function parseGeoJsonLayerFeatureSummaries(payload: unknown): GeoJsonLayerFeatureSummary[] {

@@ -19,7 +19,9 @@ import {
   parseHazardLayerSummaries,
   parseExposureAnalysisJobSummary,
   parseExposureAnalysisJobSummaries,
-  parseCreatedExposureAnalysisJob
+  parseCreatedExposureAnalysisJob,
+  parseExposureSummary,
+  parseExposureSummaries
 } from "@/lib/plans/plan-parsers";
 import type {
   CreateGeoJsonLayerRequest,
@@ -31,6 +33,7 @@ import type {
   RegisterHazardLayerPayload,
   ExposureAnalysisJobSummary,
   CreateExposureAnalysisJobPayload,
+  ExposureSummary,
   GeoJsonLayerFeatureSummary,
   PlanMapWorkspaceResult,
   PlanOperationalDashboard,
@@ -280,5 +283,27 @@ export const planClient = {
     const body = { hazardLayerId: payload.hazardLayerId };
     const data = await http.postJson(`/api/plans/${encodeURIComponent(planId)}/exposure-analysis-jobs`, body);
     return parseCreatedExposureAnalysisJob(data);
+  },
+
+  async getExposureSummaries(planId: string): Promise<readonly ExposureSummary[]> {
+    const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/exposure-summaries`);
+    return parseExposureSummaries(data);
+  },
+
+  async getExposureSummariesForJob(
+    planId: string,
+    jobId: string
+  ): Promise<readonly ExposureSummary[]> {
+    const data = await http.get(
+      `/api/plans/${encodeURIComponent(planId)}/exposure-analysis-jobs/${encodeURIComponent(jobId)}/exposure-summaries`
+    );
+    return parseExposureSummaries(data);
+  },
+
+  async getExposureSummary(planId: string, summaryId: string): Promise<ExposureSummary> {
+    const data = await http.get(
+      `/api/plans/${encodeURIComponent(planId)}/exposure-summaries/${encodeURIComponent(summaryId)}`
+    );
+    return parseExposureSummary(data);
   }
 } as const;

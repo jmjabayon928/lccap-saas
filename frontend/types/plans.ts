@@ -340,6 +340,23 @@ export type CreateExposureAnalysisJobPayload = {
   readonly hazardLayerId: string;
 };
 
+export interface ExposureSummary {
+  readonly id: string;
+  readonly planId: string;
+  readonly exposureAnalysisJobId: string | null;
+  readonly barangayId: string | null;
+  readonly criticalFacilityId: string | null;
+  readonly hazardLayerId: string | null;
+  readonly hazardType: string;
+  readonly severity: string | null;
+  readonly exposedAreaHectares: number | null;
+  readonly exposedFacilityCount: number;
+  readonly exposedPopulation: number | null;
+  readonly riskScore: number | null;
+  readonly summaryJson: unknown;
+  readonly createdAtUtc: string;
+}
+
 export interface GeoJsonFeatureGeometryPayload {
   readonly type?: string;
 }

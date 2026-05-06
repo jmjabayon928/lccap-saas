@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ExposureAnalysisJobSummary, HazardLayerSummary, MapAssetSummary } from "@/types/plans";
+import type { ExposureAnalysisJobSummary, HazardLayerSummary, MapAssetSummary, ExposureSummary } from "@/types/plans";
 
 interface ExposureReadinessPanelProps {
   readonly planId: string;
@@ -10,11 +10,13 @@ interface ExposureReadinessPanelProps {
   readonly hazardLayerMapAssetIds: readonly string[];
   readonly hazardLayers: readonly HazardLayerSummary[];
   readonly exposureJobs: readonly ExposureAnalysisJobSummary[];
+  readonly exposureSummaries: readonly ExposureSummary[];
   readonly barangayCount: number;
   readonly criticalFacilityCount: number;
   readonly evacuationSiteCount: number;
   readonly isLoadingHazardLayers: boolean;
   readonly isLoadingExposureJobs: boolean;
+  readonly isLoadingExposureSummaries: boolean;
   readonly isRegisteringHazardLayer: boolean;
   readonly isCreatingExposureJob: boolean;
   readonly onRegisterHazardLayer: (mapAsset: MapAssetSummary) => Promise<void>;
@@ -59,11 +61,13 @@ export function ExposureReadinessPanel({
   hazardLayerMapAssetIds,
   hazardLayers,
   exposureJobs,
+  exposureSummaries,
   barangayCount,
   criticalFacilityCount,
   evacuationSiteCount,
   isLoadingHazardLayers,
   isLoadingExposureJobs,
+  isLoadingExposureSummaries,
   isRegisteringHazardLayer,
   isCreatingExposureJob,
   onRegisterHazardLayer,
@@ -184,6 +188,49 @@ export function ExposureReadinessPanel({
               ))}
             </div>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Exposure summaries</div>
+            {isLoadingExposureSummaries ? <div className="text-xs text-muted-foreground">Loading…</div> : null}
+          </div>
+
+          {isLoadingExposureSummaries ? (
+            <p className="text-sm text-muted-foreground">Loading exposure summaries…</p>
+          ) : null}
+
+          {!isLoadingExposureSummaries && exposureSummaries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No exposure summaries are available yet. Queued jobs will show stored results here after a future computation slice runs.
+            </p>
+          ) : null}
+
+          {!isLoadingExposureSummaries && exposureSummaries.length > 0 ? (
+            <div className="space-y-2">
+              {exposureSummaries.slice(0, 5).map((s) => (
+                <div key={s.id} className="rounded-md border px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="text-sm font-medium">{s.hazardType}</div>
+                    <div className="text-xs text-muted-foreground">{formatIsoUtc(s.createdAtUtc)}</div>
+                  </div>
+                  {s.severity ? (
+                    <div className="mt-1 text-xs text-muted-foreground">Severity: {s.severity}</div>
+                  ) : null}
+                  <div className="mt-1 text-xs text-muted-foreground">Facilities: {s.exposedFacilityCount}</div>
+                  {s.exposedPopulation != null ? (
+                    <div className="mt-1 text-xs text-muted-foreground">Population: {s.exposedPopulation}</div>
+                  ) : null}
+                  {s.exposedAreaHectares != null ? (
+                    <div className="mt-1 text-xs text-muted-foreground">Area: {s.exposedAreaHectares} ha</div>
+                  ) : null}
+                  {s.riskScore != null ? (
+                    <div className="mt-1 text-xs text-muted-foreground">Risk score: {s.riskScore}</div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>
