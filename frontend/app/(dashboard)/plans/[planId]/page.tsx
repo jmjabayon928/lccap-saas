@@ -18,6 +18,8 @@ import {
 } from "@/components/plans/plan-operational-dashboard";
 import { PlanSummaryCard } from "@/components/plans/plan-summary-card";
 import { SectionCommentsPanel } from "@/components/plans/section-comments-panel";
+import { NotificationCenterPanel } from "@/components/plans/notification-center-panel";
+import { CollaborationSummaryPanel } from "@/components/plans/collaboration-summary-panel";
 import { ActionForm } from "@/components/actions/action-form";
 import { ActionFundingReadinessPanel } from "@/components/actions/action-funding-readiness-panel";
 import { ActionItemsList } from "@/components/actions/action-items-list";
@@ -654,6 +656,11 @@ export default function PlanWorkspacePage() {
             panel={operationalPanel}
             onRetry={() => void loadOperationalDashboard()}
           />
+
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <NotificationCenterPanel />
+            <CollaborationSummaryPanel />
+          </div>
 
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <PlanSectionsPreview

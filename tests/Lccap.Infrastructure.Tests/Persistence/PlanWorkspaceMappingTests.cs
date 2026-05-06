@@ -28,6 +28,15 @@ public class PlanWorkspaceMappingTests
         Assert.Equal("export_jobs", ctx.Model.FindEntityType(typeof(ExportJob))!.GetTableName());
         Assert.Equal("action_items", ctx.Model.FindEntityType(typeof(ActionItem))!.GetTableName());
         Assert.Equal("audit_logs", ctx.Model.FindEntityType(typeof(AuditLog))!.GetTableName());
+
+        // Phase 2 Slice 9 notification + collaboration foundation
+        Assert.Equal("notification_events", ctx.Model.FindEntityType(typeof(NotificationEvent))!.GetTableName());
+        Assert.Equal("user_notifications", ctx.Model.FindEntityType(typeof(UserNotification))!.GetTableName());
+        Assert.Equal("notification_templates", ctx.Model.FindEntityType(typeof(NotificationTemplate))!.GetTableName());
+        Assert.Equal("collaboration_groups", ctx.Model.FindEntityType(typeof(CollaborationGroup))!.GetTableName());
+        Assert.Equal(
+            "collaboration_group_members",
+            ctx.Model.FindEntityType(typeof(CollaborationGroupMember))!.GetTableName());
     }
 
     [Fact]
@@ -111,6 +120,83 @@ public class PlanWorkspaceMappingTests
         Assert.Equal(
             "jsonb",
             ctx.Model.FindEntityType(typeof(AuditLog))!.FindProperty(nameof(AuditLog.MetadataJson))!.GetRelationalTypeMapping()?.StoreType);
+
+        // Phase 2 Slice 9 jsonb payload/metadata
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(NotificationEvent))!.FindProperty(nameof(NotificationEvent.PayloadJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(NotificationTemplate))!.FindProperty(nameof(NotificationTemplate.MetadataJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+    }
+
+    [Fact]
+    public void Row_version_is_concurrency_token_for_notification_and_collaboration_entities()
+    {
+        using var ctx = CreateContext();
+
+        foreach (var clrType in new[]
+                 {
+                     typeof(NotificationEvent),
+                     typeof(UserNotification),
+                     typeof(NotificationTemplate),
+                     typeof(CollaborationGroup),
+                     typeof(CollaborationGroupMember),
+                 })
+        {
+            var rv = ctx.Model.FindEntityType(clrType)!.FindProperty(nameof(BaseEntity.RowVersion));
+            Assert.NotNull(rv);
+            Assert.True(rv!.IsConcurrencyToken);
+            Assert.Equal("bytea", rv.GetRelationalTypeMapping()?.StoreType);
+        }
+    }
+
+    [Fact]
+    public void Notification_and_collaboration_foreign_keys_have_expected_delete_behaviors()
+    {
+        using var ctx = CreateContext();
+
+        var memberAccountColumn = ctx.Model.FindEntityType(typeof(CollaborationGroupMember))!
+            .FindProperty(nameof(CollaborationGroupMember.AccountId))!
+            .GetColumnName();
+        Assert.Equal("account_id", memberAccountColumn);
+
+        var eventFks = ctx.Model.FindEntityType(typeof(NotificationEvent))!.GetForeignKeys();
+        Assert.Contains(eventFks, fk => fk.PrincipalEntityType.ClrType == typeof(Account) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+
+        var userNotifFks = ctx.Model.FindEntityType(typeof(UserNotification))!.GetForeignKeys();
+        Assert.Contains(
+            userNotifFks,
+            fk => fk.PrincipalEntityType.ClrType == typeof(NotificationEvent) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+        Assert.Contains(
+            userNotifFks,
+            fk => fk.PrincipalEntityType.ClrType == typeof(User) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+
+        var templateFks = ctx.Model.FindEntityType(typeof(NotificationTemplate))!.GetForeignKeys();
+        Assert.Contains(
+            templateFks,
+            fk => fk.PrincipalEntityType.ClrType == typeof(Account) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+
+        var groupFks = ctx.Model.FindEntityType(typeof(CollaborationGroup))!.GetForeignKeys();
+        Assert.Contains(groupFks, fk => fk.PrincipalEntityType.ClrType == typeof(Account) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+
+        var memberFks = ctx.Model.FindEntityType(typeof(CollaborationGroupMember))!.GetForeignKeys();
+        Assert.Contains(
+            memberFks,
+            fk => fk.PrincipalEntityType.ClrType == typeof(CollaborationGroup) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+        Assert.Contains(
+            memberFks,
+            fk => fk.PrincipalEntityType.ClrType == typeof(User) && fk.DeleteBehavior == DeleteBehavior.Cascade);
+        Assert.Contains(
+            memberFks,
+            fk => fk.PrincipalEntityType.ClrType == typeof(Account)
+                  && fk.GetConstraintName() == "fk_collaboration_group_members_account"
+                  && fk.DeleteBehavior == DeleteBehavior.Cascade
+                  && fk.Properties.Count == 1
+                  && fk.Properties[0].Name == nameof(CollaborationGroupMember.AccountId));
     }
 
     [Fact]

@@ -508,6 +508,15 @@ public sealed class PlanSectionsControllerTests
         public DbSet<MapAnnotation> MapAnnotations => null!;
         public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
 
+        public DbSet<User> Users => null!;
+
+        public DbSet<NotificationEvent> NotificationEvents => null!;
+        public DbSet<UserNotification> UserNotifications => null!;
+        public DbSet<NotificationTemplate> NotificationTemplates => null!;
+
+        public DbSet<CollaborationGroup> CollaborationGroups => null!;
+        public DbSet<CollaborationGroupMember> CollaborationGroupMembers => null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // In-memory provider cannot materialize System.Text.Json.JsonDocument mapped properties.

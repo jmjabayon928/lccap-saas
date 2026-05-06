@@ -21,8 +21,14 @@ import type {
   PlanOperationalDashboard,
   PlanSectionHistoryEntry,
   PlanSectionSummary,
+  CollaborationSummaryResult,
+  CollaborationGroupSummary,
+  CollaborationMemberSummary,
   PlanStatus,
   PlanSummary,
+  NotificationEventType,
+  MyNotificationSummary,
+  MyNotificationsResult,
   ReviewDashboardSummary,
   SectionCommentSummary,
   SectionCommentType,
@@ -1198,5 +1204,171 @@ export function parseCreatedGeoJsonMapSummary(payload: unknown): CreatedGeoJsonM
     contentType,
     fileSizeBytes,
     createdAtUtc
+  };
+}
+
+const ALLOWED_NOTIFICATION_EVENT_TYPES = new Set<string>([
+  "SectionCommentCreated",
+  "SectionCommentResolved",
+  "SectionCommentReopened",
+  "SectionCommentArchived",
+  "MonitoringUpdateCreated",
+  "ActionFundingAllocationCreated",
+  "ActionFundingAllocationArchived",
+  "GeoJsonLayerCreated",
+  "MapAssetArchived",
+  "ExportPackageGenerated",
+  "PlanUpdated",
+  "General"
+]);
+
+function optionalNonEmptyStringOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return null;
+}
+
+export function parseMyNotificationSummary(payload: unknown): MyNotificationSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid notification: expected object", 502, payload);
+  }
+
+  const id = payload.id;
+  const notificationEventId = payload.notificationEventId;
+  const eventType = payload.eventType;
+  const title = payload.title;
+  const message = payload.message;
+  const entityType = payload.entityType;
+  const entityId = payload.entityId;
+  const planId = payload.planId;
+  const isRead = payload.isRead;
+  const readAtUtc = optionalIsoOrNull(payload.readAtUtc);
+  const createdAtUtc = payload.createdAtUtc;
+
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(notificationEventId) ||
+    typeof eventType !== "string" ||
+    !ALLOWED_NOTIFICATION_EVENT_TYPES.has(eventType) ||
+    typeof title !== "string" ||
+    !title.trim() ||
+    typeof message !== "string" ||
+    !message.trim() ||
+    typeof isRead !== "boolean" ||
+    !isNonEmptyString(createdAtUtc)
+  ) {
+    throw new ApiError("Invalid notification: malformed fields", 502, payload);
+  }
+
+  return {
+    id,
+    notificationEventId,
+    eventType: eventType as NotificationEventType,
+    title: title.trim(),
+    message: message.trim(),
+    entityType: optionalNonEmptyStringOrNull(entityType),
+    entityId: optionalNonEmptyStringOrNull(entityId),
+    planId: optionalNonEmptyStringOrNull(planId),
+    isRead,
+    readAtUtc,
+    createdAtUtc
+  };
+}
+
+export function parseMyNotificationsResult(payload: unknown): MyNotificationsResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid notifications response: expected object", 502, payload);
+  }
+
+  const itemsRaw = payload.items;
+  const unreadCount = payload.unreadCount;
+  const totalCount = payload.totalCount;
+  const limit = payload.limit;
+  const unreadOnly = payload.unreadOnly;
+
+  if (!Array.isArray(itemsRaw) || !isFiniteNumber(unreadCount) || !isFiniteNumber(totalCount) || !isFiniteNumber(limit) || typeof unreadOnly !== "boolean") {
+    throw new ApiError("Invalid notifications response: malformed fields", 502, payload);
+  }
+
+  const items = itemsRaw.map((x, i) => {
+    try {
+      return parseMyNotificationSummary(x);
+    } catch {
+      throw new ApiError(`Invalid notifications list: entry ${i} is malformed`, 502, payload);
+    }
+  });
+
+  return {
+    items,
+    unreadCount: unreadCount as number,
+    totalCount: totalCount as number,
+    limit: limit as number,
+    unreadOnly
+  };
+}
+
+export function parseCollaborationSummaryResult(payload: unknown): CollaborationSummaryResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid collaboration summary response: expected object", 502, payload);
+  }
+
+  const groupsRaw = payload.groups;
+  const totalGroups = payload.totalGroups;
+  const totalMembers = payload.totalMembers;
+
+  if (!Array.isArray(groupsRaw) || !isFiniteNumber(totalGroups) || !isFiniteNumber(totalMembers)) {
+    throw new ApiError("Invalid collaboration summary response: malformed fields", 502, payload);
+  }
+
+  const groups = groupsRaw.map((g, i) => {
+    if (!isRecord(g)) {
+      throw new ApiError(`Invalid collaboration groups: entry ${i} expected object`, 502, payload);
+    }
+
+    const id = g.id;
+    const name = g.name;
+    const createdAtUtc = g.createdAtUtc;
+    const memberCount = g.memberCount;
+    const membersRaw2 = g.members;
+
+    if (!isNonEmptyString(id) || typeof name !== "string" || !name.trim() || !isNonEmptyString(createdAtUtc) || !isFiniteNumber(memberCount) || !Number.isInteger(memberCount) || !Array.isArray(membersRaw2)) {
+      throw new ApiError(`Invalid collaboration group entry ${i}: malformed fields`, 502, payload);
+    }
+
+    const members = membersRaw2.map((m, mi) => {
+      if (!isRecord(m)) {
+        throw new ApiError(`Invalid collaboration members: entry ${mi} expected object`, 502, payload);
+      }
+
+      const userId = m.userId;
+      const fullName = m.fullName;
+      const email = m.email;
+      const role = m.role;
+
+      if (!isNonEmptyString(userId) || typeof fullName !== "string" || !fullName.trim() || typeof email !== "string" || !email.trim() || typeof role !== "string" || !role.trim()) {
+        throw new ApiError(`Invalid collaboration member entry ${mi}: malformed fields`, 502, payload);
+      }
+
+      return {
+        userId,
+        fullName: fullName.trim(),
+        email: email.trim(),
+        role: role.trim()
+      } satisfies CollaborationMemberSummary;
+    });
+
+    return {
+      id,
+      name: name.trim(),
+      createdAtUtc,
+      memberCount,
+      members
+    } satisfies CollaborationGroupSummary;
+  });
+
+  return {
+    groups,
+    totalGroups: totalGroups as number,
+    totalMembers: totalMembers as number
   };
 }

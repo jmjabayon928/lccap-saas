@@ -340,3 +340,61 @@ export interface CreatedGeoJsonMapAssetSummary {
   readonly fileSizeBytes: number;
   readonly createdAtUtc: string | null;
 }
+
+export type NotificationEventType =
+  | "SectionCommentCreated"
+  | "SectionCommentResolved"
+  | "SectionCommentReopened"
+  | "SectionCommentArchived"
+  | "MonitoringUpdateCreated"
+  | "ActionFundingAllocationCreated"
+  | "ActionFundingAllocationArchived"
+  | "GeoJsonLayerCreated"
+  | "MapAssetArchived"
+  | "ExportPackageGenerated"
+  | "PlanUpdated"
+  | "General"
+  | (string & {});
+
+export interface MyNotificationSummary {
+  readonly id: string;
+  readonly notificationEventId: string;
+  readonly eventType: NotificationEventType;
+  readonly title: string;
+  readonly message: string;
+  readonly entityType: string | null;
+  readonly entityId: string | null;
+  readonly planId: string | null;
+  readonly isRead: boolean;
+  readonly readAtUtc: string | null;
+  readonly createdAtUtc: string;
+}
+
+export interface MyNotificationsResult {
+  readonly items: readonly MyNotificationSummary[];
+  readonly unreadCount: number;
+  readonly totalCount: number;
+  readonly limit: number;
+  readonly unreadOnly: boolean;
+}
+
+export interface CollaborationMemberSummary {
+  readonly userId: string;
+  readonly fullName: string;
+  readonly email: string;
+  readonly role: string;
+}
+
+export interface CollaborationGroupSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly createdAtUtc: string;
+  readonly memberCount: number;
+  readonly members: readonly CollaborationMemberSummary[];
+}
+
+export interface CollaborationSummaryResult {
+  readonly groups: readonly CollaborationGroupSummary[];
+  readonly totalGroups: number;
+  readonly totalMembers: number;
+}

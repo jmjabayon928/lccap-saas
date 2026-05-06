@@ -1380,6 +1380,15 @@ public sealed class DocumentsControllerTests
         public DbSet<MapAnnotation> MapAnnotations => null!;
         public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
 
+        public DbSet<User> Users => null!;
+
+        public DbSet<NotificationEvent> NotificationEvents => null!;
+        public DbSet<UserNotification> UserNotifications => null!;
+        public DbSet<NotificationTemplate> NotificationTemplates => null!;
+
+        public DbSet<CollaborationGroup> CollaborationGroups => null!;
+        public DbSet<CollaborationGroupMember> CollaborationGroupMembers => null!;
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
     }
 

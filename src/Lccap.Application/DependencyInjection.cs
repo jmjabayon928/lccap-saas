@@ -15,6 +15,8 @@ using Lccap.Application.Funding.Queries;
 using Lccap.Application.Monitoring.Commands;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
+using Lccap.Application.Notifications.Commands;
+using Lccap.Application.Notifications.Queries;
 using Lccap.Application.Sections.Commands;
 using Lccap.Application.Sections.Queries;
 using Lccap.Application.Auth;
@@ -77,6 +79,13 @@ public static class DependencyInjection
         _ = services.AddScoped<ArchiveActionFundingAllocationCommand>();
         _ = services.AddScoped<GetActionFundingAllocationsByPlanQuery>();
         _ = services.AddScoped<GetActionFundingAllocationsByActionQuery>();
+
+        // Notifications / collaboration foundation (Phase 2 Slice 9)
+        _ = services.AddScoped<CreateNotificationEventCommand>();
+        _ = services.AddScoped<MarkNotificationReadCommand>();
+        _ = services.AddScoped<MarkAllNotificationsReadCommand>();
+        _ = services.AddScoped<GetMyNotificationsQuery>();
+        _ = services.AddScoped<GetCollaborationSummaryQuery>();
 
         // Auth / session services (Slice 2)
         _ = services.AddScoped<RefreshTokenService>();

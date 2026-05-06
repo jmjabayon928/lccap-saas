@@ -15,8 +15,8 @@
   
   "current_state": {
     "phase": "Phase 2",
-    "active_module": "Maps",
-    "active_task": "Slice 8.1 Map Layer Metadata Hardening and Performance",
+    "active_module": "Collaboration",
+    "active_task": "Slice 9.1 Collaboration Notifications Hardening",
     "status": "done"
   },
 

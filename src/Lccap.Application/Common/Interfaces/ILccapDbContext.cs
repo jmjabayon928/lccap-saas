@@ -35,5 +35,17 @@ public interface ILccapDbContext
 
     DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures { get; }
 
+    DbSet<User> Users { get; }
+
+    DbSet<NotificationEvent> NotificationEvents { get; }
+
+    DbSet<UserNotification> UserNotifications { get; }
+
+    DbSet<NotificationTemplate> NotificationTemplates { get; }
+
+    DbSet<CollaborationGroup> CollaborationGroups { get; }
+
+    DbSet<CollaborationGroupMember> CollaborationGroupMembers { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

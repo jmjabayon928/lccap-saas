@@ -6,6 +6,8 @@ using Lccap.Application.Maps.Commands;
 using Lccap.Application.Maps.Queries;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
+using Lccap.Application.Notifications.Commands;
+using Lccap.Application.Notifications.Queries;
 using Lccap.Domain.Entities;
 using Lccap.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -2265,6 +2267,616 @@ public sealed class PlansControllerTests
             CreatedAtUtc = now,
             IsDeleted = deleted,
             RowVersion = new byte[] { 15, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    [Fact]
+    public async Task Create_notification_event_creates_event_and_user_notifications_for_same_tenant_recipients()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var recipient1 = Guid.NewGuid();
+        var recipient2 = Guid.NewGuid();
+
+        var createdAtUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var clock = new TestClock { UtcNow = createdAtUtc };
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient1, "Recipient 1", "r1@example.test", WorkspaceRoles.Viewer, "Active", false),
+            NewUser(accountId, recipient2, "Recipient 2", "r2@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"title\":\"Hello\",\"message\":\"World\",\"planId\":\"" + Guid.NewGuid() + "\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, new[] { recipient1, recipient2 }),
+            CancellationToken.None);
+
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.EventId);
+        Assert.Equal(2, result.CreatedNotificationCount);
+
+        Assert.Single(db.NotificationEvents.Where(e => e.Id == result.EventId!.Value));
+        Assert.Equal(
+            2,
+            db.UserNotifications.Where(n => n.NotificationEventId == result.EventId!.Value && !n.IsDeleted).Count());
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_cross_tenant_recipients()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var recipient1 = Guid.NewGuid();
+        var recipientOtherTenant = Guid.NewGuid();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient1, "Recipient 1", "r1@example.test", WorkspaceRoles.Viewer, "Active", false),
+            NewUser(otherAccountId, recipientOtherTenant, "Other Tenant Recipient", "r2@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"title\":\"Hello\",\"message\":\"World\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, new[] { recipient1, recipientOtherTenant }),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_duplicate_recipient_ids_creates_only_unique_user_notifications()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var recipient = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient, "Recipient", "r@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"message\":\"Hello\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, new[] { recipient, recipient }),
+            CancellationToken.None);
+
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.EventId);
+        Assert.Equal(1, result.CreatedNotificationCount);
+
+        var notifCount = db.UserNotifications.Count(n => n.NotificationEventId == result.EventId!.Value && !n.IsDeleted);
+        Assert.Equal(1, notifCount);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_blank_event_type()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+
+        db.Users.Add(NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"message\":\"Hello\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("   ", payload, Array.Empty<Guid>()),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_invalid_event_type()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+
+        var recipient = Guid.NewGuid();
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient, "Recipient", "r@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"message\":\"Hello\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("NotAllowed", payload, new[] { recipient }),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_payload_root_array()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var recipient = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient, "Recipient", "r@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("[1,2,3]");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, new[] { recipient }),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_payload_root_scalar()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var recipient = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient, "Recipient", "r@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("\"hello\"");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, new[] { recipient }),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_payload_larger_than_50000_chars()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var recipient = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, recipient, "Recipient", "r@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        var big = new string('a', 60_000);
+        using var payload = JsonDocument.Parse("{\"message\":\"" + big + "\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, new[] { recipient }),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_zero_recipients()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+
+        db.Users.Add(NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"message\":\"Hello\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, Array.Empty<Guid>()),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Create_notification_event_rejects_more_than_50_unique_recipients()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+
+        var recipientCount = 51;
+        var recipients = new Guid[recipientCount];
+        for (var i = 0; i < recipientCount; i++)
+        {
+            recipients[i] = Guid.NewGuid();
+        }
+
+        var users = new List<User>
+        {
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false)
+        };
+        users.AddRange(recipients.Select((id, i) =>
+            NewUser(accountId, id, "Recipient " + i, $"r{i}@example.test", WorkspaceRoles.Viewer, "Active", false)));
+        db.Users.AddRange(users);
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"message\":\"Hello\"}");
+
+        var result = await command.Execute(
+            new CreateNotificationEventRequest("General", payload, recipients),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Null(result.EventId);
+        Assert.Empty(db.NotificationEvents);
+    }
+
+    [Fact]
+    public async Task Get_my_notifications_returns_only_current_user_notifications_and_excludes_soft_deleted_rows()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, currentUserId, "Current", "current@example.test", WorkspaceRoles.Viewer, "Active", false),
+            NewUser(accountId, otherUserId, "Other", "other@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload1 = JsonDocument.Parse("{\"message\":\"M1\"}");
+        var create1 = await command.Execute(
+            new CreateNotificationEventRequest("General", payload1, new[] { currentUserId, otherUserId }),
+            CancellationToken.None);
+
+        Assert.NotNull(create1.EventId);
+
+        // Soft-delete the event to verify exclusion for all recipients.
+        var eventToDelete = db.NotificationEvents.Single(e => e.Id == create1.EventId!.Value);
+        eventToDelete.IsDeleted = true;
+
+        using var payload2 = JsonDocument.Parse("{\"message\":\"M2\"}");
+        clock.UtcNow = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        var create2 = await command.Execute(
+            new CreateNotificationEventRequest("General", payload2, new[] { currentUserId }),
+            CancellationToken.None);
+
+        var query = new GetMyNotificationsQuery(db, new TestCurrentUserContext(accountId, currentUserId, true, WorkspaceRoles.Viewer));
+        var controller = new NotificationsController(new TestCurrentUserContext(accountId, currentUserId, true, WorkspaceRoles.Viewer));
+
+        var ok = await controller.GetMyNotifications(25, false, query, CancellationToken.None);
+        var okObj = Assert.IsType<OkObjectResult>(ok);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(okObj.Value);
+        Assert.DoesNotContain("payloadJson", json, StringComparison.OrdinalIgnoreCase);
+
+        var value = okObj.Value!;
+        var itemsProp = value.GetType().GetProperty("items");
+        Assert.NotNull(itemsProp);
+        var items = Assert.IsAssignableFrom<IEnumerable<object>>(itemsProp.GetValue(value))!;
+        Assert.Single(items);
+    }
+
+    [Fact]
+    public async Task Mark_notification_read_marks_only_current_users_notification()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, currentUserId, "Current", "current@example.test", WorkspaceRoles.Viewer, "Active", false),
+            NewUser(accountId, otherUserId, "Other", "other@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = DateTimeOffset.UtcNow };
+        var current = new TestCurrentUserContext(accountId, creatorUserId, isAuthenticated: true, role: WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, current, clock);
+
+        using var payload = JsonDocument.Parse("{\"message\":\"M\"}");
+        var create = await command.Execute(new CreateNotificationEventRequest("General", payload, new[] { currentUserId, otherUserId }),
+            CancellationToken.None);
+
+        Assert.NotNull(create.EventId);
+
+        var currentNotif = db.UserNotifications.Single(n => n.UserId == currentUserId && n.NotificationEventId == create.EventId!.Value);
+        var otherNotif = db.UserNotifications.Single(n => n.UserId == otherUserId && n.NotificationEventId == create.EventId!.Value);
+
+        Assert.False(currentNotif.IsRead);
+        Assert.False(otherNotif.IsRead);
+
+        var userContext = new TestCurrentUserContext(accountId, currentUserId, true, WorkspaceRoles.Viewer);
+        var readCmd = new MarkNotificationReadCommand(db, userContext, clock);
+        var controller = new NotificationsController(userContext);
+
+        var result = await controller.MarkNotificationRead(currentNotif.Id, readCmd, CancellationToken.None);
+        Assert.IsType<NoContentResult>(result);
+
+        var updatedCurrent = db.UserNotifications.Single(n => n.Id == currentNotif.Id);
+        var updatedOther = db.UserNotifications.Single(n => n.Id == otherNotif.Id);
+        Assert.True(updatedCurrent.IsRead);
+        Assert.NotNull(updatedCurrent.ReadAtUtc);
+        Assert.False(updatedOther.IsRead);
+    }
+
+    [Fact]
+    public async Task Mark_all_notifications_read_marks_only_unread_for_current_user()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, currentUserId, "Current", "current@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) };
+        var creator = new TestCurrentUserContext(accountId, creatorUserId, true, WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, creator, clock);
+
+        using var payload1 = JsonDocument.Parse("{\"message\":\"M1\"}");
+        var create1 = await command.Execute(new CreateNotificationEventRequest("General", payload1, new[] { currentUserId }), CancellationToken.None);
+        Assert.NotNull(create1.EventId);
+
+        clock.UtcNow = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+
+        using var payload2 = JsonDocument.Parse("{\"message\":\"M2\"}");
+        var create2 = await command.Execute(new CreateNotificationEventRequest("General", payload2, new[] { currentUserId }), CancellationToken.None);
+        Assert.NotNull(create2.EventId);
+
+        var userContext = new TestCurrentUserContext(accountId, currentUserId, true, WorkspaceRoles.Viewer);
+        var markOne = new MarkNotificationReadCommand(db, userContext, clock);
+        var existingUnread = db.UserNotifications.Single(n => n.NotificationEventId == create1.EventId!.Value);
+        var _ = await markOne.Execute(new MarkNotificationReadRequest(existingUnread.Id), CancellationToken.None);
+
+        var markAllCmd = new MarkAllNotificationsReadCommand(db, userContext, clock);
+        var controller = new NotificationsController(userContext);
+
+        var resp = await controller.MarkAllNotificationsRead(markAllCmd, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(resp);
+        var updatedCount = Assert.IsType<int>(ok.Value!.GetType().GetProperty("updatedCount")!.GetValue(ok.Value)!);
+
+        Assert.Equal(1, updatedCount);
+
+        var unreadRemaining = db.UserNotifications.Count(n => n.UserId == currentUserId && !n.IsDeleted && !n.IsRead);
+        Assert.Equal(0, unreadRemaining);
+    }
+
+    [Fact]
+    public async Task Unread_sorting_returns_unread_first_then_newest()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var creatorUserId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
+
+        db.Users.AddRange(
+            NewUser(accountId, creatorUserId, "Creator", "creator@example.test", WorkspaceRoles.Admin, "Active", false),
+            NewUser(accountId, currentUserId, "Current", "current@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var clock = new TestClock { UtcNow = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) };
+        var creator = new TestCurrentUserContext(accountId, creatorUserId, true, WorkspaceRoles.Admin);
+        var command = new CreateNotificationEventCommand(db, creator, clock);
+
+        using var p1 = JsonDocument.Parse("{\"message\":\"M1\"}");
+        var create1 = await command.Execute(new CreateNotificationEventRequest("General", p1, new[] { currentUserId }), CancellationToken.None);
+        Assert.NotNull(create1.EventId);
+        var event1Id = create1.EventId.Value;
+
+        clock.UtcNow = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        using var p2 = JsonDocument.Parse("{\"message\":\"M2\"}");
+        var create2 = await command.Execute(new CreateNotificationEventRequest("General", p2, new[] { currentUserId }), CancellationToken.None);
+        Assert.NotNull(create2.EventId);
+        var event2Id = create2.EventId.Value;
+
+        // Mark the older notification read.
+        var userContext = new TestCurrentUserContext(accountId, currentUserId, true, WorkspaceRoles.Viewer);
+        var readCmd = new MarkNotificationReadCommand(db, userContext, clock);
+        var notifForEvent1 = db.UserNotifications.Single(n => n.UserId == currentUserId && n.NotificationEventId == event1Id);
+        _ = await readCmd.Execute(new MarkNotificationReadRequest(notifForEvent1.Id), CancellationToken.None);
+
+        var query = new GetMyNotificationsQuery(db, userContext);
+        var controller = new NotificationsController(userContext);
+
+        var ok = await controller.GetMyNotifications(25, false, query, CancellationToken.None);
+        var okObj = Assert.IsType<OkObjectResult>(ok);
+        var value = okObj.Value!;
+        var items = (IEnumerable<object>)value.GetType().GetProperty("items")!.GetValue(value)!;
+        var first = items.First();
+        var firstNotifId = (Guid)first.GetType().GetProperty("NotificationEventId")!.GetValue(first)!;
+        Assert.Equal(event2Id, firstNotifId);
+
+        var unreadOnlyQuery = new GetMyNotificationsQuery(db, userContext);
+        var unreadOk = await controller.GetMyNotifications(25, true, unreadOnlyQuery, CancellationToken.None);
+        var unreadObj = Assert.IsType<OkObjectResult>(unreadOk);
+        var unreadItems = (IEnumerable<object>)unreadObj.Value!.GetType().GetProperty("items")!.GetValue(unreadObj.Value)!;
+        Assert.Single(unreadItems);
+    }
+
+    [Fact]
+    public async Task Collaboration_summary_returns_current_tenant_groups_and_active_members_only()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+
+        var now = DateTimeOffset.UtcNow;
+        db.Users.AddRange(
+            NewUser(accountId, Guid.NewGuid(), "Active One", "a1@example.test", WorkspaceRoles.Viewer, "Active", false),
+            NewUser(accountId, Guid.NewGuid(), "Inactive One", "i1@example.test", WorkspaceRoles.Viewer, "Inactive", false),
+            NewUser(otherAccountId, Guid.NewGuid(), "Other Tenant Active", "o1@example.test", WorkspaceRoles.Viewer, "Active", false));
+        await db.SaveChangesAsync();
+
+        var active1 = db.Users.Single(u => u.Email == "a1@example.test");
+        var inactive1 = db.Users.Single(u => u.Email == "i1@example.test");
+        var otherTenantUser = db.Users.Single(u => u.Email == "o1@example.test");
+
+        var g1 = NewCollaborationGroup(accountId, "Group 1", now, deleted: false);
+        var g2 = NewCollaborationGroup(accountId, "Group 2 Deleted", now, deleted: true);
+        var gOther = NewCollaborationGroup(otherAccountId, "Other Group", now, deleted: false);
+        db.CollaborationGroups.AddRange(g1, g2, gOther);
+
+        db.CollaborationGroupMembers.AddRange(
+            NewCollaborationMember(accountId, g1.Id, active1.Id, role: "Member", deleted: false),
+            NewCollaborationMember(accountId, g1.Id, inactive1.Id, role: "Member", deleted: false),
+            NewCollaborationMember(accountId, g1.Id, otherTenantUser.Id, role: "Member", deleted: false),
+            NewCollaborationMember(accountId, g2.Id, active1.Id, role: "Member", deleted: false));
+        await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, active1.Id, true, WorkspaceRoles.Viewer);
+        var controller = new NotificationsController(ctx);
+        var query = new GetCollaborationSummaryQuery(db, ctx);
+
+        var res = await controller.GetCollaborationSummary(query, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(res);
+
+        var value = ok.Value!;
+        var groups = (IEnumerable<object>)value.GetType().GetProperty("groups")!.GetValue(value)!;
+        var groupsList = groups.ToList();
+        Assert.Single(groupsList);
+
+        var g1Obj = groupsList[0];
+        var members = (IEnumerable<object>)g1Obj.GetType().GetProperty("Members")!.GetValue(g1Obj)!;
+        var membersList = members.ToList();
+        Assert.Single(membersList);
+
+        var fullName = (string)membersList[0].GetType().GetProperty("FullName")!.GetValue(membersList[0])!;
+        Assert.Equal("Active One", fullName);
+    }
+
+    private sealed class TestClock : IClock
+    {
+        public DateTimeOffset UtcNow { get; set; }
+    }
+
+    private static User NewUser(
+        Guid accountId,
+        Guid userId,
+        string fullName,
+        string email,
+        string role,
+        string status,
+        bool deleted)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new User
+        {
+            Id = userId,
+            AccountId = accountId,
+            Email = email,
+            PasswordHash = "hash",
+            FullName = fullName,
+            Role = role,
+            Status = status,
+            UserScope = "Tenant",
+            LastLoginAtUtc = null,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = null,
+            CreatedByUserId = null,
+            UpdatedByUserId = null,
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? now : null,
+            DeletedByUserId = deleted ? Guid.NewGuid() : null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+    }
+
+    private static CollaborationGroup NewCollaborationGroup(Guid accountId, string name, DateTimeOffset createdAtUtc, bool deleted)
+    {
+        return new CollaborationGroup
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            Name = name,
+            CreatedAtUtc = createdAtUtc,
+            IsDeleted = deleted,
+            RowVersion = new byte[] { 2, 2, 2, 2, 2, 2, 2, 2 }
+        };
+    }
+
+    private static CollaborationGroupMember NewCollaborationMember(Guid accountId, Guid groupId, Guid userId, string role, bool deleted)
+    {
+        return new CollaborationGroupMember
+        {
+            Id = Guid.NewGuid(),
+            GroupId = groupId,
+            UserId = userId,
+            Role = role,
+            AccountId = accountId,
+            IsDeleted = deleted,
+            RowVersion = new byte[] { 3, 3, 3, 3, 3, 3, 3, 3 }
         };
     }
 

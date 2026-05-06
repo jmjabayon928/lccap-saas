@@ -64,6 +64,16 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => Set<GeoJsonLayerFeature>();
 
+    public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
+
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+
+    public DbSet<CollaborationGroup> CollaborationGroups => Set<CollaborationGroup>();
+
+    public DbSet<CollaborationGroupMember> CollaborationGroupMembers => Set<CollaborationGroupMember>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

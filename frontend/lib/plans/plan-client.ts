@@ -9,6 +9,8 @@ import {
   parsePlanSection,
   parsePlanSectionHistoryList,
   parsePlanSections,
+  parseCollaborationSummaryResult,
+  parseMyNotificationsResult,
   parsePlanSummary,
   parsePlansList,
   parseSectionCommentsResponse,
@@ -27,6 +29,8 @@ import type {
   PlanSectionHistoryEntry,
   PlanSectionSummary,
   PlanSummary,
+  CollaborationSummaryResult,
+  MyNotificationsResult,
   RestorePlanSectionRequest,
   SectionCommentSummary,
   SavePlanSectionRequest,
@@ -186,5 +190,41 @@ export const planClient = {
 
   async archiveSectionComment(commentId: string): Promise<void> {
     await http.deleteVoid(archiveCommentUrl(commentId));
+  },
+
+  async getMyNotifications(options?: { limit?: number; unreadOnly?: boolean }): Promise<MyNotificationsResult> {
+    const limit = options?.limit;
+    const unreadOnly = options?.unreadOnly;
+    const qs = [
+      limit != null ? `limit=${encodeURIComponent(String(limit))}` : null,
+      unreadOnly != null ? `unreadOnly=${encodeURIComponent(String(unreadOnly))}` : null
+    ]
+      .filter((x): x is string => x !== null)
+      .join("&");
+    const suffix = qs ? `?${qs}` : "";
+    const data = await http.get(`/api/notifications${suffix}`);
+    return parseMyNotificationsResult(data);
+  },
+
+  async markNotificationRead(notificationId: string): Promise<void> {
+    await http.postJson(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {});
+  },
+
+  async markAllNotificationsRead(): Promise<number> {
+    const data = await http.postJson(`/api/notifications/read-all`, {});
+    if (!data || typeof data !== "object") {
+      // parsing helpers are optional here; keep defensive to avoid exposing raw payload
+      throw new Error("Invalid mark-all response.");
+    }
+    const updatedCount = (data as { updatedCount?: unknown }).updatedCount;
+    if (typeof updatedCount !== "number" || !Number.isFinite(updatedCount)) {
+      throw new Error("Invalid updatedCount value.");
+    }
+    return updatedCount;
+  },
+
+  async getCollaborationSummary(): Promise<CollaborationSummaryResult> {
+    const data = await http.get(`/api/collaboration/summary`);
+    return parseCollaborationSummaryResult(data);
   }
 } as const;
