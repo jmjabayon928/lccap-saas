@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ActionBudget } from "@/components/actions/action-budget";
 import { ActionTypeBadge } from "@/components/actions/action-type-badge";
 import type {
+  ActionFundingAllocationSummary,
   ActionItemSummary,
   ActionType,
   ClimateExpenditureTagCategory,
@@ -33,6 +34,7 @@ function formatCategoryLabel(category: ClimateExpenditureTagCategory): string {
 export interface ActionFundingReadinessPanelProps {
   readonly actions: readonly ActionItemSummary[];
   readonly tags: readonly ClimateExpenditureTagSummary[];
+  readonly planAllocations?: readonly ActionFundingAllocationSummary[] | null;
   readonly actionsLoading: boolean;
   readonly actionsError: string | null;
   readonly ccetLoading: boolean;
@@ -42,6 +44,7 @@ export interface ActionFundingReadinessPanelProps {
 export function ActionFundingReadinessPanel({
   actions,
   tags,
+  planAllocations,
   actionsLoading,
   actionsError,
   ccetLoading,
@@ -53,6 +56,16 @@ export function ActionFundingReadinessPanel({
 
   const activeTagCount = tags.filter((t) => t.isActive).length;
 
+  const allocList = planAllocations ?? [];
+  const allocationTotalsByCurrency = (() => {
+    const m = new Map<string, number>();
+    for (const a of allocList) {
+      const cur = a.currencyCode.trim().toUpperCase();
+      m.set(cur, (m.get(cur) ?? 0) + a.allocatedAmount);
+    }
+    return [...m.entries()].sort(([ca], [cb]) => ca.localeCompare(cb));
+  })();
+
   return (
     <Card className="border-border shadow-sm">
       <CardHeader className="pb-3">
@@ -63,7 +76,8 @@ export function ActionFundingReadinessPanel({
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="rounded-md border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs text-muted-foreground leading-snug">
-          CCET tags are available for planning reference. Tag persistence and allocation tracking will be added in a later slice.
+          CCET tags are available for planning reference. Planned funding allocations below can record sources and CCET linkage;
+          persistence on action rows and allocation lifecycle edits follow in later slices.
         </p>
 
         {actionsLoading ? (
@@ -94,6 +108,25 @@ export function ActionFundingReadinessPanel({
             </div>
           </dl>
         )}
+
+        {allocList.length > 0 ? (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50/40 px-3 py-2">
+            <p className="text-xs font-medium text-emerald-900/90">Planned allocations on this plan</p>
+            <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-950">
+              {allocList.length} record{allocList.length === 1 ? "" : "s"}
+            </p>
+            {allocationTotalsByCurrency.length ? (
+              <ul className="mt-2 space-y-0.5 text-xs text-emerald-900/85">
+                {allocationTotalsByCurrency.map(([cur, sum]) => (
+                  <li key={cur}>
+                    <span className="font-mono">{cur}</span> total allocated:{" "}
+                    <span className="tabular-nums font-medium">{sum.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="rounded-md border border-border px-3 py-2">
           <p className="text-xs font-medium text-muted-foreground">Available CCET tags (active)</p>

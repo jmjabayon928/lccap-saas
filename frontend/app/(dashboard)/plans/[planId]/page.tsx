@@ -18,6 +18,7 @@ import { ActionForm } from "@/components/actions/action-form";
 import { ActionFundingReadinessPanel } from "@/components/actions/action-funding-readiness-panel";
 import { ActionItemsList } from "@/components/actions/action-items-list";
 import { CcetCatalogPanel } from "@/components/actions/ccet-catalog-panel";
+import { ActionFundingAllocationPanel } from "@/components/actions/action-funding-allocation-panel";
 import { IndicatorForm } from "@/components/monitoring/indicator-form";
 import { IndicatorsList } from "@/components/monitoring/indicators-list";
 import { MonitoringUpdateForm } from "@/components/monitoring/monitoring-update-form";
@@ -30,7 +31,12 @@ import { documentClient } from "@/lib/documents/document-client";
 import { monitoringClient } from "@/lib/monitoring/monitoring-client";
 import { planClient } from "@/lib/plans/plan-client";
 import type { DocumentSummary } from "@/types/documents";
-import type { ActionItemSummary, ClimateExpenditureTagsResult, SaveActionItemResult } from "@/types/actions";
+import type {
+  ActionFundingAllocationSummary,
+  ActionItemSummary,
+  ClimateExpenditureTagsResult,
+  SaveActionItemResult
+} from "@/types/actions";
 import type {
   MonitoringIndicatorSummary,
   MonitoringUpdateSummary
@@ -178,6 +184,7 @@ export default function PlanWorkspacePage() {
   const [monitoringUpdatesState, setMonitoringUpdatesState] =
     useState<MonitoringUpdatesState>({ status: "idle" });
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [planFundingAllocations, setPlanFundingAllocations] = useState<ActionFundingAllocationSummary[]>([]);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -253,6 +260,10 @@ export default function PlanWorkspacePage() {
     }
   }, [planId]);
 
+  const handlePlanAllocationsChange = useCallback((items: readonly ActionFundingAllocationSummary[]) => {
+    setPlanFundingAllocations([...items]);
+  }, []);
+
   const loadMonitoringUpdates = useCallback(async () => {
     if (!selectedIndicatorId) {
       setMonitoringUpdatesState({ status: "idle" });
@@ -277,6 +288,7 @@ export default function PlanWorkspacePage() {
 
   useEffect(() => {
     setSelectedActionId(null);
+    setPlanFundingAllocations([]);
     setSelectedIndicatorId(null);
     setMonitoringUpdatesState({ status: "idle" });
   }, [planId]);
@@ -604,12 +616,21 @@ export default function PlanWorkspacePage() {
               <ActionFundingReadinessPanel
                 actions={actionsState.status === "ready" ? actionsState.items : []}
                 tags={ccetState.status === "ready" ? ccetState.data.items : []}
+                planAllocations={planFundingAllocations}
                 actionsLoading={actionsState.status === "loading" || actionsState.status === "idle"}
                 actionsError={actionsState.status === "error" ? actionsState.message : null}
                 ccetLoading={ccetState.status === "loading" || ccetState.status === "idle"}
                 ccetError={ccetState.status === "error" ? ccetState.message : null}
               />
             </div>
+
+            <ActionFundingAllocationPanel
+              planId={planId}
+              actionItems={actionsState.status === "ready" ? actionsState.items : []}
+              ccetTags={ccetState.status === "ready" ? ccetState.data.items : []}
+              selectedActionId={selectedActionId}
+              onPlanAllocationsChange={handlePlanAllocationsChange}
+            />
 
             {actionsState.status === "loading" || actionsState.status === "idle" ? (
               <Card>

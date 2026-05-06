@@ -80,3 +80,44 @@ export interface ClimateExpenditureTagsResult {
   readonly totalCount: number;
   readonly includeInactive: boolean;
 }
+
+export type ActionFundingAllocationStatus = "Planned";
+
+export interface ActionFundingAllocationSummary {
+  readonly id: string;
+  readonly planId: string;
+  readonly actionItemId: string;
+  readonly actionTitle: string;
+  readonly fundingSourceId: string;
+  readonly fundingSourceName: string;
+  readonly fundingProgramId: string | null;
+  readonly fundingProgramName: string | null;
+  readonly climateExpenditureTagId: string | null;
+  readonly climateExpenditureTagCode: string | null;
+  readonly climateExpenditureTagName: string | null;
+  readonly climateExpenditureTagCategory: string | null;
+  readonly fiscalYear: number;
+  readonly allocatedAmount: number;
+  readonly currencyCode: string;
+  /** Display status; unknown API values are normalized to Planned in parsers. */
+  readonly allocationStatus: ActionFundingAllocationStatus;
+  readonly notes: string | null;
+  readonly createdAtUtc: string | null;
+}
+
+export interface ActionFundingAllocationsResult {
+  readonly items: readonly ActionFundingAllocationSummary[];
+  readonly totalCount: number;
+}
+
+export interface CreateActionFundingAllocationRequest {
+  readonly actionItemId: string;
+  readonly fundingSourceId: string;
+  readonly fundingProgramId?: string | null;
+  readonly climateExpenditureTagId?: string | null;
+  readonly fiscalYear: number;
+  readonly allocatedAmount: number;
+  readonly currencyCode?: string | null;
+  readonly allocationStatus?: "Planned" | null;
+  readonly notes?: string | null;
+}

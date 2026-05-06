@@ -1,5 +1,8 @@
 import { ApiError } from "@/lib/api/api-error";
 import type {
+  ActionFundingAllocationStatus,
+  ActionFundingAllocationSummary,
+  ActionFundingAllocationsResult,
   ActionItemDetail,
   ActionItemSummary,
   ActionStatus,
@@ -81,6 +84,21 @@ function parseClimateExpenditureTagCategory(raw: unknown): ClimateExpenditureTag
     return raw as ClimateExpenditureTagCategory;
   }
   return "Other";
+}
+
+function parseActionFundingAllocationStatus(raw: unknown): ActionFundingAllocationStatus {
+  if (raw === "Planned") {
+    return "Planned";
+  }
+  return "Planned";
+}
+
+function trimmedNullableId(value: unknown): string | null {
+  const s = nullableString(value);
+  if (!s?.trim()) {
+    return null;
+  }
+  return s.trim();
 }
 
 function activitySortMs(updatedAtUtc: string | null, createdAtUtc: string | null): number {
@@ -304,5 +322,112 @@ export function parseClimateExpenditureTagsResult(payload: unknown): ClimateExpe
     items,
     totalCount: totalCountRaw,
     includeInactive: includeInactiveRaw
+  };
+}
+
+function parseActionFundingAllocationRecord(raw: Record<string, unknown>): ActionFundingAllocationSummary | null {
+  const idRaw = raw.id;
+  const planId = raw.planId;
+  const actionItemId = raw.actionItemId;
+  const actionTitle = raw.actionTitle;
+  const fundingSourceId = raw.fundingSourceId;
+  const fundingSourceName = raw.fundingSourceName;
+  const fiscalYearRaw = raw.fiscalYear;
+  const allocatedRaw = raw.allocatedAmount;
+  const currencyCode = raw.currencyCode;
+  const allocationStatusRaw = raw.allocationStatus;
+  const createdAtUtc = nullableString(raw.createdAtUtc);
+
+  if (
+    !isNonEmptyString(idRaw)
+    || !isNonEmptyString(planId)
+    || !isNonEmptyString(actionItemId)
+    || !isNonEmptyString(actionTitle)
+    || !isNonEmptyString(fundingSourceId)
+    || !isNonEmptyString(fundingSourceName)
+    || typeof currencyCode !== "string"
+    || currencyCode.trim().length === 0
+  ) {
+    return null;
+  }
+
+  if (!isFiniteNumber(fiscalYearRaw) || !Number.isInteger(fiscalYearRaw)) {
+    return null;
+  }
+
+  if (!isFiniteNumber(allocatedRaw) || allocatedRaw < 0) {
+    return null;
+  }
+
+  const fundingProgramId = trimmedNullableId(raw.fundingProgramId);
+  const fundingProgramName = trimmedNullableId(raw.fundingProgramName);
+
+  const climateExpenditureTagId = trimmedNullableId(raw.climateExpenditureTagId);
+  const climateExpenditureTagCode = trimmedNullableId(raw.climateExpenditureTagCode);
+  const climateExpenditureTagName = trimmedNullableId(raw.climateExpenditureTagName);
+  const climateExpenditureTagCategory = trimmedNullableId(raw.climateExpenditureTagCategory);
+
+  return {
+    id: idRaw.trim(),
+    planId: planId.trim(),
+    actionItemId: actionItemId.trim(),
+    actionTitle: actionTitle.trim(),
+    fundingSourceId: fundingSourceId.trim(),
+    fundingSourceName: fundingSourceName.trim(),
+    fundingProgramId,
+    fundingProgramName,
+    climateExpenditureTagId,
+    climateExpenditureTagCode,
+    climateExpenditureTagName,
+    climateExpenditureTagCategory,
+    fiscalYear: fiscalYearRaw,
+    allocatedAmount: allocatedRaw,
+    currencyCode: currencyCode.trim().toUpperCase(),
+    allocationStatus: parseActionFundingAllocationStatus(allocationStatusRaw),
+    notes: trimmedNullableId(raw.notes),
+    createdAtUtc
+  };
+}
+
+export function parseActionFundingAllocationSummary(payload: unknown): ActionFundingAllocationSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid funding allocation response: expected object", 502, payload);
+  }
+  const parsed = parseActionFundingAllocationRecord(payload);
+  if (!parsed) {
+    throw new ApiError("Invalid funding allocation response: malformed fields", 502, payload);
+  }
+  return parsed;
+}
+
+export function parseActionFundingAllocationsResult(payload: unknown): ActionFundingAllocationsResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid funding allocations response: expected object", 502, payload);
+  }
+
+  const itemsRaw = payload.items;
+  if (!Array.isArray(itemsRaw)) {
+    throw new ApiError("Invalid funding allocations response: items must be an array", 502, payload);
+  }
+
+  const items: ActionFundingAllocationSummary[] = [];
+  for (const entry of itemsRaw) {
+    if (!isRecord(entry)) {
+      throw new ApiError("Invalid funding allocations response: malformed item", 502, payload);
+    }
+    const row = parseActionFundingAllocationRecord(entry);
+    if (!row) {
+      throw new ApiError("Invalid funding allocations response: malformed item fields", 502, payload);
+    }
+    items.push(row);
+  }
+
+  const totalRaw = payload.totalCount;
+  const totalCount =
+    isFiniteNumber(totalRaw) && totalRaw >= 0 && Number.isInteger(totalRaw) ? totalRaw : items.length;
+
+  return {
+    items,
+    totalCount
   };
 }

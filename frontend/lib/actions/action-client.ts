@@ -1,15 +1,20 @@
 import { endpoints } from "@/lib/api/endpoints";
 import { http } from "@/lib/api/http";
 import {
+  parseActionFundingAllocationSummary,
+  parseActionFundingAllocationsResult,
   parseActionItem,
   parseActionItemsList,
   parseClimateExpenditureTagsResult,
   parseSaveActionItemResult
 } from "@/lib/actions/action-parsers";
 import type {
+  ActionFundingAllocationSummary,
+  ActionFundingAllocationsResult,
   ActionItemDetail,
   ActionItemSummary,
   ClimateExpenditureTagsResult,
+  CreateActionFundingAllocationRequest,
   CreateActionItemRequest,
   SaveActionItemResult,
   UpdateActionItemRequest
@@ -52,5 +57,38 @@ export const actionClient = {
         : `/api/funding/climate-expenditure-tags`;
     const data = await http.get(path);
     return parseClimateExpenditureTagsResult(data);
+  },
+
+  async getActionFundingAllocationsByPlan(planId: string): Promise<ActionFundingAllocationsResult> {
+    const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/funding-allocations`);
+    return parseActionFundingAllocationsResult(data);
+  },
+
+  async getActionFundingAllocationsByAction(actionItemId: string): Promise<ActionFundingAllocationsResult> {
+    const data = await http.get(`/api/actions/${encodeURIComponent(actionItemId)}/funding-allocations`);
+    return parseActionFundingAllocationsResult(data);
+  },
+
+  async createActionFundingAllocation(
+    planId: string,
+    request: CreateActionFundingAllocationRequest
+  ): Promise<ActionFundingAllocationSummary> {
+    const body = {
+      actionItemId: request.actionItemId,
+      fundingSourceId: request.fundingSourceId,
+      fundingProgramId: request.fundingProgramId ?? null,
+      climateExpenditureTagId: request.climateExpenditureTagId ?? null,
+      fiscalYear: request.fiscalYear,
+      allocatedAmount: request.allocatedAmount,
+      currencyCode: request.currencyCode ?? null,
+      allocationStatus: request.allocationStatus ?? null,
+      notes: request.notes ?? null
+    };
+    const data = await http.postJson(`/api/plans/${encodeURIComponent(planId)}/funding-allocations`, body);
+    return parseActionFundingAllocationSummary(data);
+  },
+
+  async archiveActionFundingAllocation(allocationId: string): Promise<void> {
+    await http.deleteVoid(`/api/funding-allocations/${encodeURIComponent(allocationId)}`);
   }
 } as const;

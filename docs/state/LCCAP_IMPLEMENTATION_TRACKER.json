@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-07T00:00:00Z",
+      "last_updated_utc": "2026-05-07T12:00:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -16,7 +16,7 @@
   "current_state": {
     "phase": "Phase 2",
     "active_module": "Funding",
-    "active_task": "Slice 5D Action Funding Allocation Foundation API",
+    "active_task": "Slice 5E Funding Allocation UI",
     "status": "done"
   },
 
@@ -4517,7 +4517,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area; Phase 2 Slice 5C: CCET catalog + funding readiness panels beside Actions."
+        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area; Phase 2 Slice 5C–5E: CCET + readiness + ActionFundingAllocationPanel; planFundingAllocations state for readiness summary."
       },
       {
         "id": "FILE-0233",
@@ -4660,7 +4660,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "ActionType, ActionStatus, summary/detail, create/update/save result types for HTTP API; Phase 2 Slice 5C: ClimateExpenditureTagCategory, ClimateExpenditureTagSummary, ClimateExpenditureTagsResult."
+        "notes": "ActionType, ActionStatus, summary/detail, create/update/save result types for HTTP API; Slice 5C: CCET types; Slice 5E: ActionFundingAllocationStatus/Summary/Result, CreateActionFundingAllocationRequest."
       },
       {
         "id": "FILE-0246",
@@ -4671,7 +4671,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Defensive parse for list/detail/save; array and actions/items/action wrappers; actionItemId fallback; newest-first sort; Slice 5C: parseClimateExpenditureTagSummary, parseClimateExpenditureTagsResult (category fallback Other)."
+        "notes": "Defensive parse for list/detail/save; Slice 5C: CCET parsers; Slice 5E: parseActionFundingAllocationSummary, parseActionFundingAllocationsResult (allocationStatus coerce to Planned; totalCount fallback items.length)."
       },
       {
         "id": "FILE-0247",
@@ -4682,7 +4682,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "GET list/detail; POST create; PUT update via shared http layer; Slice 5C: GET /api/funding/climate-expenditure-tags via http.get."
+        "notes": "GET list/detail; POST create; PUT update via shared http layer; Slice 5C: CCET GET; Slice 5E: plan/action allocation GETs, POST create, DELETE archive (inline paths)."
       },
       {
         "id": "FILE-0248",
@@ -5587,7 +5587,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Phase 2 Slice 5C: budget/source summary, active CCET count, per-action suggested categories; no persistence."
+        "notes": "Slice 5C: budget/CCET readiness summary; Slice 5E: optional planAllocations prop for totals by currency and allocation count."
       },
       {
         "id": "FILE-0331",
@@ -5632,6 +5632,39 @@
         "source": "actual",
         "functions": [],
         "notes": "Phase 2 Slice 5D: list allocations per action row; tenant action validation; same DTO projection; FY/source/Created sort."
+      },
+      {
+        "id": "FILE-0335",
+        "path": "frontend/components/actions/action-funding-allocation-form.tsx",
+        "layer": "frontend",
+        "module": "funding",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5E: planned allocation create form; funding source/program UUID inputs; CCET select; Planned-only API payload; validation and API errors."
+      },
+      {
+        "id": "FILE-0336",
+        "path": "frontend/components/actions/action-funding-allocation-list.tsx",
+        "layer": "frontend",
+        "module": "funding",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5E: responsive allocation cards; Archive with confirm; loading/error/subset empty states."
+      },
+      {
+        "id": "FILE-0337",
+        "path": "frontend/components/actions/action-funding-allocation-panel.tsx",
+        "layer": "frontend",
+        "module": "funding",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5E: loads plan allocations; counts and currency sums; integrates form + list; list scope all vs selected action; notifies parent allocation list for readiness panel."
       }
     ]
   }
