@@ -1,14 +1,23 @@
 import { ApiError } from "@/lib/api/api-error";
 import type {
   ActionDashboardSummary,
+  BarangaySummary,
+  CreatedGeoJsonMapAssetSummary,
+  CriticalFacilitySummary,
   CreatePlanResult,
   CreateSectionCommentRequest,
   EvidenceDashboardSummary,
   ExportReadinessDashboardSummary,
   FundingCurrencyTotal,
   FundingDashboardSummary,
+  GeoJsonLayerFeatureSummary,
+  MapAssetSummary,
+  MapFormat,
+  MapType,
   MonitoringDashboardSummary,
   PlanActivityItem,
+  PlanMapWorkspaceCounts,
+  PlanMapWorkspaceResult,
   PlanOperationalDashboard,
   PlanSectionHistoryEntry,
   PlanSectionSummary,
@@ -816,5 +825,378 @@ export function parsePlanOperationalDashboard(payload: unknown): PlanOperational
     funding: parseFundingDashboardSummary(funding, payload),
     exportReadiness: parseExportReadinessDashboardSummary(exportReadiness, payload),
     recentActivity: recentActivity.map((item, i) => parsePlanActivityItem(item, i, payload))
+  };
+}
+
+function parseNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  return null;
+}
+
+function parseUnknownJsonValue(value: unknown): unknown {
+  return value;
+}
+
+export function parseBarangaySummary(raw: Record<string, unknown>, parent: unknown, index?: number): BarangaySummary {
+  const id = raw.id;
+  const name = raw.name;
+  const ix = index != null ? ` entry ${index}` : "";
+  if (!isNonEmptyString(id) || !isNonEmptyString(name)) {
+    throw new ApiError(`Invalid map workspace: barangay${ix}`, 502, parent);
+  }
+
+  let code: string | null = null;
+  const codeRaw = raw.code;
+  if (codeRaw === null || codeRaw === undefined) {
+    code = null;
+  } else if (typeof codeRaw === "string") {
+    code = codeRaw;
+  } else {
+    throw new ApiError(`Invalid map workspace: barangay code${ix}`, 502, parent);
+  }
+
+  const classificationRaw = raw.classification;
+  let classification: string | null = null;
+  if (classificationRaw === null || classificationRaw === undefined) {
+    classification = null;
+  } else if (typeof classificationRaw === "string") {
+    classification = classificationRaw;
+  } else {
+    throw new ApiError(`Invalid map workspace: barangay classification${ix}`, 502, parent);
+  }
+
+  return {
+    id,
+    name,
+    code,
+    latitude: parseNullableNumber(raw.latitude),
+    longitude: parseNullableNumber(raw.longitude),
+    landAreaHectares: parseNullableNumber(raw.landAreaHectares),
+    population: parseNullableNumber(raw.population),
+    households: parseNullableNumber(raw.households),
+    classification
+  };
+}
+
+export function parseCriticalFacilitySummary(
+  raw: Record<string, unknown>,
+  parent: unknown,
+  index?: number
+): CriticalFacilitySummary {
+  const id = raw.id;
+  const name = raw.name;
+  const facilityType = raw.facilityType;
+  const isEvacuationSite = raw.isEvacuationSite;
+  const ix = index != null ? ` entry ${index}` : "";
+  if (!isNonEmptyString(id) || !isNonEmptyString(name) || typeof facilityType !== "string" || !facilityType.trim()) {
+    throw new ApiError(`Invalid map workspace: facility${ix}`, 502, parent);
+  }
+  if (typeof isEvacuationSite !== "boolean") {
+    throw new ApiError(`Invalid map workspace: facility evacuation flag${ix}`, 502, parent);
+  }
+
+  let barangayId: string | null = null;
+  const bId = raw.barangayId;
+  if (bId === null || bId === undefined) {
+    barangayId = null;
+  } else if (typeof bId === "string" && bId.trim()) {
+    barangayId = bId;
+  } else {
+    throw new ApiError(`Invalid map workspace: facility barangay id${ix}`, 502, parent);
+  }
+
+  let barangayName: string | null = null;
+  const bName = raw.barangayName;
+  if (bName === null || bName === undefined) {
+    barangayName = null;
+  } else if (typeof bName === "string") {
+    barangayName = bName;
+  } else {
+    throw new ApiError(`Invalid map workspace: facility barangay name${ix}`, 502, parent);
+  }
+
+  let description: string | null = null;
+  const desc = raw.description;
+  if (desc === null || desc === undefined) {
+    description = null;
+  } else if (typeof desc === "string") {
+    description = desc;
+  } else {
+    throw new ApiError(`Invalid map workspace: facility description${ix}`, 502, parent);
+  }
+
+  return {
+    id,
+    name,
+    facilityType: facilityType.trim(),
+    barangayId,
+    barangayName,
+    latitude: parseNullableNumber(raw.latitude),
+    longitude: parseNullableNumber(raw.longitude),
+    capacity: parseNullableNumber(raw.capacity),
+    isEvacuationSite,
+    description
+  };
+}
+
+export function parseMapAssetSummary(raw: Record<string, unknown>, parent: unknown, index?: number): MapAssetSummary {
+  const id = raw.id;
+  const name = raw.name;
+  const mapType = raw.mapType;
+  const mapFormat = raw.mapFormat;
+  const originalFileName = raw.originalFileName;
+  const contentType = raw.contentType;
+  const fileSizeBytes = raw.fileSizeBytes;
+  const featureCount = raw.featureCount;
+  const ix = index != null ? ` entry ${index}` : "";
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(name) ||
+    typeof mapType !== "string" ||
+    !mapType.trim() ||
+    typeof mapFormat !== "string" ||
+    !mapFormat.trim() ||
+    !isNonEmptyString(originalFileName) ||
+    typeof contentType !== "string" ||
+    !isFiniteNumber(fileSizeBytes) ||
+    !isFiniteNumber(featureCount) ||
+    !Number.isInteger(featureCount)
+  ) {
+    throw new ApiError(`Invalid map workspace: map asset${ix}`, 502, parent);
+  }
+
+  let description: string | null = null;
+  const desc = raw.description;
+  if (desc === null || desc === undefined) {
+    description = null;
+  } else if (typeof desc === "string") {
+    description = desc;
+  } else {
+    throw new ApiError(`Invalid map workspace: map description${ix}`, 502, parent);
+  }
+
+  const createdAtUtc = optionalIsoOrNull(raw.createdAtUtc);
+
+  return {
+    id,
+    name,
+    mapType: mapType.trim() as MapType,
+    mapFormat: mapFormat.trim() as MapFormat,
+    description,
+    boundsJson: parseUnknownJsonValue(raw.boundsJson),
+    defaultStyleJson: parseUnknownJsonValue(raw.defaultStyleJson),
+    originalFileName,
+    contentType,
+    fileSizeBytes,
+    createdAtUtc,
+    featureCount
+  };
+}
+
+export function parseGeoJsonLayerFeatureSummary(
+  raw: Record<string, unknown>,
+  parent: unknown,
+  index: number
+): GeoJsonLayerFeatureSummary {
+  const id = raw.id;
+  const mapAssetId = raw.mapAssetId;
+  if (!isNonEmptyString(id) || !isNonEmptyString(mapAssetId)) {
+    throw new ApiError(`Invalid features list: entry ${index}`, 502, parent);
+  }
+
+  let featureId: string | null = null;
+  const fId = raw.featureId;
+  if (fId === null || fId === undefined) {
+    featureId = null;
+  } else if (typeof fId === "string") {
+    featureId = fId;
+  } else {
+    throw new ApiError(`Invalid features list: featureId ${index}`, 502, parent);
+  }
+
+  let featureType: string | null = null;
+  const fType = raw.featureType;
+  if (fType === null || fType === undefined) {
+    featureType = null;
+  } else if (typeof fType === "string") {
+    featureType = fType;
+  } else {
+    throw new ApiError(`Invalid features list: featureType ${index}`, 502, parent);
+  }
+
+  let displayName: string | null = null;
+  const dName = raw.displayName;
+  if (dName === null || dName === undefined) {
+    displayName = null;
+  } else if (typeof dName === "string") {
+    displayName = dName;
+  } else {
+    throw new ApiError(`Invalid features list: displayName ${index}`, 502, parent);
+  }
+
+  return {
+    id,
+    mapAssetId,
+    featureId,
+    featureType,
+    displayName,
+    propertiesJson: parseUnknownJsonValue(raw.propertiesJson),
+    geometryJson: parseUnknownJsonValue(raw.geometryJson),
+    styleJson: parseUnknownJsonValue(raw.styleJson),
+    createdAtUtc: optionalIsoOrNull(raw.createdAtUtc)
+  };
+}
+
+function parsePlanMapWorkspaceCounts(raw: Record<string, unknown>, parent: unknown): PlanMapWorkspaceCounts {
+  const fields = [
+    "mapAssets",
+    "geoJsonLayers",
+    "barangays",
+    "criticalFacilities",
+    "evacuationSites"
+  ] as const;
+  const nums: Record<string, number> = {};
+  for (const k of fields) {
+    const v = raw[k];
+    if (!isFiniteNumber(v)) {
+      throw new ApiError(`Invalid map workspace counts: missing ${k}`, 502, parent);
+    }
+    nums[k] = v;
+  }
+  return nums as unknown as PlanMapWorkspaceCounts;
+}
+
+export function parsePlanMapWorkspace(payload: unknown): PlanMapWorkspaceResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid map workspace response", 502, payload);
+  }
+
+  const planIdRaw = payload.planId;
+  if (!isNonEmptyString(planIdRaw)) {
+    throw new ApiError("Invalid map workspace: planId", 502, payload);
+  }
+
+  const mapAssetsRaw = payload.mapAssets;
+  const barangaysRaw = payload.barangays;
+  const facilitiesRaw = payload.criticalFacilities;
+  const countsRaw = payload.counts;
+  if (
+    !Array.isArray(mapAssetsRaw) ||
+    !Array.isArray(barangaysRaw) ||
+    !Array.isArray(facilitiesRaw) ||
+    !isRecord(countsRaw)
+  ) {
+    throw new ApiError("Invalid map workspace arrays", 502, payload);
+  }
+
+  const mapAssets = mapAssetsRaw.map((x, i) => {
+    if (!isRecord(x)) {
+      throw new ApiError(`Invalid mapAssets[${i}]`, 502, payload);
+    }
+    return parseMapAssetSummary(x, payload, i);
+  });
+  const barangays = barangaysRaw.map((x, i) => {
+    if (!isRecord(x)) {
+      throw new ApiError(`Invalid barangays[${i}]`, 502, payload);
+    }
+    return parseBarangaySummary(x, payload, i);
+  });
+  const criticalFacilities = facilitiesRaw.map((x, i) => {
+    if (!isRecord(x)) {
+      throw new ApiError(`Invalid criticalFacilities[${i}]`, 502, payload);
+    }
+    return parseCriticalFacilitySummary(x, payload, i);
+  });
+
+  const counts = parsePlanMapWorkspaceCounts(countsRaw, payload);
+
+  return {
+    planId: planIdRaw,
+    mapAssets,
+    barangays,
+    criticalFacilities,
+    counts
+  };
+}
+
+export function parseGeoJsonLayerFeatureSummaries(payload: unknown): GeoJsonLayerFeatureSummary[] {
+  let items: unknown[] = [];
+  if (isRecord(payload) && Array.isArray(payload.items)) {
+    items = payload.items;
+  } else if (Array.isArray(payload)) {
+    items = payload;
+  } else {
+    throw new ApiError("Invalid features response", 502, payload);
+  }
+
+  return items.map((item, i) => {
+    if (!isRecord(item)) {
+      throw new ApiError(`Invalid features list: entry ${i}`, 502, payload);
+    }
+    return parseGeoJsonLayerFeatureSummary(item, payload, i);
+  });
+}
+
+export function parseCreatedGeoJsonMapSummary(payload: unknown): CreatedGeoJsonMapAssetSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid create GeoJSON layer response", 502, payload);
+  }
+
+  const id = payload.id;
+  const name = payload.name;
+  const mapType = payload.mapType;
+  const mapFormat = payload.mapFormat;
+  const featureCount = payload.featureCount;
+  const originalFileName = payload.originalFileName;
+  const contentType = payload.contentType;
+  const fileSizeBytes = payload.fileSizeBytes;
+
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(name) ||
+    typeof mapType !== "string" ||
+    !mapType.trim() ||
+    typeof mapFormat !== "string" ||
+    !mapFormat.trim() ||
+    !isFiniteNumber(featureCount) ||
+    !Number.isInteger(featureCount) ||
+    !isNonEmptyString(originalFileName) ||
+    typeof contentType !== "string"
+  ) {
+    throw new ApiError("Invalid create GeoJSON layer response fields", 502, payload);
+  }
+
+  let description: string | null = null;
+  const desc = payload.description;
+  if (desc === null || desc === undefined) {
+    description = null;
+  } else if (typeof desc === "string") {
+    description = desc;
+  } else {
+    throw new ApiError("Invalid create GeoJSON layer description", 502, payload);
+  }
+
+  const createdAtUtc = optionalIsoOrNull(payload.createdAtUtc);
+
+  if (!isFiniteNumber(fileSizeBytes)) {
+    throw new ApiError("Invalid create GeoJSON layer fileSizeBytes", 502, payload);
+  }
+
+  return {
+    id,
+    name,
+    mapType: mapType.trim() as MapType,
+    mapFormat: mapFormat.trim() as MapFormat,
+    description,
+    featureCount,
+    originalFileName,
+    contentType,
+    fileSizeBytes,
+    createdAtUtc
   };
 }

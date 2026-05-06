@@ -432,6 +432,11 @@ public sealed class AuthTests
             modelBuilder.Ignore<ClimateExpenditureTag>();
             modelBuilder.Ignore<FundingProgram>();
             modelBuilder.Ignore<FundingSource>();
+            modelBuilder.Ignore<Barangay>();
+            modelBuilder.Ignore<CriticalFacility>();
+            modelBuilder.Ignore<MapAsset>();
+            modelBuilder.Ignore<MapAnnotation>();
+            modelBuilder.Ignore<GeoJsonLayerFeature>();
             // Do NOT ignore RefreshToken - it is required for Slice 2 session tests
 
             _ = modelBuilder.Entity<User>(builder =>

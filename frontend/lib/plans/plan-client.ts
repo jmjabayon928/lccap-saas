@@ -2,6 +2,9 @@ import { endpoints } from "@/lib/api/endpoints";
 import { http } from "@/lib/api/http";
 import {
   parseCreatePlanResult,
+  parseCreatedGeoJsonMapSummary,
+  parseGeoJsonLayerFeatureSummaries,
+  parsePlanMapWorkspace,
   parsePlanOperationalDashboard,
   parsePlanSection,
   parsePlanSectionHistoryList,
@@ -12,9 +15,13 @@ import {
   parseSavePlanSectionResult
 } from "@/lib/plans/plan-parsers";
 import type {
+  CreateGeoJsonLayerRequest,
   CreatePlanRequest,
   CreatePlanResult,
   CreateSectionCommentRequest,
+  CreatedGeoJsonMapAssetSummary,
+  GeoJsonLayerFeatureSummary,
+  PlanMapWorkspaceResult,
   PlanOperationalDashboard,
   PlanSectionDetail,
   PlanSectionHistoryEntry,
@@ -81,6 +88,44 @@ export const planClient = {
         : "";
     const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/operational-dashboard${suffix}`);
     return parsePlanOperationalDashboard(data);
+  },
+
+  async getPlanMapWorkspace(planId: string): Promise<PlanMapWorkspaceResult> {
+    const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/map-workspace`);
+    return parsePlanMapWorkspace(data);
+  },
+
+  async createGeoJsonLayer(
+    planId: string,
+    request: CreateGeoJsonLayerRequest
+  ): Promise<CreatedGeoJsonMapAssetSummary> {
+    const body = {
+      fileAssetId: request.fileAssetId,
+      name: request.name,
+      mapType: request.mapType,
+      description: request.description ?? null,
+      geoJson: request.geoJson,
+      defaultStyleJson: request.defaultStyleJson ?? undefined,
+      boundsJson: request.boundsJson ?? undefined
+    };
+    const data = await http.postJson(`/api/plans/${encodeURIComponent(planId)}/geojson-layers`, body);
+    return parseCreatedGeoJsonMapSummary(data);
+  },
+
+  async getGeoJsonLayerFeatures(
+    mapAssetId: string,
+    options?: { limit?: number }
+  ): Promise<readonly GeoJsonLayerFeatureSummary[]> {
+    const qs =
+      options?.limit != null
+        ? `?limit=${encodeURIComponent(String(options.limit))}`
+        : "";
+    const data = await http.get(`/api/map-assets/${encodeURIComponent(mapAssetId)}/features${qs}`);
+    return parseGeoJsonLayerFeatureSummaries(data);
+  },
+
+  async archiveMapAsset(mapAssetId: string): Promise<void> {
+    await http.deleteVoid(`/api/map-assets/${encodeURIComponent(mapAssetId)}`);
   },
 
   async getPlanSections(planId: string): Promise<PlanSectionSummary[]> {

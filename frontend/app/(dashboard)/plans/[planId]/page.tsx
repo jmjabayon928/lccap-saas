@@ -31,6 +31,7 @@ import { MonitoringUpdateForm } from "@/components/monitoring/monitoring-update-
 import { MonitoringUpdateHistory } from "@/components/monitoring/monitoring-update-history";
 import { ExportPanel } from "@/components/exports/export-panel";
 import { EvidenceIndexPanel } from "@/components/exports/evidence-index-panel";
+import { PlanMapWorkspace } from "@/components/plans/plan-map-workspace";
 import { isApiError } from "@/lib/api/api-error";
 import { actionClient } from "@/lib/actions/action-client";
 import { documentClient } from "@/lib/documents/document-client";
@@ -908,6 +909,8 @@ export default function PlanWorkspacePage() {
             <EvidenceIndexPanel planId={planId} />
             <ExportPanel planId={planId} />
           </section>
+
+          <PlanMapWorkspace planId={planId} />
         </>
       ) : null}
     </div>

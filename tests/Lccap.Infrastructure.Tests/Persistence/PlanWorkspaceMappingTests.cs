@@ -373,12 +373,142 @@ public class PlanWorkspaceMappingTests
     }
 
     [Fact]
-    public void ExportJob_row_version_is_concurrency_token()
+    public void Tables_map_include_map_workspace_entities()
     {
         using var ctx = CreateContext();
-        var rowVersion = ctx.Model.FindEntityType(typeof(ExportJob))!.FindProperty(nameof(ExportJob.RowVersion));
 
-        Assert.NotNull(rowVersion);
-        Assert.True(rowVersion!.IsConcurrencyToken);
+        Assert.Equal("barangays", ctx.Model.FindEntityType(typeof(Barangay))!.GetTableName());
+        Assert.Equal("critical_facilities", ctx.Model.FindEntityType(typeof(CriticalFacility))!.GetTableName());
+        Assert.Equal("map_assets", ctx.Model.FindEntityType(typeof(MapAsset))!.GetTableName());
+        Assert.Equal("map_annotations", ctx.Model.FindEntityType(typeof(MapAnnotation))!.GetTableName());
+        Assert.Equal(
+            "geojson_layer_features",
+            ctx.Model.FindEntityType(typeof(GeoJsonLayerFeature))!.GetTableName());
+    }
+
+    [Fact]
+    public void Row_version_is_concurrency_token_for_map_workspace_entities()
+    {
+        using var ctx = CreateContext();
+
+        foreach (var clrType in new[]
+                 {
+                     typeof(Barangay),
+                     typeof(CriticalFacility),
+                     typeof(MapAsset),
+                     typeof(MapAnnotation),
+                     typeof(GeoJsonLayerFeature),
+                 })
+        {
+            var rv = ctx.Model.FindEntityType(clrType)!.FindProperty(nameof(BaseEntity.RowVersion));
+            Assert.NotNull(rv);
+            Assert.True(rv!.IsConcurrencyToken);
+            Assert.Equal("bytea", rv.GetRelationalTypeMapping()?.StoreType);
+            Assert.Equal("row_version", rv.GetColumnName());
+        }
+    }
+
+    [Fact]
+    public void Map_workspace_entities_map_jsonb_columns()
+    {
+        using var ctx = CreateContext();
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(Barangay))!.FindProperty(nameof(Barangay.BoundaryGeoJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(Barangay))!.FindProperty(nameof(Barangay.MetadataJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(CriticalFacility))!.FindProperty(nameof(CriticalFacility.MetadataJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(MapAsset))!.FindProperty(nameof(MapAsset.BoundsJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(MapAsset))!.FindProperty(nameof(MapAsset.DefaultStyleJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(MapAnnotation))!.FindProperty(nameof(MapAnnotation.GeometryJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(MapAnnotation))!.FindProperty(nameof(MapAnnotation.StyleJson))!
+                .GetRelationalTypeMapping()?.StoreType);
+
+        var geoFeat = ctx.Model.FindEntityType(typeof(GeoJsonLayerFeature))!;
+        Assert.Equal(
+            "jsonb",
+            geoFeat.FindProperty(nameof(GeoJsonLayerFeature.PropertiesJson))!.GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal(
+            "jsonb",
+            geoFeat.FindProperty(nameof(GeoJsonLayerFeature.GeometryJson))!.GetRelationalTypeMapping()?.StoreType);
+        Assert.Equal(
+            "jsonb",
+            geoFeat.FindProperty(nameof(GeoJsonLayerFeature.StyleJson))!.GetRelationalTypeMapping()?.StoreType);
+    }
+
+    [Fact]
+    public void Map_workspace_foreign_keys_match_expected_accounts_and_cascades()
+    {
+        using var ctx = CreateContext();
+
+        var barangayFks = ctx.Model.FindEntityType(typeof(Barangay))!.GetForeignKeys();
+        Assert.Contains(barangayFks, fk => fk.GetConstraintName() == "fk_barangays_account");
+
+        var cfFks = ctx.Model.FindEntityType(typeof(CriticalFacility))!.GetForeignKeys();
+        Assert.Contains(cfFks, fk => fk.GetConstraintName() == "fk_critical_facilities_account");
+        Assert.Contains(cfFks, fk => fk.GetConstraintName() == "fk_critical_facilities_plan");
+        Assert.Contains(cfFks, fk => fk.GetConstraintName() == "fk_critical_facilities_barangay");
+
+        var assetFks = ctx.Model.FindEntityType(typeof(MapAsset))!.GetForeignKeys();
+        Assert.Contains(assetFks, fk => fk.GetConstraintName() == "fk_map_assets_account");
+        Assert.Contains(assetFks, fk => fk.GetConstraintName() == "fk_map_assets_plan");
+        Assert.Contains(assetFks, fk => fk.GetConstraintName() == "fk_map_assets_file_asset");
+
+        var annFks = ctx.Model.FindEntityType(typeof(MapAnnotation))!.GetForeignKeys();
+        Assert.Contains(annFks, fk => fk.GetConstraintName() == "fk_map_annotations_account");
+        Assert.Contains(annFks, fk => fk.GetConstraintName() == "fk_map_annotations_map_asset");
+
+        var featFks = ctx.Model.FindEntityType(typeof(GeoJsonLayerFeature))!.GetForeignKeys();
+        Assert.Contains(featFks, fk => fk.GetConstraintName() == "fk_geojson_layer_features_account");
+        Assert.Contains(featFks, fk => fk.GetConstraintName() == "fk_geojson_layer_features_map_asset");
+
+        var mapToPlan = assetFks.Single(fk => fk.GetConstraintName() == "fk_map_assets_plan");
+        Assert.Equal(DeleteBehavior.Cascade, mapToPlan.DeleteBehavior);
+
+        var annoToAsset = annFks.Single(fk => fk.GetConstraintName() == "fk_map_annotations_map_asset");
+        Assert.Equal(DeleteBehavior.Cascade, annoToAsset.DeleteBehavior);
+
+        var cfToBrgy = cfFks.Single(fk => fk.GetConstraintName() == "fk_critical_facilities_barangay");
+        Assert.Equal(DeleteBehavior.SetNull, cfToBrgy.DeleteBehavior);
+    }
+
+    [Fact]
+    public void Map_assets_and_annotations_indexes_match_expected_filtered_indexes()
+    {
+        using var ctx = CreateContext();
+
+        var assetIndexes = ctx.Model.FindEntityType(typeof(MapAsset))!.GetIndexes();
+        Assert.Contains(
+            assetIndexes,
+            i => i.GetDatabaseName() == "ix_map_assets_account_plan" && i.GetFilter() != null);
+        Assert.Contains(
+            assetIndexes,
+            i => i.GetDatabaseName() == "ix_map_assets_account_type" && i.GetFilter() != null);
+
+        var annIndexes = ctx.Model.FindEntityType(typeof(MapAnnotation))!.GetIndexes();
+        Assert.Contains(
+            annIndexes,
+            i => i.GetDatabaseName() == "ix_map_annotations_account_map_asset" && i.GetFilter() != null);
     }
 }

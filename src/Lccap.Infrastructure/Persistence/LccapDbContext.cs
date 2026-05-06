@@ -54,6 +54,16 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<ActionFundingAllocation> ActionFundingAllocations => Set<ActionFundingAllocation>();
 
+    public DbSet<Barangay> Barangays => Set<Barangay>();
+
+    public DbSet<CriticalFacility> CriticalFacilities => Set<CriticalFacility>();
+
+    public DbSet<MapAsset> MapAssets => Set<MapAsset>();
+
+    public DbSet<MapAnnotation> MapAnnotations => Set<MapAnnotation>();
+
+    public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => Set<GeoJsonLayerFeature>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

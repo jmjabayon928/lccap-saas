@@ -25,5 +25,15 @@ public interface ILccapDbContext
 
     DbSet<ActionFundingAllocation> ActionFundingAllocations { get; }
 
+    DbSet<Barangay> Barangays { get; }
+
+    DbSet<CriticalFacility> CriticalFacilities { get; }
+
+    DbSet<MapAsset> MapAssets { get; }
+
+    DbSet<MapAnnotation> MapAnnotations { get; }
+
+    DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

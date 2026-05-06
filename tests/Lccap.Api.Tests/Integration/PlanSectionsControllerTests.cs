@@ -502,6 +502,11 @@ public sealed class PlanSectionsControllerTests
         public DbSet<FundingSource> FundingSources => null!;
         public DbSet<FundingProgram> FundingPrograms => null!;
         public DbSet<ActionFundingAllocation> ActionFundingAllocations => null!;
+        public DbSet<Barangay> Barangays => null!;
+        public DbSet<CriticalFacility> CriticalFacilities => null!;
+        public DbSet<MapAsset> MapAssets => null!;
+        public DbSet<MapAnnotation> MapAnnotations => null!;
+        public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

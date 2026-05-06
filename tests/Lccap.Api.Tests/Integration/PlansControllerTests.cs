@@ -2,6 +2,8 @@ using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Maps.Commands;
+using Lccap.Application.Maps.Queries;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
 using Lccap.Domain.Entities;
@@ -1010,6 +1012,751 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Map_workspace_returns_not_found_for_cross_tenant_plan()
+    {
+        using var db = CreateDbContext();
+        var ownerAccountId = Guid.NewGuid();
+        var requesterAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, ownerAccountId, "Other");
+        var controller = CreateController(db, requesterAccountId, userId);
+
+        var result = await controller.GetPlanMapWorkspace(
+            plan.Id,
+            new GetPlanMapWorkspaceQuery(db, new TestCurrentUserContext(requesterAccountId, userId, true, WorkspaceRoles.Admin)),
+            CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Map_workspace_excludes_soft_deleted_map_assets_facilities_and_barangays()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Map plan");
+        var now = DateTimeOffset.UtcNow;
+
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+
+        var bActive = NewBarangay(accountId, "Alpha", deleted: false);
+        var bGone = NewBarangay(accountId, "GoneTown", deleted: true, now);
+        db.Barangays.AddRange(bActive, bGone);
+
+        var cfActive = NewCriticalFacility(accountId, plan.Id, bActive.Id, "Hosp", "Hospital", deleted: false);
+        var cfGone = NewCriticalFacility(accountId, plan.Id, null, "Old", "Other", deleted: true, now);
+        db.CriticalFacilities.AddRange(cfActive, cfGone);
+
+        var f2 = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(f2);
+
+        var mActive = NewMapAsset(accountId, plan.Id, file.Id, "Layer A", deleted: false);
+        var mGone = NewMapAsset(accountId, plan.Id, f2.Id, "Gone Layer", deleted: true, now);
+        db.MapAssets.AddRange(mActive, mGone);
+
+        var featOk = NewGeoFeature(accountId, mActive.Id, deleted: false);
+        var featGone = NewGeoFeature(accountId, mActive.Id, deleted: true, now);
+        db.GeoJsonLayerFeatures.AddRange(featOk, featGone);
+
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanMapWorkspaceQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Viewer));
+
+        var result = await controller.GetPlanMapWorkspace(plan.Id, q, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var ws = Assert.IsType<PlanMapWorkspaceDto>(ok.Value);
+        Assert.Single(ws.MapAssets);
+        Assert.Equal("Layer A", ws.MapAssets[0].Name);
+        Assert.Equal(1, ws.MapAssets[0].FeatureCount);
+        Assert.Single(ws.Barangays);
+        Assert.Equal("Alpha", ws.Barangays[0].Name);
+        Assert.Single(ws.CriticalFacilities);
+        Assert.Equal("Hosp", ws.CriticalFacilities[0].Name);
+        Assert.Equal(1, ws.Counts.MapAssets);
+        Assert.Equal(1, ws.Counts.GeoJsonLayers);
+        Assert.Equal(1, ws.Counts.Barangays);
+        Assert.Equal(1, ws.Counts.CriticalFacilities);
+    }
+
+    [Fact]
+    public async Task Map_workspace_excludes_map_assets_when_joined_file_asset_belongs_to_other_tenant()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Map plan");
+
+        var fileOtherTenant = SeedGeoJsonFileAsset(otherAccountId);
+        db.FileAssets.Add(fileOtherTenant);
+
+        var badAsset = NewMapAsset(accountId, plan.Id, fileOtherTenant.Id, "Layer A", deleted: false);
+        db.MapAssets.Add(badAsset);
+
+        db.GeoJsonLayerFeatures.Add(NewGeoFeature(accountId, badAsset.Id, deleted: false));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanMapWorkspaceQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+
+        var result = await controller.GetPlanMapWorkspace(plan.Id, q, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var ws = Assert.IsType<PlanMapWorkspaceDto>(ok.Value);
+
+        Assert.Empty(ws.MapAssets);
+        Assert.Equal(0, ws.Counts.MapAssets);
+        Assert.Equal(0, ws.Counts.GeoJsonLayers);
+    }
+
+    [Fact]
+    public async Task Map_workspace_returns_correct_feature_counts_for_multiple_map_assets()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Map plan");
+
+        var file1 = SeedGeoJsonFileAsset(accountId);
+        var file2 = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.AddRange(file1, file2);
+        await db.SaveChangesAsync();
+
+        var asset1 = NewMapAsset(accountId, plan.Id, file1.Id, "Layer 1", deleted: false);
+        var asset2 = NewMapAsset(accountId, plan.Id, file2.Id, "Layer 2", deleted: false);
+        db.MapAssets.AddRange(asset1, asset2);
+
+        db.GeoJsonLayerFeatures.AddRange(
+            NewGeoFeature(accountId, asset1.Id, deleted: false),
+            NewGeoFeature(accountId, asset1.Id, deleted: false),
+            NewGeoFeature(accountId, asset2.Id, deleted: false),
+            NewGeoFeature(accountId, asset2.Id, deleted: false),
+            NewGeoFeature(accountId, asset2.Id, deleted: false));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanMapWorkspaceQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+
+        var result = await controller.GetPlanMapWorkspace(plan.Id, q, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var ws = Assert.IsType<PlanMapWorkspaceDto>(ok.Value);
+
+        Assert.Equal(2, ws.MapAssets.Count);
+        Assert.Equal(2, ws.MapAssets.Single(m => m.Id == asset1.Id).FeatureCount);
+        Assert.Equal(3, ws.MapAssets.Single(m => m.Id == asset2.Id).FeatureCount);
+
+        Assert.Equal(2, ws.Counts.MapAssets);
+        Assert.Equal(2, ws.Counts.GeoJsonLayers);
+    }
+
+    [Fact]
+    public async Task Map_workspace_response_serializes_without_stored_path()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "P");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        db.MapAssets.Add(NewMapAsset(accountId, plan.Id, file.Id, "L", deleted: false));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanMapWorkspaceQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.GetPlanMapWorkspace(plan.Id, q, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+
+        var json = JsonSerializer.Serialize(ok.Value);
+        Assert.DoesNotContain("stored_path", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("storedPath", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_creates_map_asset_and_features()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Planner));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Flood zones", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+        var summary = Assert.IsType<CreatedGeoJsonMapAssetSummaryDto>(created.Value);
+        Assert.Equal(1, summary.FeatureCount);
+
+        Assert.Single(await db.MapAssets.Where(m => m.PlanId == plan.Id && !m.IsDeleted).ToListAsync());
+        Assert.Single(await db.GeoJsonLayerFeatures.Where(g => !g.IsDeleted).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_boolean_is_stored_as_null()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":true,\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Null(feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_object_is_stored_as_null()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":{},\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<ObjectResult>(result);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Null(feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_array_is_stored_as_null()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":[],\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<ObjectResult>(result);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Null(feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_null_is_stored_as_null()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":null,\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<ObjectResult>(result);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Null(feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_missing_is_stored_as_null()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Null(feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_string_is_stored_as_value()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Equal("x1", feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_feature_id_number_is_stored_as_raw_numeric_text()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":123,\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Equal("123", feature.FeatureId);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_when_feature_geometry_is_null()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":null}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_when_feature_geometry_missing()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_when_geometry_type_is_unsupported()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Circle\",\"coordinates\":[125,7]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_defaults_feature_style_when_properties_style_is_not_object()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\",\"style\":\"red\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+
+        var feature = await db.GeoJsonLayerFeatures.SingleAsync(g => !g.IsDeleted);
+        Assert.Equal("{}", feature.StyleJson.RootElement.GetRawText());
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_oversized_default_style_json()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        var big = new string('a', 60_000);
+        using var defaultStyle = JsonDocument.Parse("{\"style\":\"" + big + "\"}");
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, defaultStyle, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_oversized_bounds_json()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        var big = new string('b', 60_000);
+        using var bounds = JsonDocument.Parse("{\"bounds\":\"" + big + "\"}");
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Layer", "Flood", null, geo, null, bounds),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_non_feature_collection()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[0,0]},\"properties\":{}}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "X", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_over_500_features()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        List<string> parts = [];
+        for (var i = 0; i < 501; i++)
+        {
+            var lon = (125m + i * 0.001m).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            parts.Add(
+                $"{{\"type\":\"Feature\",\"geometry\":{{\"type\":\"Point\",\"coordinates\":[{lon},7]}},\"properties\":{{}}}}");
+        }
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" + string.Join(",", parts) + "]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Big", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_invalid_map_type()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[125,7]},\"properties\":{}}]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Bad", "NotAType", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Geojson_layer_post_rejects_cross_tenant_file_asset()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var fileOther = SeedGeoJsonFileAsset(otherAccountId);
+        db.FileAssets.Add(fileOther);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[125,7]},\"properties\":{}}]}");
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(fileOther.Id, "X", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Map_features_get_returns_only_same_tenant()
+    {
+        using var db = CreateDbContext();
+        var otherAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        var asset = NewMapAsset(accountId, plan.Id, file.Id, "L", deleted: false);
+        db.MapAssets.Add(asset);
+        db.GeoJsonLayerFeatures.Add(NewGeoFeature(accountId, asset.Id, deleted: false));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, otherAccountId, userId);
+        var q = new GetGeoJsonLayerFeaturesQuery(db, new TestCurrentUserContext(otherAccountId, userId, true, WorkspaceRoles.Admin));
+
+        var result = await controller.GetGeoJsonLayerFeatures(asset.Id, null, q, CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Archive_map_asset_soft_deletes_related_features()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        var asset = NewMapAsset(accountId, plan.Id, file.Id, "L", deleted: false);
+        db.MapAssets.Add(asset);
+        db.GeoJsonLayerFeatures.Add(NewGeoFeature(accountId, asset.Id, deleted: false));
+        db.MapAnnotations.Add(NewMapAnnotation(accountId, asset.Id, deleted: false));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var cmd = new ArchiveMapAssetCommand(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+        var result = await controller.ArchiveMapAsset(asset.Id, cmd, CancellationToken.None);
+        _ = Assert.IsType<NoContentResult>(result);
+
+        var reloaded = await db.MapAssets.SingleAsync(m => m.Id == asset.Id);
+        Assert.True(reloaded.IsDeleted);
+        Assert.All(
+            await db.GeoJsonLayerFeatures.Where(g => g.MapAssetId == asset.Id).ToListAsync(),
+            g => Assert.True(g.IsDeleted));
+        Assert.All(
+            await db.MapAnnotations.Where(a => a.MapAssetId == asset.Id).ToListAsync(),
+            a => Assert.True(a.IsDeleted));
+    }
+
+    [Fact]
     public async Task Operational_dashboard_activity_omits_sensitive_audit_fields_and_respects_limit()
     {
         using var db = CreateDbContext();
@@ -1386,6 +2133,139 @@ public sealed class PlansControllerTests
             RowVersion = new byte[] { 8, 2, 3, 4, 5, 6, 7, 8 },
         };
         return a;
+    }
+
+    private static FileAsset SeedGeoJsonFileAsset(Guid accountId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            OwnerType = "GeoJsonAttachment",
+            OwnerId = null,
+            OriginalFileName = "layer.geojson",
+            StoredFileName = "layer.bin",
+            StoredPath = "internal/geo-path",
+            ContentType = "application/geo+json",
+            FileExtension = ".geojson",
+            FileSizeBytes = 120,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 16, 2, 3, 4, 5, 6, 7, 8 },
+        };
+
+    private static Barangay NewBarangay(
+        Guid accountId,
+        string name,
+        bool deleted,
+        DateTimeOffset? deletedAtUtc = null,
+        Guid? deletedByUserId = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new Barangay
+        {
+            AccountId = accountId,
+            Name = name,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = now,
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? deletedAtUtc ?? now : null,
+            DeletedByUserId = deleted ? deletedByUserId ?? Guid.NewGuid() : null,
+            RowVersion = new byte[] { 11, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static CriticalFacility NewCriticalFacility(
+        Guid accountId,
+        Guid planId,
+        Guid? barangayId,
+        string name,
+        string facilityType,
+        bool deleted,
+        DateTimeOffset? deletedAtUtc = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new CriticalFacility
+        {
+            AccountId = accountId,
+            PlanId = planId,
+            BarangayId = barangayId,
+            Name = name,
+            FacilityType = facilityType,
+            IsEvacuationSite = false,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = now,
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? deletedAtUtc ?? now : null,
+            DeletedByUserId = deleted ? Guid.NewGuid() : null,
+            RowVersion = new byte[] { 12, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static MapAsset NewMapAsset(
+        Guid accountId,
+        Guid planId,
+        Guid fileId,
+        string name,
+        bool deleted,
+        DateTimeOffset? deletedAtUtc = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new MapAsset
+        {
+            AccountId = accountId,
+            PlanId = planId,
+            FileAssetId = fileId,
+            Name = name,
+            MapType = "Flood",
+            MapFormat = "GeoJson",
+            DefaultStyleJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = now,
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? deletedAtUtc ?? now : null,
+            DeletedByUserId = deleted ? Guid.NewGuid() : null,
+            RowVersion = new byte[] { 13, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static GeoJsonLayerFeature NewGeoFeature(
+        Guid accountId,
+        Guid mapAssetId,
+        bool deleted,
+        DateTimeOffset? deletedAtUtc = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new GeoJsonLayerFeature
+        {
+            AccountId = accountId,
+            MapAssetId = mapAssetId,
+            FeatureId = Guid.NewGuid().ToString("N"),
+            FeatureType = "Point",
+            DisplayName = "P",
+            PropertiesJson = JsonDocument.Parse("{}"),
+            GeometryJson = JsonDocument.Parse("{\"type\":\"Point\",\"coordinates\":[125,7]}"),
+            StyleJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = now,
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? deletedAtUtc ?? now : null,
+            DeletedByUserId = deleted ? Guid.NewGuid() : null,
+            RowVersion = new byte[] { 14, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static MapAnnotation NewMapAnnotation(Guid accountId, Guid mapAssetId, bool deleted)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new MapAnnotation
+        {
+            AccountId = accountId,
+            MapAssetId = mapAssetId,
+            GeometryJson = JsonDocument.Parse("{\"type\":\"Point\",\"coordinates\":[0,0]}"),
+            StyleJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = now,
+            IsDeleted = deleted,
+            RowVersion = new byte[] { 15, 2, 3, 4, 5, 6, 7, 8 },
+        };
     }
 
     private sealed class TestCurrentUserContext : ICurrentUserContext

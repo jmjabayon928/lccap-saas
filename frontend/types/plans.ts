@@ -221,3 +221,122 @@ export interface PlanOperationalDashboard {
   readonly exportReadiness: ExportReadinessDashboardSummary;
   readonly recentActivity: readonly PlanActivityItem[];
 }
+
+export type MapType =
+  | "Flood"
+  | "Landslide"
+  | "StormSurge"
+  | "Boundary"
+  | "LandUse"
+  | "Hazard"
+  | "Other"
+  | (string & {});
+
+export type MapFormat = "Image" | "Pdf" | "GeoJson" | (string & {});
+
+export interface MapAssetSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly mapType: MapType;
+  readonly mapFormat: MapFormat;
+  readonly description: string | null;
+  readonly boundsJson: unknown | null;
+  readonly defaultStyleJson: unknown;
+  readonly originalFileName: string;
+  readonly contentType: string;
+  readonly fileSizeBytes: number;
+  readonly createdAtUtc: string | null;
+  readonly featureCount: number;
+}
+
+export interface GeoJsonLayerFeatureSummary {
+  readonly id: string;
+  readonly mapAssetId: string;
+  readonly featureId: string | null;
+  readonly featureType: string | null;
+  readonly displayName: string | null;
+  readonly propertiesJson: unknown;
+  readonly geometryJson: unknown;
+  readonly styleJson: unknown;
+  readonly createdAtUtc: string | null;
+}
+
+export interface BarangaySummary {
+  readonly id: string;
+  readonly name: string;
+  readonly code: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly landAreaHectares: number | null;
+  readonly population: number | null;
+  readonly households: number | null;
+  readonly classification: string | null;
+}
+
+export interface CriticalFacilitySummary {
+  readonly id: string;
+  readonly name: string;
+  readonly facilityType: string;
+  readonly barangayId: string | null;
+  readonly barangayName: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly capacity: number | null;
+  readonly isEvacuationSite: boolean;
+  readonly description: string | null;
+}
+
+export interface PlanMapWorkspaceCounts {
+  readonly mapAssets: number;
+  readonly geoJsonLayers: number;
+  readonly barangays: number;
+  readonly criticalFacilities: number;
+  readonly evacuationSites: number;
+}
+
+export interface PlanMapWorkspaceResult {
+  readonly planId: string;
+  readonly mapAssets: readonly MapAssetSummary[];
+  readonly barangays: readonly BarangaySummary[];
+  readonly criticalFacilities: readonly CriticalFacilitySummary[];
+  readonly counts: PlanMapWorkspaceCounts;
+}
+
+export interface GeoJsonFeatureGeometryPayload {
+  readonly type?: string;
+}
+
+export interface GeoJsonFeaturePayload {
+  readonly type?: string;
+  readonly id?: unknown;
+  readonly properties?: Readonly<Record<string, unknown>>;
+  readonly geometry?: GeoJsonFeatureGeometryPayload & Readonly<Record<string, unknown>>;
+}
+
+export interface GeoJsonFeatureCollectionPayload {
+  readonly type: "FeatureCollection";
+  readonly features: readonly GeoJsonFeaturePayload[];
+}
+
+export interface CreateGeoJsonLayerRequest {
+  readonly fileAssetId: string;
+  readonly name: string;
+  readonly mapType: MapType;
+  readonly description?: string | null;
+  readonly geoJson: GeoJsonFeatureCollectionPayload;
+  readonly defaultStyleJson?: unknown | null;
+  readonly boundsJson?: unknown | null;
+}
+
+export interface CreatedGeoJsonMapAssetSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly mapType: MapType;
+  readonly mapFormat: MapFormat;
+  readonly description: string | null;
+  readonly featureCount: number;
+  readonly originalFileName: string;
+  readonly contentType: string;
+  readonly fileSizeBytes: number;
+  readonly createdAtUtc: string | null;
+}
