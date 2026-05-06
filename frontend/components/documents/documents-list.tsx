@@ -8,6 +8,8 @@ import { DocumentCategoryBadge } from "@/components/documents/document-category-
 import { DocumentEditForm } from "@/components/documents/document-edit-form";
 import { DocumentSize } from "@/components/documents/document-size";
 import type { DocumentSummary } from "@/types/documents";
+import type { ActionItemSummary } from "@/types/actions";
+import type { PlanSectionSummary } from "@/types/plans";
 
 const evidenceTone: Record<string, "default" | "secondary" | "outline"> = {
   Draft: "outline",
@@ -27,6 +29,8 @@ function EvidenceStatusBadge({ evidenceStatus }: { evidenceStatus: DocumentSumma
 
 interface DocumentsListProps {
   readonly documents: DocumentSummary[];
+  readonly planSections: readonly PlanSectionSummary[];
+  readonly actionItems: readonly ActionItemSummary[];
   readonly onDocumentUpdated: (updated: DocumentSummary) => void;
   readonly onDocumentArchived: (documentId: string) => void;
 }
@@ -57,7 +61,13 @@ function rowTitle(d: DocumentSummary): string {
   return "—";
 }
 
-export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived }: DocumentsListProps) {
+export function DocumentsList({
+  documents,
+  planSections,
+  actionItems,
+  onDocumentUpdated,
+  onDocumentArchived
+}: DocumentsListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
@@ -146,6 +156,8 @@ export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived
                           <TableCell colSpan={7} className="bg-slate-50/50 p-3">
                             <DocumentEditForm
                               document={d}
+                              planSections={planSections}
+                              actionItems={actionItems}
                               onSaved={(updated) => {
                                 onDocumentUpdated(updated);
                                 setEditingId(null);
@@ -203,6 +215,8 @@ export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived
                     <div className="mt-3">
                       <DocumentEditForm
                         document={d}
+                        planSections={planSections}
+                        actionItems={actionItems}
                         onSaved={(updated) => {
                           onDocumentUpdated(updated);
                           setEditingId(null);

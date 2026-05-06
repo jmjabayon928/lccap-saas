@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileInput } from "@/components/ui/file-input";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,9 @@ import {
   type EvidenceStatus,
   type DocumentSummary
 } from "@/types/documents";
+import type { ActionItemSummary } from "@/types/actions";
+import type { PlanSectionSummary } from "@/types/plans";
+import { buildActionLinkOptions, buildSectionLinkOptions } from "@/components/documents/document-link-select-options";
 
 function extensionAllowed(fileName: string): boolean {
   const lower = fileName.toLowerCase();
@@ -48,10 +51,17 @@ function isCommandLike(value: string): boolean {
 
 export interface DocumentUploadFormProps {
   readonly planId: string;
+  readonly planSections: readonly PlanSectionSummary[];
+  readonly actionItems: readonly ActionItemSummary[];
   readonly onUploaded: (document: DocumentSummary) => void;
 }
 
-export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormProps) {
+export function DocumentUploadForm({
+  planId,
+  planSections,
+  actionItems,
+  onUploaded
+}: DocumentUploadFormProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("Reference");
@@ -59,6 +69,8 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
   const [evidenceStatus, setEvidenceStatus] = useState<EvidenceStatus>("Internal");
   const [linkedSectionId, setLinkedSectionId] = useState<string>("");
   const [linkedActionId, setLinkedActionId] = useState<string>("");
+  const sectionOptions = useMemo(() => buildSectionLinkOptions(planSections), [planSections]);
+  const actionOptions = useMemo(() => buildActionLinkOptions(actionItems), [actionItems]);
   const [clientError, setClientError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -105,14 +117,16 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
       return;
     }
 
+    const planSectionId = linkedSectionId.trim().length > 0 ? linkedSectionId.trim() : null;
+    const actionItemId = linkedActionId.trim().length > 0 ? linkedActionId.trim() : null;
     const snapshot = {
       planId,
       category,
       title: submittedTitle,
       description: description.trim() || null,
       evidenceStatus,
-      planSectionId: linkedSectionId.trim() || null,
-      actionItemId: linkedActionId.trim() || null,
+      planSectionId,
+      actionItemId,
       file
     } as const;
 
@@ -237,26 +251,36 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="doc-linked-section">Linked section ID (optional)</Label>
-              <Input
+              <Label htmlFor="doc-linked-section">Linked LCCAP section</Label>
+              <Select
                 id="doc-linked-section"
                 value={linkedSectionId}
                 onChange={(ev) => setLinkedSectionId(ev.target.value)}
                 disabled={isSubmitting}
-                autoComplete="off"
-                placeholder="e.g. 0f3c... (GUID)"
-              />
+              >
+                <option value="">No linked section</option>
+                {sectionOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="doc-linked-action">Linked action ID (optional)</Label>
-              <Input
+              <Label htmlFor="doc-linked-action">Linked action item</Label>
+              <Select
                 id="doc-linked-action"
                 value={linkedActionId}
                 onChange={(ev) => setLinkedActionId(ev.target.value)}
                 disabled={isSubmitting}
-                autoComplete="off"
-                placeholder="e.g. a9d2... (GUID)"
-              />
+              >
+                <option value="">No linked action</option>
+                {actionOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
 

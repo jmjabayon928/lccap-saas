@@ -16,6 +16,14 @@ import {
   type DocumentSummary,
   type UpdateDocumentMetadataRequest
 } from "@/types/documents";
+import type { ActionItemSummary } from "@/types/actions";
+import type { PlanSectionSummary } from "@/types/plans";
+import {
+  buildActionLinkOptions,
+  buildSectionLinkOptions,
+  enrichActionOptionsWithCurrentIfMissing,
+  enrichSectionOptionsWithCurrentIfMissing
+} from "@/components/documents/document-link-select-options";
 
 function isCommandLike(value: string): boolean {
   const lower = value.toLowerCase();
@@ -94,11 +102,13 @@ function formatError(err: unknown): string {
 
 export interface DocumentEditFormProps {
   readonly document: DocumentSummary;
+  readonly planSections: readonly PlanSectionSummary[];
+  readonly actionItems: readonly ActionItemSummary[];
   readonly onSaved: (updated: DocumentSummary) => void;
   readonly onCancel: () => void;
 }
 
-export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFormProps) {
+export function DocumentEditForm({ document, planSections, actionItems, onSaved, onCancel }: DocumentEditFormProps) {
   const initialTagsText = useMemo(() => document.tags.join(", "), [document.tags]);
 
   const [category, setCategory] = useState<DocumentCategory>(() => {
@@ -111,12 +121,24 @@ export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFo
   const [documentDate, setDocumentDate] = useState(() => toDateInputValue(document.documentDate));
   const [tagsText, setTagsText] = useState(initialTagsText);
   const [evidenceStatus, setEvidenceStatus] = useState<EvidenceStatus>(document.evidenceStatus ?? "Internal");
-  const [linkedSectionId, setLinkedSectionId] = useState<string>(document.planSectionId ?? "");
-  const [linkedActionId, setLinkedActionId] = useState<string>(document.actionItemId ?? "");
+  const [linkedSectionId, setLinkedSectionId] = useState<string>(
+    () => document.planSectionId?.trim() ?? ""
+  );
+  const [linkedActionId, setLinkedActionId] = useState<string>(() => document.actionItemId?.trim() ?? "");
   const [clientError, setClientError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const sectionSelectOptions = useMemo(() => {
+    const built = buildSectionLinkOptions(planSections);
+    return enrichSectionOptionsWithCurrentIfMissing(built, document.planSectionId);
+  }, [planSections, document.planSectionId]);
+
+  const actionSelectOptions = useMemo(() => {
+    const built = buildActionLinkOptions(actionItems);
+    return enrichActionOptionsWithCurrentIfMissing(built, document.actionItemId);
+  }, [actionItems, document.actionItemId]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -155,8 +177,8 @@ export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFo
       sourceAgency: sa.length > 0 ? sa : null,
       tags: tagResult.tags,
       evidenceStatus,
-      planSectionId: linkedSectionId.trim() ? linkedSectionId.trim() : null,
-      actionItemId: linkedActionId.trim() ? linkedActionId.trim() : null
+      planSectionId: linkedSectionId.trim().length > 0 ? linkedSectionId.trim() : null,
+      actionItemId: linkedActionId.trim().length > 0 ? linkedActionId.trim() : null
     };
 
     setIsSubmitting(true);
@@ -250,26 +272,36 @@ export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFo
             </Select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor={`doc-edit-linked-section-${document.id}`}>Linked section ID</Label>
-            <Input
+            <Label htmlFor={`doc-edit-linked-section-${document.id}`}>Linked LCCAP section</Label>
+            <Select
               id={`doc-edit-linked-section-${document.id}`}
               value={linkedSectionId}
               onChange={(ev) => setLinkedSectionId(ev.target.value)}
               disabled={isSubmitting}
-              autoComplete="off"
-              placeholder="Optional GUID"
-            />
+            >
+              <option value="">No linked section</option>
+              {sectionSelectOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor={`doc-edit-linked-action-${document.id}`}>Linked action ID</Label>
-            <Input
+            <Label htmlFor={`doc-edit-linked-action-${document.id}`}>Linked action item</Label>
+            <Select
               id={`doc-edit-linked-action-${document.id}`}
               value={linkedActionId}
               onChange={(ev) => setLinkedActionId(ev.target.value)}
               disabled={isSubmitting}
-              autoComplete="off"
-              placeholder="Optional GUID"
-            />
+            >
+              <option value="">No linked action</option>
+              {actionSelectOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="space-y-1 sm:col-span-2">
             <Label htmlFor={`doc-edit-source-${document.id}`}>Source agency</Label>

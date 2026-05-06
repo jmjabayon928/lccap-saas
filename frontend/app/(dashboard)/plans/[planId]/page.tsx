@@ -531,11 +531,18 @@ export default function PlanWorkspacePage() {
               </Card>
             ) : null}
 
-            <DocumentUploadForm planId={planId} onUploaded={handleDocumentUploaded} />
+            <DocumentUploadForm
+              planId={planId}
+              planSections={state.sections}
+              actionItems={actionsState.status === "ready" ? actionsState.items : []}
+              onUploaded={handleDocumentUploaded}
+            />
 
             {docsState.status === "ready" ? (
               <DocumentsList
                 documents={docsState.items}
+                planSections={state.sections}
+                actionItems={actionsState.status === "ready" ? actionsState.items : []}
                 onDocumentUpdated={handleDocumentUpdated}
                 onDocumentArchived={handleDocumentArchived}
               />
