@@ -10,6 +10,12 @@ import type {
   ClimateExpenditureTagCategory,
   ClimateExpenditureTagSummary,
   ClimateExpenditureTagsResult,
+  FundingProgramStatus,
+  FundingProgramSummary,
+  FundingProgramsResult,
+  FundingSourceSummary,
+  FundingSourcesResult,
+  FundingSourceType,
   SaveActionItemResult
 } from "@/types/actions";
 
@@ -31,6 +37,25 @@ const CCET_CATEGORIES: ReadonlySet<ClimateExpenditureTagCategory> = new Set([
   "DisasterRiskReduction",
   "CapacityDevelopment",
   "Other"
+]);
+
+const FUNDING_SOURCE_TYPES: ReadonlySet<FundingSourceType> = new Set([
+  "LGUInternal",
+  "NationalGovernment",
+  "ProvincialGovernment",
+  "Donor",
+  "NGO",
+  "PrivateSector",
+  "BankLoan",
+  "ClimateFund",
+  "Other"
+]);
+
+const FUNDING_PROGRAM_STATUSES: ReadonlySet<FundingProgramStatus> = new Set([
+  "Draft",
+  "Active",
+  "Closed",
+  "Archived"
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,6 +109,20 @@ function parseClimateExpenditureTagCategory(raw: unknown): ClimateExpenditureTag
     return raw as ClimateExpenditureTagCategory;
   }
   return "Other";
+}
+
+function parseFundingSourceType(raw: unknown): FundingSourceType {
+  if (typeof raw === "string" && FUNDING_SOURCE_TYPES.has(raw as FundingSourceType)) {
+    return raw as FundingSourceType;
+  }
+  return "Other";
+}
+
+function parseFundingProgramStatus(raw: unknown): FundingProgramStatus {
+  if (typeof raw === "string" && FUNDING_PROGRAM_STATUSES.has(raw as FundingProgramStatus)) {
+    return raw as FundingProgramStatus;
+  }
+  return "Archived";
 }
 
 function parseActionFundingAllocationStatus(raw: unknown): ActionFundingAllocationStatus {
@@ -322,6 +361,170 @@ export function parseClimateExpenditureTagsResult(payload: unknown): ClimateExpe
     items,
     totalCount: totalCountRaw,
     includeInactive: includeInactiveRaw
+  };
+}
+
+function parseFundingSourceSummaryRecord(raw: Record<string, unknown>): FundingSourceSummary | null {
+  const idRaw = raw.id;
+  const nameRaw = raw.name;
+  const sourceTypeRaw = raw.sourceType;
+
+  if (!isNonEmptyString(idRaw) || !isNonEmptyString(nameRaw)) {
+    return null;
+  }
+
+  return {
+    id: idRaw.trim(),
+    name: nameRaw.trim(),
+    sourceType: parseFundingSourceType(sourceTypeRaw),
+    description: nullableString(raw.description),
+    contactName: nullableString(raw.contactName),
+    contactEmail: nullableString(raw.contactEmail),
+    websiteUrl: nullableString(raw.websiteUrl),
+    createdAtUtc: nullableString(raw.createdAtUtc)
+  };
+}
+
+export function parseFundingSourceSummary(payload: unknown): FundingSourceSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid funding source response: expected object", 502, payload);
+  }
+  const parsed = parseFundingSourceSummaryRecord(payload);
+  if (!parsed) {
+    throw new ApiError("Invalid funding source response: malformed fields", 502, payload);
+  }
+  return parsed;
+}
+
+export function parseFundingSourcesResult(payload: unknown): FundingSourcesResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid funding sources response: expected object", 502, payload);
+  }
+
+  const itemsRaw = payload.items;
+  if (!Array.isArray(itemsRaw)) {
+    throw new ApiError("Invalid funding sources response: items must be an array", 502, payload);
+  }
+
+  const totalCountRaw = payload.totalCount;
+  if (!isFiniteNumber(totalCountRaw) || totalCountRaw < 0 || !Number.isInteger(totalCountRaw)) {
+    throw new ApiError("Invalid funding sources response: totalCount invalid", 502, payload);
+  }
+
+  const items: FundingSourceSummary[] = [];
+  for (const entry of itemsRaw) {
+    if (!isRecord(entry)) {
+      throw new ApiError("Invalid funding sources response: malformed item", 502, payload);
+    }
+    const row = parseFundingSourceSummaryRecord(entry);
+    if (!row) {
+      throw new ApiError("Invalid funding sources response: malformed item fields", 502, payload);
+    }
+    items.push(row);
+  }
+
+  return { items, totalCount: totalCountRaw };
+}
+
+function parseFundingProgramSummaryRecord(raw: Record<string, unknown>): FundingProgramSummary | null {
+  const idRaw = raw.id;
+  const fundingSourceIdRaw = raw.fundingSourceId;
+  const fundingSourceNameRaw = raw.fundingSourceName;
+  const nameRaw = raw.name;
+  const currencyCodeRaw = raw.currencyCode;
+  const statusRaw = raw.status;
+
+  if (
+    !isNonEmptyString(idRaw)
+    || !isNonEmptyString(fundingSourceIdRaw)
+    || !isNonEmptyString(fundingSourceNameRaw)
+    || !isNonEmptyString(nameRaw)
+    || typeof currencyCodeRaw !== "string"
+    || currencyCodeRaw.trim().length === 0
+  ) {
+    return null;
+  }
+
+  const cur = currencyCodeRaw.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(cur)) {
+    return null;
+  }
+
+  const maxAward = optionalNumberOrNull(raw.maxAwardAmount);
+  if (
+    maxAward !== null
+    && (!Number.isFinite(maxAward) || maxAward < 0)
+  ) {
+    return null;
+  }
+
+  return {
+    id: idRaw.trim(),
+    fundingSourceId: fundingSourceIdRaw.trim(),
+    fundingSourceName: fundingSourceNameRaw.trim(),
+    name: nameRaw.trim(),
+    programCode: trimmedNullableId(raw.programCode),
+    description: nullableString(raw.description),
+    eligibleUses: nullableString(raw.eligibleUses),
+    applicationUrl: nullableString(raw.applicationUrl),
+    opensAtUtc: nullableString(raw.opensAtUtc),
+    closesAtUtc: nullableString(raw.closesAtUtc),
+    maxAwardAmount: maxAward,
+    currencyCode: cur,
+    status: parseFundingProgramStatus(statusRaw),
+    createdAtUtc: nullableString(raw.createdAtUtc)
+  };
+}
+
+export function parseFundingProgramSummary(payload: unknown): FundingProgramSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid funding program response: expected object", 502, payload);
+  }
+  const parsed = parseFundingProgramSummaryRecord(payload);
+  if (!parsed) {
+    throw new ApiError("Invalid funding program response: malformed fields", 502, payload);
+  }
+  return parsed;
+}
+
+export function parseFundingProgramsResult(payload: unknown): FundingProgramsResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid funding programs response: expected object", 502, payload);
+  }
+
+  const itemsRaw = payload.items;
+  if (!Array.isArray(itemsRaw)) {
+    throw new ApiError("Invalid funding programs response: items must be an array", 502, payload);
+  }
+
+  const totalCountRaw = payload.totalCount;
+  if (!isFiniteNumber(totalCountRaw) || totalCountRaw < 0 || !Number.isInteger(totalCountRaw)) {
+    throw new ApiError("Invalid funding programs response: totalCount invalid", 502, payload);
+  }
+
+  const fundingSourceId = trimmedNullableId(payload.fundingSourceId);
+  const includeRaw = payload.includeInactiveOrClosed;
+  if (typeof includeRaw !== "boolean") {
+    throw new ApiError("Invalid funding programs response: includeInactiveOrClosed invalid", 502, payload);
+  }
+
+  const items: FundingProgramSummary[] = [];
+  for (const entry of itemsRaw) {
+    if (!isRecord(entry)) {
+      throw new ApiError("Invalid funding programs response: malformed item", 502, payload);
+    }
+    const row = parseFundingProgramSummaryRecord(entry);
+    if (!row) {
+      throw new ApiError("Invalid funding programs response: malformed item fields", 502, payload);
+    }
+    items.push(row);
+  }
+
+  return {
+    items,
+    totalCount: totalCountRaw,
+    fundingSourceId,
+    includeInactiveOrClosed: includeRaw
   };
 }
 

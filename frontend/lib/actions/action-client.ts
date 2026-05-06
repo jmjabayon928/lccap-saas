@@ -6,6 +6,8 @@ import {
   parseActionItem,
   parseActionItemsList,
   parseClimateExpenditureTagsResult,
+  parseFundingProgramsResult,
+  parseFundingSourcesResult,
   parseSaveActionItemResult
 } from "@/lib/actions/action-parsers";
 import type {
@@ -16,6 +18,8 @@ import type {
   ClimateExpenditureTagsResult,
   CreateActionFundingAllocationRequest,
   CreateActionItemRequest,
+  FundingProgramsResult,
+  FundingSourcesResult,
   SaveActionItemResult,
   UpdateActionItemRequest
 } from "@/types/actions";
@@ -43,6 +47,29 @@ export const actionClient = {
 
   async archiveActionItem(actionItemId: string): Promise<void> {
     await http.deleteVoid(endpoints.archiveAction(actionItemId));
+  },
+
+  async getFundingSources(): Promise<FundingSourcesResult> {
+    const data = await http.get("/api/funding/sources");
+    return parseFundingSourcesResult(data);
+  },
+
+  async getFundingPrograms(options?: {
+    fundingSourceId?: string;
+    includeInactiveOrClosed?: boolean;
+  }): Promise<FundingProgramsResult> {
+    const params = new URLSearchParams();
+    const fid = options?.fundingSourceId?.trim();
+    if (fid) {
+      params.set("fundingSourceId", fid);
+    }
+    if (options?.includeInactiveOrClosed === true) {
+      params.set("includeInactiveOrClosed", "true");
+    }
+    const qs = params.toString();
+    const path = qs.length > 0 ? `/api/funding/programs?${qs}` : "/api/funding/programs";
+    const data = await http.get(path);
+    return parseFundingProgramsResult(data);
   },
 
   async getClimateExpenditureTags(options?: { includeInactive?: boolean }): Promise<ClimateExpenditureTagsResult> {

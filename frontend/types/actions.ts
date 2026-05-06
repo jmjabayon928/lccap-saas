@@ -81,6 +81,71 @@ export interface ClimateExpenditureTagsResult {
   readonly includeInactive: boolean;
 }
 
+export type FundingSourceType =
+  | "LGUInternal"
+  | "NationalGovernment"
+  | "ProvincialGovernment"
+  | "Donor"
+  | "NGO"
+  | "PrivateSector"
+  | "BankLoan"
+  | "ClimateFund"
+  | "Other";
+
+export interface FundingSourceSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly sourceType: FundingSourceType;
+  readonly description: string | null;
+  readonly contactName: string | null;
+  readonly contactEmail: string | null;
+  readonly websiteUrl: string | null;
+  readonly createdAtUtc: string | null;
+}
+
+export interface FundingSourcesResult {
+  readonly items: readonly FundingSourceSummary[];
+  readonly totalCount: number;
+}
+
+export type FundingProgramStatus = "Draft" | "Active" | "Closed" | "Archived";
+
+export interface FundingProgramSummary {
+  readonly id: string;
+  readonly fundingSourceId: string;
+  readonly fundingSourceName: string;
+  readonly name: string;
+  readonly programCode: string | null;
+  readonly description: string | null;
+  readonly eligibleUses: string | null;
+  readonly applicationUrl: string | null;
+  readonly opensAtUtc: string | null;
+  readonly closesAtUtc: string | null;
+  readonly maxAwardAmount: number | null;
+  readonly currencyCode: string;
+  readonly status: FundingProgramStatus;
+  readonly createdAtUtc: string | null;
+}
+
+export interface FundingProgramsResult {
+  readonly items: readonly FundingProgramSummary[];
+  readonly totalCount: number;
+  readonly fundingSourceId: string | null;
+  readonly includeInactiveOrClosed: boolean;
+}
+
+export type FundingSourcesLoadState =
+  | { readonly status: "idle" }
+  | { readonly status: "loading" }
+  | { readonly status: "ready"; readonly data: FundingSourcesResult }
+  | { readonly status: "error"; readonly message: string };
+
+export type FundingProgramsLoadState =
+  | { readonly status: "idle" }
+  | { readonly status: "loading" }
+  | { readonly status: "ready"; readonly data: FundingProgramsResult }
+  | { readonly status: "error"; readonly message: string };
+
 export type ActionFundingAllocationStatus = "Planned";
 
 export interface ActionFundingAllocationSummary {

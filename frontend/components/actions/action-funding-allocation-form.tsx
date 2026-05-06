@@ -6,7 +6,9 @@ import { actionClient } from "@/lib/actions/action-client";
 import type {
   ActionItemSummary,
   ClimateExpenditureTagSummary,
-  CreateActionFundingAllocationRequest
+  CreateActionFundingAllocationRequest,
+  FundingProgramSummary,
+  FundingSourceSummary
 } from "@/types/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,10 @@ export interface ActionFundingAllocationFormProps {
   readonly planId: string;
   readonly actionItems: readonly ActionItemSummary[];
   readonly ccetTags: readonly ClimateExpenditureTagSummary[];
+  readonly fundingSources: readonly FundingSourceSummary[];
+  readonly fundingPrograms: readonly FundingProgramSummary[];
+  readonly fundingSourcesReady: boolean;
+  readonly fundingProgramsReady: boolean;
   readonly selectedActionId: string | null;
   readonly onCreated: () => void;
 }
@@ -50,6 +56,10 @@ export function ActionFundingAllocationForm({
   planId,
   actionItems,
   ccetTags,
+  fundingSources,
+  fundingPrograms,
+  fundingSourcesReady,
+  fundingProgramsReady,
   selectedActionId,
   onCreated
 }: ActionFundingAllocationFormProps) {
@@ -66,6 +76,17 @@ export function ActionFundingAllocationForm({
   const [busy, setBusy] = useState(false);
 
   const activeCcetTags = useMemo(() => ccetTags.filter((t) => t.isActive), [ccetTags]);
+
+  const catalogBusy = !fundingSourcesReady || !fundingProgramsReady;
+  const noFundingSourcesConfigured = fundingSourcesReady && fundingSources.length === 0;
+
+  const programsForSelectedSource = useMemo(() => {
+    const sid = fundingSourceId.trim();
+    if (!sid) {
+      return [];
+    }
+    return fundingPrograms.filter((p) => p.fundingSourceId === sid);
+  }, [fundingPrograms, fundingSourceId]);
 
   useEffect(() => {
     if (selectedActionId && actionItems.some((a) => a.id === selectedActionId)) {
@@ -97,7 +118,7 @@ export function ActionFundingAllocationForm({
       return;
     }
     if (!src) {
-      setValidationError("Funding source ID is required.");
+      setValidationError("Select a funding source.");
       return;
     }
     if (!Number.isInteger(fiscalYear) || fiscalYear < 2000 || fiscalYear > 2100) {
@@ -154,8 +175,20 @@ export function ActionFundingAllocationForm({
 
   return (
     <form className="space-y-3 rounded-lg border border-border bg-white px-4 py-3 shadow-sm" onSubmit={(e) => void submit(e)}>
-      <fieldset className="space-y-3" disabled={busy || actionItems.length === 0}>
-        <legend className="text-sm font-medium text-slate-900">Add planned allocation</legend>
+        <fieldset className="space-y-3" disabled={busy || actionItems.length === 0}>
+          <legend className="text-sm font-medium text-slate-900">Add planned allocation</legend>
+
+          {catalogBusy ? (
+          <p className="rounded-md border border-border bg-slate-50 px-3 py-2 text-xs text-muted-foreground">
+            Loading funding source and program catalogs…
+          </p>
+          ) : null}
+
+          {!catalogBusy && noFundingSourcesConfigured ? (
+          <p className="rounded-md border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-950">
+            No funding sources are available yet—you cannot record an allocation until at least one source exists for your LGU tenant.
+          </p>
+          ) : null}
 
         <div className="space-y-1">
           <label htmlFor="alloc-action-item" className="text-xs font-medium text-muted-foreground">
@@ -177,32 +210,69 @@ export function ActionFundingAllocationForm({
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="alloc-funding-source-id" className="text-xs font-medium text-muted-foreground">
-            Funding source ID
+          <label htmlFor="alloc-funding-source" className="text-xs font-medium text-muted-foreground">
+            Funding source
           </label>
-          <Input
-            id="alloc-funding-source-id"
+          <Select
+            id="alloc-funding-source"
+            required
             value={fundingSourceId}
-            onChange={(e) => setFundingSourceId(e.target.value)}
-            placeholder="UUID of funding source"
-            autoComplete="off"
-          />
-          <p className="text-[11px] text-muted-foreground leading-snug">
-            Funding source selection will become a dropdown after funding source catalog UI is added.
-          </p>
+            disabled={catalogBusy || noFundingSourcesConfigured}
+            onChange={(e) => {
+              const next = e.target.value;
+              setFundingSourceId(next);
+              setFundingProgramId((prev) => {
+                if (!prev.trim()) {
+                  return "";
+                }
+                const belongs = fundingPrograms.some(
+                  (p) => p.id === prev.trim() && p.fundingSourceId === next.trim()
+                );
+                return belongs ? prev : "";
+              });
+            }}
+          >
+            <option value="">Select funding source…</option>
+            {fundingSources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+          {fundingSourcesReady && fundingSources.length === 1 ? (
+            <p className="text-[11px] text-muted-foreground leading-snug">Only one tenant source is configured.</p>
+          ) : null}
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="alloc-program-id" className="text-xs font-medium text-muted-foreground">
-            Funding program ID (optional)
+          <label htmlFor="alloc-program" className="text-xs font-medium text-muted-foreground">
+            Funding program (optional)
           </label>
-          <Input
-            id="alloc-program-id"
+          <Select
+            id="alloc-program"
             value={fundingProgramId}
+            disabled={
+              catalogBusy
+              || noFundingSourcesConfigured
+              || !fundingSourceId.trim()
+            }
             onChange={(e) => setFundingProgramId(e.target.value)}
-            placeholder="UUID or leave blank"
-            autoComplete="off"
-          />
+          >
+            <option value="">
+              {!fundingSourceId.trim() ? "Select a funding source first" : "None / not linked to a program"}
+            </option>
+            {programsForSelectedSource.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.programCode?.trim() ? ` (${p.programCode.trim()})` : ""}
+              </option>
+            ))}
+          </Select>
+          {fundingSourceId.trim() && programsForSelectedSource.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              No programs for this source—you can submit the allocation without a program.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1">
@@ -272,7 +342,16 @@ export function ActionFundingAllocationForm({
 
         {errorLine ? <p className="text-xs text-red-700">{errorLine}</p> : null}
 
-        <Button type="submit" size="sm" disabled={busy || actionItems.length === 0}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={
+            busy
+            || actionItems.length === 0
+            || catalogBusy
+            || noFundingSourcesConfigured
+          }
+        >
           {busy ? "Saving…" : "Create planned allocation"}
         </Button>
 

@@ -152,6 +152,237 @@ public sealed class FundingControllerTests
     }
 
     [Fact]
+    public async Task GetFundingSources_returns_only_current_account_sources()
+    {
+        using var db = CreateDbContext();
+        var mine = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        _ = db.FundingSources.Add(NewSource(other, "Theirs", sourceType: "Donor"));
+        var local = NewSource(mine, "Ours", sourceType: "LGUInternal");
+        _ = db.FundingSources.Add(local);
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(mine, Guid.NewGuid(), true, WorkspaceRoles.Viewer);
+        var query = new GetFundingSourcesQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingSources(query, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingSourcesResult>(ok.Value);
+        Assert.Single(payload.Items);
+        Assert.Equal(local.Id, payload.Items[0].Id);
+        Assert.Equal("Ours", payload.Items[0].Name);
+    }
+
+    [Fact]
+    public async Task GetFundingSources_excludes_soft_deleted_sources()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        _ = db.FundingSources.Add(NewSource(accountId, "Keep", deleted: false));
+        _ = db.FundingSources.Add(NewSource(accountId, "Gone", deleted: true));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Planner);
+        var query = new GetFundingSourcesQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingSources(query, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingSourcesResult>(ok.Value);
+        Assert.Single(payload.Items);
+        Assert.Equal("Keep", payload.Items[0].Name);
+    }
+
+    [Fact]
+    public async Task GetFundingSources_sorts_by_source_type_then_name()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        _ = db.FundingSources.Add(NewSource(accountId, name: "Zebra", sourceType: "Donor"));
+        _ = db.FundingSources.Add(NewSource(accountId, name: "Alpha", sourceType: "Donor"));
+        _ = db.FundingSources.Add(NewSource(accountId, name: "Muni", sourceType: "LGUInternal"));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var query = new GetFundingSourcesQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingSources(query, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingSourcesResult>(ok.Value);
+        Assert.Equal(new[] { "Alpha", "Zebra", "Muni" }, payload.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task GetFundingPrograms_returns_active_programs_only_by_default()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var src = NewSource(accountId);
+        _ = db.FundingSources.Add(src);
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "Live", status: "Active"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "Drafty", status: "Draft"));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Reviewer);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, null, false, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingProgramsResult>(ok.Value);
+        Assert.Single(payload.Items);
+        Assert.Equal("Live", payload.Items[0].Name);
+        Assert.False(payload.IncludeInactiveOrClosed);
+    }
+
+    [Fact]
+    public async Task GetFundingPrograms_includeInactiveOrClosed_includes_draft_closed_archived()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var src = NewSource(accountId);
+        _ = db.FundingSources.Add(src);
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "A", status: "Active"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "D", status: "Draft"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "C", status: "Closed"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "R", status: "Archived"));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, null, true, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingProgramsResult>(ok.Value);
+        Assert.Equal(4, payload.TotalCount);
+        Assert.True(payload.IncludeInactiveOrClosed);
+        Assert.Contains(payload.Items, i => i.Status == "Draft");
+        Assert.Contains(payload.Items, i => i.Status == "Closed");
+        Assert.Contains(payload.Items, i => i.Status == "Archived");
+    }
+
+    [Fact]
+    public async Task GetFundingPrograms_filters_by_funding_source_id()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var srcA = NewSource(accountId, name: "SrcA");
+        var srcB = NewSource(accountId, name: "SrcB");
+        db.FundingSources.AddRange(srcA, srcB);
+        _ = db.FundingPrograms.Add(NewProgram(accountId, srcA.Id, "ProgA"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, srcB.Id, "ProgB"));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Planner);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, srcA.Id, false, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingProgramsResult>(ok.Value);
+        Assert.Single(payload.Items);
+        Assert.Equal("ProgA", payload.Items[0].Name);
+        Assert.Equal(srcA.Id, payload.FundingSourceId);
+    }
+
+    [Fact]
+    public async Task GetFundingPrograms_returns_not_found_for_cross_tenant_funding_source_id()
+    {
+        using var db = CreateDbContext();
+        var myAccount = Guid.NewGuid();
+        var otherAccount = Guid.NewGuid();
+        var otherSrc = NewSource(otherAccount, "Foreign");
+        _ = db.FundingSources.Add(otherSrc);
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(myAccount, Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, otherSrc.Id, false, CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetFundingPrograms_excludes_soft_deleted_programs()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var src = NewSource(accountId);
+        _ = db.FundingSources.Add(src);
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "Keep"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, src.Id, "Gone", deleted: true));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Viewer);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, null, false, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingProgramsResult>(ok.Value);
+        Assert.Single(payload.Items);
+        Assert.Equal("Keep", payload.Items[0].Name);
+    }
+
+    [Fact]
+    public async Task GetFundingPrograms_sorts_by_funding_source_name_status_program_name()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var srcLate = NewSource(accountId, name: "BBBSource");
+        var srcFirst = NewSource(accountId, name: "AAASource");
+        db.FundingSources.AddRange(srcLate, srcFirst);
+        _ = db.FundingPrograms.Add(NewProgram(accountId, srcFirst.Id, "Zed", status: "Closed"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, srcFirst.Id, "Alpha", status: "Closed"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, srcFirst.Id, "Mid", status: "Active"));
+        _ = db.FundingPrograms.Add(NewProgram(accountId, srcLate.Id, "Solo"));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestCurrentUserContext(accountId, Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, null, true, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingProgramsResult>(ok.Value);
+        Assert.Equal(
+            new[] { "Mid", "Alpha", "Zed", "Solo" },
+            payload.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task Missing_account_id_returns_empty_funding_sources()
+    {
+        using var db = CreateDbContext();
+        var stray = Guid.NewGuid();
+        _ = db.FundingSources.Add(NewSource(stray));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestMissingAccountCurrentUser(Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var query = new GetFundingSourcesQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingSources(query, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingSourcesResult>(ok.Value);
+        Assert.Empty(payload.Items);
+        Assert.Equal(0, payload.TotalCount);
+    }
+
+    [Fact]
+    public async Task Missing_account_id_returns_empty_funding_programs_not_not_found()
+    {
+        using var db = CreateDbContext();
+        var stray = Guid.NewGuid();
+        var src = NewSource(stray);
+        _ = db.FundingSources.Add(src);
+        _ = db.FundingPrograms.Add(NewProgram(stray, src.Id));
+        _ = await db.SaveChangesAsync();
+
+        var ctx = new TestMissingAccountCurrentUser(Guid.NewGuid(), true, WorkspaceRoles.Admin);
+        var query = new GetFundingProgramsQuery(db, ctx);
+        var result = await new FundingController(ctx).GetFundingPrograms(query, null, false, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<GetFundingProgramsResult>(ok.Value);
+        Assert.Empty(payload.Items);
+    }
+
+    [Fact]
     public async Task PostFundingAllocation_creates_allocation_for_same_tenant_plan_action_source()
     {
         using var db = CreateDbContext();
@@ -607,24 +838,34 @@ public sealed class FundingControllerTests
         return action;
     }
 
-    private static FundingSource NewSource(Guid accountId, string name = "LGUs")
+    private static FundingSource NewSource(
+        Guid accountId,
+        string name = "LGUs",
+        string sourceType = "LGUInternal",
+        bool deleted = false)
     {
         var s = new FundingSource
         {
             AccountId = accountId,
             Name = name,
-            SourceType = "LGUInternal",
+            SourceType = sourceType,
             Description = null,
             MetadataJson = JsonDocument.Parse("{}"),
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            IsDeleted = false,
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? DateTimeOffset.UtcNow : null,
             RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
         };
         s.EnsureRowVersion();
         return s;
     }
 
-    private static FundingProgram NewProgram(Guid accountId, Guid fundingSourceId, string name = "Program")
+    private static FundingProgram NewProgram(
+        Guid accountId,
+        Guid fundingSourceId,
+        string name = "Program",
+        string status = "Active",
+        bool deleted = false)
     {
         var p = new FundingProgram
         {
@@ -633,8 +874,9 @@ public sealed class FundingControllerTests
             Name = name,
             MetadataJson = JsonDocument.Parse("{}"),
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            IsDeleted = false,
-            Status = "Active",
+            IsDeleted = deleted,
+            DeletedAtUtc = deleted ? DateTimeOffset.UtcNow : null,
+            Status = status,
             RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
         };
         p.EnsureRowVersion();

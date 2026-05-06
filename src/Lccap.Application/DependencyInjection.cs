@@ -59,6 +59,8 @@ public static class DependencyInjection
         _ = services.AddScoped<GetActionItemByIdQuery>();
         _ = services.AddScoped<GetAuditLogsQuery>();
         _ = services.AddScoped<GetClimateExpenditureTagsQuery>();
+        _ = services.AddScoped<GetFundingSourcesQuery>();
+        _ = services.AddScoped<GetFundingProgramsQuery>();
         _ = services.AddScoped<CreateActionFundingAllocationCommand>();
         _ = services.AddScoped<ArchiveActionFundingAllocationCommand>();
         _ = services.AddScoped<GetActionFundingAllocationsByPlanQuery>();

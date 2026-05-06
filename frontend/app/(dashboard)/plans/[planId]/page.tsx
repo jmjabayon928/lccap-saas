@@ -18,6 +18,8 @@ import { ActionForm } from "@/components/actions/action-form";
 import { ActionFundingReadinessPanel } from "@/components/actions/action-funding-readiness-panel";
 import { ActionItemsList } from "@/components/actions/action-items-list";
 import { CcetCatalogPanel } from "@/components/actions/ccet-catalog-panel";
+import { FundingProgramCatalogPanel } from "@/components/actions/funding-program-catalog-panel";
+import { FundingSourceCatalogPanel } from "@/components/actions/funding-source-catalog-panel";
 import { ActionFundingAllocationPanel } from "@/components/actions/action-funding-allocation-panel";
 import { IndicatorForm } from "@/components/monitoring/indicator-form";
 import { IndicatorsList } from "@/components/monitoring/indicators-list";
@@ -35,6 +37,8 @@ import type {
   ActionFundingAllocationSummary,
   ActionItemSummary,
   ClimateExpenditureTagsResult,
+  FundingProgramsLoadState,
+  FundingSourcesLoadState,
   SaveActionItemResult
 } from "@/types/actions";
 import type {
@@ -65,6 +69,9 @@ type CcetState =
   | { status: "loading" }
   | { status: "ready"; data: ClimateExpenditureTagsResult }
   | { status: "error"; message: string };
+
+type FundingSourcesState = FundingSourcesLoadState;
+type FundingProgramsState = FundingProgramsLoadState;
 
 type MonitoringState =
   | { status: "idle" }
@@ -139,6 +146,36 @@ function describeCcetError(err: unknown): string {
   return "Could not load climate expenditure tags.";
 }
 
+function describeFundingSourcesError(err: unknown): string {
+  if (isApiError(err)) {
+    const notFound = err.status === 404;
+    const forbidden = err.status === 403;
+    if (notFound || forbidden) {
+      return "Funding sources could not be loaded for your tenant session.";
+    }
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "Could not load funding sources.";
+}
+
+function describeFundingProgramsError(err: unknown): string {
+  if (isApiError(err)) {
+    const notFound = err.status === 404;
+    const forbidden = err.status === 403;
+    if (notFound || forbidden) {
+      return "Funding programs could not be loaded for your tenant session.";
+    }
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "Could not load funding programs.";
+}
+
 function describeMonitoringError(err: unknown): string {
   if (isApiError(err)) {
     const notFound = err.status === 404;
@@ -180,6 +217,8 @@ export default function PlanWorkspacePage() {
   const [docsState, setDocsState] = useState<DocsState>({ status: "idle" });
   const [actionsState, setActionsState] = useState<ActionsState>({ status: "idle" });
   const [ccetState, setCcetState] = useState<CcetState>({ status: "idle" });
+  const [fundingSourcesState, setFundingSourcesState] = useState<FundingSourcesState>({ status: "idle" });
+  const [fundingProgramsState, setFundingProgramsState] = useState<FundingProgramsState>({ status: "idle" });
   const [monitoringState, setMonitoringState] = useState<MonitoringState>({ status: "idle" });
   const [monitoringUpdatesState, setMonitoringUpdatesState] =
     useState<MonitoringUpdatesState>({ status: "idle" });
@@ -247,6 +286,26 @@ export default function PlanWorkspacePage() {
     }
   }, []);
 
+  const loadFundingSources = useCallback(async () => {
+    setFundingSourcesState({ status: "loading" });
+    try {
+      const data = await actionClient.getFundingSources();
+      setFundingSourcesState({ status: "ready", data });
+    } catch (err) {
+      setFundingSourcesState({ status: "error", message: describeFundingSourcesError(err) });
+    }
+  }, []);
+
+  const loadFundingPrograms = useCallback(async () => {
+    setFundingProgramsState({ status: "loading" });
+    try {
+      const data = await actionClient.getFundingPrograms();
+      setFundingProgramsState({ status: "ready", data });
+    } catch (err) {
+      setFundingProgramsState({ status: "error", message: describeFundingProgramsError(err) });
+    }
+  }, []);
+
   const loadMonitoring = useCallback(async () => {
     if (!planId) {
       return;
@@ -291,6 +350,8 @@ export default function PlanWorkspacePage() {
     setPlanFundingAllocations([]);
     setSelectedIndicatorId(null);
     setMonitoringUpdatesState({ status: "idle" });
+    setFundingSourcesState({ status: "idle" });
+    setFundingProgramsState({ status: "idle" });
   }, [planId]);
 
   useEffect(() => {
@@ -298,6 +359,8 @@ export default function PlanWorkspacePage() {
       setDocsState({ status: "idle" });
       setActionsState({ status: "idle" });
       setCcetState({ status: "idle" });
+      setFundingSourcesState({ status: "idle" });
+      setFundingProgramsState({ status: "idle" });
       setMonitoringState({ status: "idle" });
       return;
     }
@@ -305,7 +368,17 @@ export default function PlanWorkspacePage() {
     void loadActions();
     void loadMonitoring();
     void loadCcet();
-  }, [state.status, loadDocuments, loadActions, loadMonitoring, loadCcet]);
+    void loadFundingSources();
+    void loadFundingPrograms();
+  }, [
+    state.status,
+    loadDocuments,
+    loadActions,
+    loadMonitoring,
+    loadCcet,
+    loadFundingSources,
+    loadFundingPrograms
+  ]);
 
   useEffect(() => {
     void loadMonitoringUpdates();
@@ -607,6 +680,18 @@ export default function PlanWorkspacePage() {
             </p>
 
             <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
+              <FundingSourceCatalogPanel
+                status={fundingSourcesState.status}
+                result={fundingSourcesState.status === "ready" ? fundingSourcesState.data : undefined}
+                errorMessage={fundingSourcesState.status === "error" ? fundingSourcesState.message : undefined}
+                onRetry={() => void loadFundingSources()}
+              />
+              <FundingProgramCatalogPanel
+                status={fundingProgramsState.status}
+                result={fundingProgramsState.status === "ready" ? fundingProgramsState.data : undefined}
+                errorMessage={fundingProgramsState.status === "error" ? fundingProgramsState.message : undefined}
+                onRetry={() => void loadFundingPrograms()}
+              />
               <CcetCatalogPanel
                 status={ccetState.status}
                 result={ccetState.status === "ready" ? ccetState.data : undefined}
@@ -621,6 +706,8 @@ export default function PlanWorkspacePage() {
                 actionsError={actionsState.status === "error" ? actionsState.message : null}
                 ccetLoading={ccetState.status === "loading" || ccetState.status === "idle"}
                 ccetError={ccetState.status === "error" ? ccetState.message : null}
+                fundingSourcesState={fundingSourcesState}
+                fundingProgramsState={fundingProgramsState}
               />
             </div>
 
@@ -628,6 +715,8 @@ export default function PlanWorkspacePage() {
               planId={planId}
               actionItems={actionsState.status === "ready" ? actionsState.items : []}
               ccetTags={ccetState.status === "ready" ? ccetState.data.items : []}
+              fundingSourcesState={fundingSourcesState}
+              fundingProgramsState={fundingProgramsState}
               selectedActionId={selectedActionId}
               onPlanAllocationsChange={handlePlanAllocationsChange}
             />

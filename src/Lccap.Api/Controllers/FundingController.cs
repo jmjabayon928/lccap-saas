@@ -33,6 +33,43 @@ public sealed class FundingController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("funding/sources")]
+    [RequireWorkspaceRole("Read")]
+    public async Task<IActionResult> GetFundingSources(
+        [FromServices] GetFundingSourcesQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var result = await query.ExecuteAsync(cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("funding/programs")]
+    [RequireWorkspaceRole("Read")]
+    public async Task<IActionResult> GetFundingPrograms(
+        [FromServices] GetFundingProgramsQuery query,
+        [FromQuery] Guid? fundingSourceId = null,
+        [FromQuery] bool includeInactiveOrClosed = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var outcome = await query.ExecuteAsync(fundingSourceId, includeInactiveOrClosed, cancellationToken);
+        if (outcome.SourceNotFound || outcome.Result is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(outcome.Result);
+    }
+
     [HttpGet("plans/{planId:guid}/funding-allocations")]
     [RequireWorkspaceRole("Read")]
     public async Task<IActionResult> GetAllocationsByPlan(

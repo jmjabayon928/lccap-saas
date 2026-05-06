@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActionBudget } from "@/components/actions/action-budget";
 import { ActionTypeBadge } from "@/components/actions/action-type-badge";
@@ -8,7 +9,9 @@ import type {
   ActionItemSummary,
   ActionType,
   ClimateExpenditureTagCategory,
-  ClimateExpenditureTagSummary
+  ClimateExpenditureTagSummary,
+  FundingProgramsLoadState,
+  FundingSourcesLoadState
 } from "@/types/actions";
 
 function suggestedCcetCategories(actionType: ActionType): ClimateExpenditureTagCategory[] {
@@ -39,6 +42,8 @@ export interface ActionFundingReadinessPanelProps {
   readonly actionsError: string | null;
   readonly ccetLoading: boolean;
   readonly ccetError: string | null;
+  readonly fundingSourcesState: FundingSourcesLoadState;
+  readonly fundingProgramsState: FundingProgramsLoadState;
 }
 
 export function ActionFundingReadinessPanel({
@@ -48,23 +53,74 @@ export function ActionFundingReadinessPanel({
   actionsLoading,
   actionsError,
   ccetLoading,
-  ccetError
+  ccetError,
+  fundingSourcesState,
+  fundingProgramsState
 }: ActionFundingReadinessPanelProps) {
   const withBudget = actions.filter((a) => Number.isFinite(a.budgetAmount) && a.budgetAmount > 0).length;
-  const withFundingSource = actions.filter((a) => (a.fundingSource?.trim() ?? "").length > 0).length;
-  const missingFundingSource = actions.filter((a) => !(a.fundingSource?.trim() ?? "").length).length;
+
+  const withFundingSource = actions.filter((a) => {
+    const fundingSource = a.fundingSource?.trim() ?? "";
+    return fundingSource.length > 0;
+  }).length;
+
+  const missingFundingSource = actions.filter((a) => {
+    const fundingSource = a.fundingSource?.trim() ?? "";
+    return fundingSource.length === 0;
+  }).length;
 
   const activeTagCount = tags.filter((t) => t.isActive).length;
 
-  const allocList = planAllocations ?? [];
-  const allocationTotalsByCurrency = (() => {
-    const m = new Map<string, number>();
-    for (const a of allocList) {
-      const cur = a.currencyCode.trim().toUpperCase();
-      m.set(cur, (m.get(cur) ?? 0) + a.allocatedAmount);
+  const allocList = useMemo(
+    () => planAllocations ?? [],
+    [planAllocations]
+  );
+
+  const allocationTotalsByCurrency = useMemo(() => {
+    const totals = new Map<string, number>();
+
+    for (const allocation of allocList) {
+      const currencyCode = allocation.currencyCode.trim().toUpperCase();
+      const currentTotal = totals.get(currencyCode) ?? 0;
+
+      totals.set(currencyCode, currentTotal + allocation.allocatedAmount);
     }
-    return [...m.entries()].sort(([ca], [cb]) => ca.localeCompare(cb));
-  })();
+
+    return [...totals.entries()].sort(([leftCurrency], [rightCurrency]) =>
+      leftCurrency.localeCompare(rightCurrency)
+    );
+  }, [allocList]);
+
+  const allocationTotalsByFundingSource = useMemo(() => {
+    const rows = new Map<string, { readonly name: string; readonly byCurrency: Map<string, number> }>();
+
+    for (const allocation of allocList) {
+      const fundingSourceName = allocation.fundingSourceName.trim() || "Unknown source";
+      let row = rows.get(fundingSourceName);
+
+      if (row === undefined) {
+        row = {
+          name: fundingSourceName,
+          byCurrency: new Map<string, number>()
+        };
+
+        rows.set(fundingSourceName, row);
+      }
+
+      const currencyCode = allocation.currencyCode.trim().toUpperCase();
+      const currentTotal = row.byCurrency.get(currencyCode) ?? 0;
+
+      row.byCurrency.set(currencyCode, currentTotal + allocation.allocatedAmount);
+    }
+
+    return [...rows.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }, [allocList]);
+
+  const fundingSourcesCatalogLoading =
+    fundingSourcesState.status === "idle" || fundingSourcesState.status === "loading";
+
+  const fundingProgramsCatalogLoading =
+    fundingProgramsState.status === "idle" || fundingProgramsState.status === "loading";
 
   return (
     <Card className="border-border shadow-sm">
@@ -76,9 +132,46 @@ export function ActionFundingReadinessPanel({
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="rounded-md border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs text-muted-foreground leading-snug">
-          CCET tags are available for planning reference. Planned funding allocations below can record sources and CCET linkage;
-          persistence on action rows and allocation lifecycle edits follow in later slices.
+          CCET tags are available for planning reference. Catalog funding sources/programs remain read-only; allocations below
+          link planned amounts to IDs from those catalogs.
         </p>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-md border border-border px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground">Funding sources (catalog)</p>
+            <div className="mt-1 tabular-nums text-lg font-semibold text-slate-900">
+              {fundingSourcesCatalogLoading ? (
+                <span className="text-sm font-normal text-muted-foreground">Loading…</span>
+              ) : fundingSourcesState.status === "error" ? (
+                <span className="text-sm font-normal text-amber-800">Unavailable</span>
+              ) : fundingSourcesState.status === "ready" ? (
+                fundingSourcesState.data.totalCount
+              ) : (
+                <span className="text-sm font-normal text-muted-foreground">—</span>
+              )}
+            </div>
+            {fundingSourcesState.status === "error" ? (
+              <p className="mt-1 text-[11px] text-amber-900/90">{fundingSourcesState.message}</p>
+            ) : null}
+          </div>
+          <div className="rounded-md border border-border px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground">Active funding programs (catalog)</p>
+            <div className="mt-1 tabular-nums text-lg font-semibold text-slate-900">
+              {fundingProgramsCatalogLoading ? (
+                <span className="text-sm font-normal text-muted-foreground">Loading…</span>
+              ) : fundingProgramsState.status === "error" ? (
+                <span className="text-sm font-normal text-amber-800">Unavailable</span>
+              ) : fundingProgramsState.status === "ready" ? (
+                fundingProgramsState.data.totalCount
+              ) : (
+                <span className="text-sm font-normal text-muted-foreground">—</span>
+              )}
+            </div>
+            {fundingProgramsState.status === "error" ? (
+              <p className="mt-1 text-[11px] text-amber-900/90">{fundingProgramsState.message}</p>
+            ) : null}
+          </div>
+        </div>
 
         {actionsLoading ? (
           <p className="text-muted-foreground">Loading actions for this summary…</p>
@@ -124,6 +217,28 @@ export function ActionFundingReadinessPanel({
                   </li>
                 ))}
               </ul>
+            ) : null}
+            {allocationTotalsByFundingSource.length ? (
+              <div className="mt-3 border-t border-emerald-200/80 pt-2">
+                <p className="text-[11px] font-medium text-emerald-900/90">By funding source</p>
+                <ul className="mt-1 space-y-1 text-[11px] text-emerald-900/85">
+                  {allocationTotalsByFundingSource.map((row) => (
+                    <li key={row.name}>
+                      <span className="font-medium text-emerald-950">{row.name}</span>
+                      <ul className="ml-3 mt-0.5 list-disc space-y-0.5">
+                        {[...row.byCurrency.entries()]
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([cur, sum]) => (
+                            <li key={`${row.name}-${cur}`}>
+                              <span className="font-mono">{cur}</span>{" "}
+                              <span className="tabular-nums font-medium">{sum.toFixed(2)}</span>
+                            </li>
+                          ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
         ) : null}

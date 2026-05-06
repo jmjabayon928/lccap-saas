@@ -10,13 +10,17 @@ import { ActionFundingAllocationList } from "@/components/actions/action-funding
 import type {
   ActionFundingAllocationSummary,
   ActionItemSummary,
-  ClimateExpenditureTagSummary
+  ClimateExpenditureTagSummary,
+  FundingProgramsLoadState,
+  FundingSourcesLoadState
 } from "@/types/actions";
 
 export interface ActionFundingAllocationPanelProps {
   readonly planId: string;
   readonly actionItems: readonly ActionItemSummary[];
   readonly ccetTags: readonly ClimateExpenditureTagSummary[];
+  readonly fundingSourcesState: FundingSourcesLoadState;
+  readonly fundingProgramsState: FundingProgramsLoadState;
   readonly selectedActionId: string | null;
   readonly onPlanAllocationsChange?: (items: readonly ActionFundingAllocationSummary[]) => void;
 }
@@ -25,6 +29,8 @@ export function ActionFundingAllocationPanel({
   planId,
   actionItems,
   ccetTags,
+  fundingSourcesState,
+  fundingProgramsState,
   selectedActionId,
   onPlanAllocationsChange
 }: ActionFundingAllocationPanelProps) {
@@ -96,6 +102,11 @@ export function ActionFundingAllocationPanel({
     return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [allocations]);
 
+  const fundingSourcesReady = fundingSourcesState.status === "ready";
+  const fundingProgramsReady = fundingProgramsState.status === "ready";
+  const fundingSources = fundingSourcesReady ? [...fundingSourcesState.data.items] : [];
+  const fundingPrograms = fundingProgramsReady ? [...fundingProgramsState.data.items] : [];
+
   const selectedSummary = useMemo(() => {
     if (!selectedActionId?.trim()) {
       return null;
@@ -164,6 +175,10 @@ export function ActionFundingAllocationPanel({
           planId={planId}
           actionItems={actionItems}
           ccetTags={ccetTags}
+          fundingSources={fundingSources}
+          fundingPrograms={fundingPrograms}
+          fundingSourcesReady={fundingSourcesReady}
+          fundingProgramsReady={fundingProgramsReady}
           selectedActionId={selectedActionId}
           onCreated={() => void reload()}
         />
