@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T23:59:59Z",
+      "last_updated_utc": "2026-05-07T00:00:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -16,7 +16,7 @@
   "current_state": {
     "phase": "Phase 2",
     "active_module": "Funding",
-    "active_task": "Slice 5C CCET Catalog UI and Funding Readiness Display",
+    "active_task": "Slice 5D Action Funding Allocation Foundation API",
     "status": "done"
   },
 
@@ -1114,7 +1114,7 @@
             "description": "Registers application services into DI container."
           }
         ],
-        "notes": "Registers evidence index query (GetEvidenceIndexByPlanQuery) for plan-scoped evidence index endpoints; Phase 2 Slice 5B registers GetClimateExpenditureTagsQuery."
+        "notes": "Registers evidence index query (GetEvidenceIndexByPlanQuery) for plan-scoped evidence index endpoints; Phase 2 Slice 5B registers GetClimateExpenditureTagsQuery; Slice 5D registers allocation create/archive commands and allocation list queries."
       },
       {
         "id": "FILE-0044",
@@ -5554,7 +5554,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "GET /api/funding/climate-expenditure-tags; workspace Read; delegates to GetClimateExpenditureTagsQuery."
+        "notes": "GET CCET catalog + GET/POST plan funding-allocations + GET action funding-allocations + DELETE allocation (soft-delete); workspace Read vs CreateOrEdit; POST body excludes plan/account."
       },
       {
         "id": "FILE-0328",
@@ -5565,7 +5565,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Integration tests for CCET catalog: tenant filter, soft-delete, inactive default vs includeInactive, sort, non-read forbid, empty when no account."
+        "notes": "CCET catalog tests; Slice 5D: allocation create/list/archive integration (tenant, FK integrity, Planned-only create, soft-delete filter, GET 404 unknown plan)."
       },
       {
         "id": "FILE-0329",
@@ -5588,6 +5588,50 @@
         "source": "actual",
         "functions": [],
         "notes": "Phase 2 Slice 5C: budget/source summary, active CCET count, per-action suggested categories; no persistence."
+      },
+      {
+        "id": "FILE-0331",
+        "path": "src/Lccap.Application/Funding/Commands/CreateActionFundingAllocationCommand.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5D: tenant-scoped allocation create with FK checks; Planned-only status; FundingApplicationId null; audit ActionFundingAllocationCreated."
+      },
+      {
+        "id": "FILE-0332",
+        "path": "src/Lccap.Application/Funding/Commands/ArchiveActionFundingAllocationCommand.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5D: soft-delete allocation by id/account; audit ActionFundingAllocationArchived."
+      },
+      {
+        "id": "FILE-0333",
+        "path": "src/Lccap.Application/Funding/Queries/GetActionFundingAllocationsByPlanQuery.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5D: tenant plan validation; joins for display fields; AsNoTracking; fiscal year/action title/source/name/created sort."
+      },
+      {
+        "id": "FILE-0334",
+        "path": "src/Lccap.Application/Funding/Queries/GetActionFundingAllocationsByActionQuery.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5D: list allocations per action row; tenant action validation; same DTO projection; FY/source/Created sort."
       }
     ]
   }
