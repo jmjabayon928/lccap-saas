@@ -1,5 +1,8 @@
+import { ApiError } from "@/lib/api/api-error";
 import { endpoints } from "@/lib/api/endpoints";
 import { http } from "@/lib/api/http";
+import { config } from "@/lib/config";
+import { getAccessToken } from "@/lib/auth/auth-storage";
 import {
   parseActionFundingAllocationSummary,
   parseActionFundingAllocationsResult,
@@ -18,11 +21,130 @@ import type {
   ClimateExpenditureTagsResult,
   CreateActionFundingAllocationRequest,
   CreateActionItemRequest,
+  ExportPackageManifest,
   FundingProgramsResult,
   FundingSourcesResult,
   SaveActionItemResult,
   UpdateActionItemRequest
 } from "@/types/actions";
+
+function buildAbsoluteUrl(path: string): string {
+  const base = config.apiBaseUrl;
+  const prefix = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${prefix}`;
+}
+
+function authHeaders(): HeadersInit {
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function extractFilenameFromContentDisposition(header: string | null): string | null {
+  if (!header) {
+    return null;
+  }
+  const parts = header.split(";").map((p) => p.trim());
+  const filenamePart = parts.find((p) => p.toLowerCase().startsWith("filename="));
+  if (!filenamePart) {
+    return null;
+  }
+  const raw = filenamePart.slice("filename=".length).trim();
+  const unquoted = raw.startsWith("\"") && raw.endsWith("\"") ? raw.slice(1, -1) : raw;
+  const cleaned = unquoted.replaceAll("\\", "").trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+async function fetchExportCsv(path: string, fallbackFileName: string): Promise<{ readonly blob: Blob; readonly fileName: string }> {
+  const response = await fetch(buildAbsoluteUrl(path), {
+    method: "GET",
+    headers: {
+      ...authHeaders(),
+      Accept: "text/csv, text/plain, */*"
+    },
+    credentials: "omit"
+  });
+  if (!response.ok) {
+    throw await ApiError.fromResponse(response);
+  }
+  const blob = await response.blob();
+  const cd = response.headers.get("content-disposition");
+  return { blob, fileName: extractFilenameFromContentDisposition(cd) ?? fallbackFileName };
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function requireFiniteNumber(v: unknown, field: string): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    throw new Error(`Invalid export manifest: ${field}`);
+  }
+  return v;
+}
+
+function requireBool(v: unknown, field: string): boolean {
+  if (typeof v !== "boolean") {
+    throw new Error(`Invalid export manifest: ${field}`);
+  }
+  return v;
+}
+
+function parseExportPackageManifest(data: unknown): ExportPackageManifest {
+  if (!isRecord(data)) {
+    throw new Error("Invalid export manifest: root");
+  }
+  const planIdParsed = typeof data.planId === "string" ? data.planId.trim() : "";
+  if (!planIdParsed) {
+    throw new Error("Invalid export manifest: planId");
+  }
+  const countsRaw = data.counts;
+  const readinessRaw = data.readiness;
+  const downloadsRaw = data.availableDownloads;
+  if (!isRecord(countsRaw) || !isRecord(readinessRaw) || !isRecord(downloadsRaw)) {
+    throw new Error("Invalid export manifest: nested objects");
+  }
+  const notesRaw = data.notes;
+  if (!Array.isArray(notesRaw) || !notesRaw.every((n) => typeof n === "string")) {
+    throw new Error("Invalid export manifest: notes");
+  }
+  return {
+    planId: planIdParsed,
+    planTitle: typeof data.planTitle === "string" ? data.planTitle : "",
+    planningPeriodStart: requireFiniteNumber(data.planningPeriodStart, "planningPeriodStart"),
+    planningPeriodEnd: requireFiniteNumber(data.planningPeriodEnd, "planningPeriodEnd"),
+    status: typeof data.status === "string" ? data.status : "",
+    generatedAtUtc: typeof data.generatedAtUtc === "string" ? data.generatedAtUtc : "",
+    counts: {
+      documents: requireFiniteNumber(countsRaw.documents, "counts.documents"),
+      officialEvidence: requireFiniteNumber(countsRaw.officialEvidence, "counts.officialEvidence"),
+      publicEvidence: requireFiniteNumber(countsRaw.publicEvidence, "counts.publicEvidence"),
+      actions: requireFiniteNumber(countsRaw.actions, "counts.actions"),
+      monitoringIndicators: requireFiniteNumber(countsRaw.monitoringIndicators, "counts.monitoringIndicators"),
+      monitoringUpdates: requireFiniteNumber(countsRaw.monitoringUpdates, "counts.monitoringUpdates"),
+      unresolvedSectionComments: requireFiniteNumber(countsRaw.unresolvedSectionComments, "counts.unresolvedSectionComments"),
+      fundingAllocations: requireFiniteNumber(countsRaw.fundingAllocations, "counts.fundingAllocations"),
+      ccetTaggedAllocations: requireFiniteNumber(countsRaw.ccetTaggedAllocations, "counts.ccetTaggedAllocations")
+    },
+    readiness: {
+      hasOfficialEvidence: requireBool(readinessRaw.hasOfficialEvidence, "readiness.hasOfficialEvidence"),
+      hasActions: requireBool(readinessRaw.hasActions, "readiness.hasActions"),
+      hasMonitoring: requireBool(readinessRaw.hasMonitoring, "readiness.hasMonitoring"),
+      hasFundingAllocations: requireBool(readinessRaw.hasFundingAllocations, "readiness.hasFundingAllocations"),
+      hasUnresolvedComments: requireBool(readinessRaw.hasUnresolvedComments, "readiness.hasUnresolvedComments")
+    },
+    availableDownloads: {
+      evidenceIndexCsv:
+        typeof downloadsRaw.evidenceIndexCsv === "string" ? downloadsRaw.evidenceIndexCsv : "",
+      actionMatrixCsv:
+        typeof downloadsRaw.actionMatrixCsv === "string" ? downloadsRaw.actionMatrixCsv : "",
+      monitoringMatrixCsv:
+        typeof downloadsRaw.monitoringMatrixCsv === "string" ? downloadsRaw.monitoringMatrixCsv : "",
+      fundingReadinessCsv:
+        typeof downloadsRaw.fundingReadinessCsv === "string" ? downloadsRaw.fundingReadinessCsv : ""
+    },
+    notes: notesRaw
+  };
+}
 
 export const actionClient = {
   async getActionsByPlan(planId: string): Promise<ActionItemSummary[]> {
@@ -117,5 +239,31 @@ export const actionClient = {
 
   async archiveActionFundingAllocation(allocationId: string): Promise<void> {
     await http.deleteVoid(`/api/funding-allocations/${encodeURIComponent(allocationId)}`);
+  },
+
+  async getExportPackageManifest(planId: string): Promise<ExportPackageManifest> {
+    const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/exports/package-manifest`);
+    return parseExportPackageManifest(data);
+  },
+
+  async downloadActionMatrixCsv(
+    planId: string
+  ): Promise<{ readonly blob: Blob; readonly fileName: string }> {
+    const path = `/api/plans/${encodeURIComponent(planId)}/exports/action-matrix.csv`;
+    return fetchExportCsv(path, `action-matrix-${planId}.csv`);
+  },
+
+  async downloadMonitoringMatrixCsv(
+    planId: string
+  ): Promise<{ readonly blob: Blob; readonly fileName: string }> {
+    const path = `/api/plans/${encodeURIComponent(planId)}/exports/monitoring-matrix.csv`;
+    return fetchExportCsv(path, `monitoring-matrix-${planId}.csv`);
+  },
+
+  async downloadFundingReadinessCsv(
+    planId: string
+  ): Promise<{ readonly blob: Blob; readonly fileName: string }> {
+    const path = `/api/plans/${encodeURIComponent(planId)}/exports/funding-readiness.csv`;
+    return fetchExportCsv(path, `funding-readiness-${planId}.csv`);
   }
 } as const;

@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T18:00:00Z",
+      "last_updated_utc": "2026-05-06T22:30:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -15,8 +15,8 @@
   
   "current_state": {
     "phase": "Phase 2",
-    "active_module": "Funding",
-    "active_task": "Slice 5F Funding Catalogs and Allocation Dropdown UX",
+    "active_module": "Exports",
+    "active_task": "Slice 6 Richer Export Packages",
     "status": "done"
   },
 

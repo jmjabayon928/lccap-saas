@@ -841,11 +841,11 @@ export default function PlanWorkspacePage() {
 
           <section className="space-y-4" aria-labelledby="plan-export-heading">
             <h2 id="plan-export-heading" className="text-lg font-semibold tracking-tight text-slate-900">
-              Export draft PDF package
+              Exports and evidence
             </h2>
             <p className="text-sm text-muted-foreground">
-              Generate a working PDF output for this plan via the API—draft LGU preparation material only, not an official
-              submission or national reporting channel.
+              Pull CSV working packages and structured evidence summaries, then generate an optional PDF draft via the shared
+              API—draft LGU preparation only, not an official submission channel.
             </p>
             <EvidenceIndexPanel planId={planId} />
             <ExportPanel planId={planId} />

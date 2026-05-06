@@ -5,6 +5,7 @@ import { Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ExportPackagePanel } from "@/components/exports/export-package-panel";
 import { ExportReadinessCard } from "@/components/exports/export-readiness-card";
 import { ExportStatusBadge } from "@/components/exports/export-status-badge";
 import { isApiError } from "@/lib/api/api-error";
@@ -139,6 +140,7 @@ export function ExportPanel({ planId }: ExportPanelProps) {
 
   return (
     <div className="space-y-4">
+      <ExportPackagePanel planId={planId} />
       <ExportReadinessCard />
 
       <Card className="border-border shadow-sm">

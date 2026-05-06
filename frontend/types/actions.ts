@@ -186,3 +186,44 @@ export interface CreateActionFundingAllocationRequest {
   readonly allocationStatus?: "Planned" | null;
   readonly notes?: string | null;
 }
+
+/** JSON from GET /api/plans/{planId}/exports/package-manifest */
+export interface ExportPackageCounts {
+  readonly documents: number;
+  readonly officialEvidence: number;
+  readonly publicEvidence: number;
+  readonly actions: number;
+  readonly monitoringIndicators: number;
+  readonly monitoringUpdates: number;
+  readonly unresolvedSectionComments: number;
+  readonly fundingAllocations: number;
+  readonly ccetTaggedAllocations: number;
+}
+
+export interface ExportPackageReadiness {
+  readonly hasOfficialEvidence: boolean;
+  readonly hasActions: boolean;
+  readonly hasMonitoring: boolean;
+  readonly hasFundingAllocations: boolean;
+  readonly hasUnresolvedComments: boolean;
+}
+
+export interface ExportPackageDownloads {
+  readonly evidenceIndexCsv: string;
+  readonly actionMatrixCsv: string;
+  readonly monitoringMatrixCsv: string;
+  readonly fundingReadinessCsv: string;
+}
+
+export interface ExportPackageManifest {
+  readonly planId: string;
+  readonly planTitle: string;
+  readonly planningPeriodStart: number;
+  readonly planningPeriodEnd: number;
+  readonly status: string;
+  readonly generatedAtUtc: string;
+  readonly counts: ExportPackageCounts;
+  readonly readiness: ExportPackageReadiness;
+  readonly availableDownloads: ExportPackageDownloads;
+  readonly notes: readonly string[];
+}

@@ -7,6 +7,7 @@ using Lccap.Application.Documents.Commands;
 using Lccap.Application.Documents.Queries;
 using Lccap.Application.Export.Commands;
 using Lccap.Application.Export.Queries;
+using Lccap.Application.Exports.Queries;
 using Lccap.Application.Funding.Commands;
 using Lccap.Application.Funding.Queries;
 using Lccap.Application.Monitoring.Commands;
@@ -40,6 +41,10 @@ public static class DependencyInjection
         _ = services.AddScoped<ArchiveDocumentCommand>();
         _ = services.AddScoped<CreateExportJobCommand>();
         _ = services.AddScoped<DownloadExportQuery>();
+        _ = services.AddScoped<GetActionMatrixExportQuery>();
+        _ = services.AddScoped<GetMonitoringMatrixExportQuery>();
+        _ = services.AddScoped<GetFundingReadinessExportQuery>();
+        _ = services.AddScoped<GetExportPackageManifestQuery>();
         _ = services.AddScoped<GetDocumentsByPlanQuery>();
         _ = services.AddScoped<GetEvidenceIndexByPlanQuery>();
         _ = services.AddScoped<SavePlanSectionCommand>();
