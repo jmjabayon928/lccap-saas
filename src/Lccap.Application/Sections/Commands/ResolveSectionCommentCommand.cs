@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -104,6 +105,19 @@ public class ResolveSectionCommentCommand
             });
 
         _ = await _db.SaveChangesAsync(cancellationToken);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _db,
+            _currentUser,
+            _clock,
+            "SectionCommentResolved",
+            "Comment resolved",
+            "A review comment was marked resolved.",
+            "SectionComment",
+            entity.Id,
+            entity.PlanId,
+            cancellationToken);
+
         return ResolveSectionCommentResult.Ok();
     }
 }

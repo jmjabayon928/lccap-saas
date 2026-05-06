@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -103,7 +104,21 @@ public sealed class ArchiveMapAssetCommand
         };
         _ = _dbContext.AuditLogs.Add(audit);
 
+        var planIdForNotify = asset.PlanId;
+
         _ = await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _dbContext,
+            _currentUserContext,
+            clock: null,
+            "MapAssetArchived",
+            "Map layer archived",
+            "A map layer was archived.",
+            "MapAsset",
+            mapAssetId,
+            planIdForNotify,
+            cancellationToken).ConfigureAwait(false);
 
         return ArchiveMapAssetResult.NoContent();
     }

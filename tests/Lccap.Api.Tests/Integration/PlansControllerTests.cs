@@ -1211,6 +1211,41 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Geojson_layer_create_publishes_workspace_notification_to_reviewer()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var plannerId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        SeedPlansNotifyAccountAndUsers(db, accountId, plannerId, reviewerId);
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        using var geo = JsonDocument.Parse(
+            "{\"type\":\"FeatureCollection\",\"features\":[" +
+            "{\"type\":\"Feature\",\"id\":\"x1\",\"properties\":{\"name\":\"A\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[125.1,7.2]}}" +
+            "]}");
+
+        var controller = CreateController(db, accountId, plannerId);
+        var cmd = new CreateGeoJsonLayerCommand(db, new TestCurrentUserContext(accountId, plannerId, true, WorkspaceRoles.Planner));
+        var result = await controller.CreateGeoJsonLayer(
+            plan.Id,
+            new CreateGeoJsonLayerApiRequest(file.Id, "Flood zones", "Flood", null, geo, null, null),
+            cmd,
+            CancellationToken.None);
+
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+
+        var ev = await db.NotificationEvents.SingleAsync(e => e.EventType == "GeoJsonLayerCreated");
+        var uns = await db.UserNotifications.Where(n => n.NotificationEventId == ev.Id).ToListAsync();
+        Assert.Single(uns);
+        Assert.Equal(reviewerId, uns[0].UserId);
+    }
+
+    [Fact]
     public async Task Geojson_layer_post_feature_id_boolean_is_stored_as_null()
     {
         using var db = CreateDbContext();
@@ -1759,6 +1794,33 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Archive_map_asset_publishes_workspace_notification_to_reviewer()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var plannerId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        SeedPlansNotifyAccountAndUsers(db, accountId, plannerId, reviewerId);
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var file = SeedGeoJsonFileAsset(accountId);
+        db.FileAssets.Add(file);
+        var asset = NewMapAsset(accountId, plan.Id, file.Id, "L", deleted: false);
+        db.MapAssets.Add(asset);
+        db.GeoJsonLayerFeatures.Add(NewGeoFeature(accountId, asset.Id, deleted: false));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, plannerId);
+        var cmd = new ArchiveMapAssetCommand(db, new TestCurrentUserContext(accountId, plannerId, true, WorkspaceRoles.Planner));
+        var result = await controller.ArchiveMapAsset(asset.Id, cmd, CancellationToken.None);
+        _ = Assert.IsType<NoContentResult>(result);
+
+        var ev = await db.NotificationEvents.SingleAsync(e => e.EventType == "MapAssetArchived");
+        var uns = await db.UserNotifications.Where(n => n.NotificationEventId == ev.Id).ToListAsync();
+        Assert.Single(uns);
+        Assert.Equal(reviewerId, uns[0].UserId);
+    }
+
+    [Fact]
     public async Task Operational_dashboard_activity_omits_sensitive_audit_fields_and_respects_limit()
     {
         using var db = CreateDbContext();
@@ -1902,6 +1964,55 @@ public sealed class PlansControllerTests
     {
         _ = db;
         return new PlansController(new TestCurrentUserContext(accountId, userId, true, role));
+    }
+
+    private static void SeedPlansNotifyAccountAndUsers(LccapDbContext db, Guid accountId, Guid plannerId, Guid reviewerId)
+    {
+        db.Accounts.Add(
+            new Account
+            {
+                Id = accountId,
+                Name = "T",
+                Region = "R",
+                Province = "P",
+                MunicipalityOrCity = "M",
+                LguType = "City",
+                ContactEmail = "c@test",
+                Status = "Active",
+                SettingsJson = JsonDocument.Parse("{}"),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            });
+        db.Users.AddRange(
+            new User
+            {
+                Id = plannerId,
+                AccountId = accountId,
+                Email = "p@test",
+                FullName = "P",
+                PasswordHash = "-",
+                Role = WorkspaceRoles.Planner,
+                Status = "Active",
+                UserScope = "Tenant",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 2, 2, 3, 4, 5, 6, 7, 8 },
+            },
+            new User
+            {
+                Id = reviewerId,
+                AccountId = accountId,
+                Email = "r@test",
+                FullName = "R",
+                PasswordHash = "-",
+                Role = WorkspaceRoles.Reviewer,
+                Status = "Active",
+                UserScope = "Tenant",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 3, 2, 3, 4, 5, 6, 7, 8 },
+            });
     }
 
     private static PlansController CreateController(LccapDbContext db, ICurrentUserContext context)

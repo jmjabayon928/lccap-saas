@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -104,6 +105,19 @@ public class ReopenSectionCommentCommand
             });
 
         _ = await _db.SaveChangesAsync(cancellationToken);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _db,
+            _currentUser,
+            _clock,
+            "SectionCommentReopened",
+            "Comment reopened",
+            "A review comment was reopened.",
+            "SectionComment",
+            entity.Id,
+            entity.PlanId,
+            cancellationToken);
+
         return ReopenSectionCommentResult.Ok();
     }
 }

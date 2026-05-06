@@ -1,4 +1,5 @@
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -157,6 +158,18 @@ public class CreateSectionCommentCommand
             });
 
         _ = await _db.SaveChangesAsync(cancellationToken);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _db,
+            _currentUser,
+            _clock,
+            "SectionCommentCreated",
+            "Review comment added",
+            $"A {commentTypeRaw} comment was added for this plan.",
+            "SectionComment",
+            commentId,
+            request.PlanId,
+            cancellationToken);
 
         return CreateSectionCommentResult.Ok(
             new SectionCommentDto(

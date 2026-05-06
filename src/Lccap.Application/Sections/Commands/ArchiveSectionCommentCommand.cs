@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,6 +100,19 @@ public class ArchiveSectionCommentCommand
             });
 
         _ = await _db.SaveChangesAsync(cancellationToken);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _db,
+            _currentUser,
+            _clock,
+            "SectionCommentArchived",
+            "Comment archived",
+            "A review comment was archived.",
+            "SectionComment",
+            entity.Id,
+            entity.PlanId,
+            cancellationToken);
+
         return ArchiveSectionCommentResult.Ok();
     }
 }

@@ -115,7 +115,10 @@ export function CollaborationSummaryPanel() {
 
       <CardContent className="space-y-4">
         {result.groups.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No collaboration groups have been configured yet.</p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>No collaboration groups have been configured yet.</p>
+            <p>For Phase 2, collaboration groups are managed by tenant administrators or seed data.</p>
+          </div>
         ) : (
           <div className="space-y-3">
             {result.groups.map((g) => (

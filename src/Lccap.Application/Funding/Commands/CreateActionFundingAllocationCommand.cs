@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Funding.Queries;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -206,6 +207,18 @@ public sealed class CreateActionFundingAllocationCommand
         _ = _dbContext.AuditLogs.Add(audit);
 
         _ = await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _dbContext,
+            _currentUserContext,
+            clock: null,
+            "ActionFundingAllocationCreated",
+            "Funding allocation",
+            "A planned funding allocation was added.",
+            "ActionFundingAllocation",
+            entity.Id,
+            entity.PlanId,
+            cancellationToken);
 
         FundingProgram? programNav = null;
         if (request.FundingProgramId.HasValue)

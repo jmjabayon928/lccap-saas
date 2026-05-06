@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -91,7 +92,22 @@ public sealed class ArchiveActionFundingAllocationCommand
         };
         _ = _dbContext.AuditLogs.Add(audit);
 
+        var planIdForNotify = entity.PlanId;
+        var allocationIdForNotify = entity.Id;
+
         _ = await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _dbContext,
+            _currentUserContext,
+            clock: null,
+            "ActionFundingAllocationArchived",
+            "Funding allocation archived",
+            "A funding allocation was archived.",
+            "ActionFundingAllocation",
+            allocationIdForNotify,
+            planIdForNotify,
+            cancellationToken);
 
         return ArchiveActionFundingAllocationResult.CreateSuccess();
     }

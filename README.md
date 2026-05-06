@@ -212,6 +212,13 @@ Features must not **bleed across phases** without an explicit decision.
 | **Phase 2** | Evidence index; review comments; CCET / funding-readiness tagging; PSF proposal package helper as preparation aid, not a portal; richer exports; deeper monitoring; operational readiness; stronger observability. |
 | **Phase 3** | Interoperability; PostGIS / spatial analytics; exposure summaries; scenario comparison; recommendation-style assistance; integration-ready APIs and exports. |
 
+### Phase 2: Collaboration and notifications (boundary)
+
+- The **Collaboration** summary in the workspace is **read-only** in Phase 2: it reflects configured groups and members for awareness only.
+- **Collaboration groups and membership** are populated through **tenant administrator–managed configuration or seed data**, not through in-app self-service.
+- Phase 2 does **not** include self-service group CRUD, user invitations, email delivery, WebSocket or real-time co-editing, or per-user notification channel preferences.
+- **Later phases** (including admin-oriented work) may add group management, invitations, role-based notification routing, preference surfaces, and deeper collaboration workflows.
+
 ---
 
 ## Product Overview
@@ -995,7 +1002,7 @@ LCCAP SaaS uses a modular Clean Architecture approach.
 └────────────────────────────────────┘
 ```
 
-Planned AI layer:
+Future / planned AI layer (not part of the current application build; roadmap):
 
 ```text
 ┌────────────────────────────────────┐

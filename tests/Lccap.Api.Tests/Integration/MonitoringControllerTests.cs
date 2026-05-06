@@ -226,6 +226,61 @@ public sealed class MonitoringControllerTests
     }
 
     [Fact]
+    public async Task Create_monitoring_update_publishes_workspace_notification_to_reviewer_not_actor()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+        var plannerId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        SeedNotifyAccountAndUsers(dbContext, accountId, plannerId, reviewerId);
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = plannerId;
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Planner;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q1 2026",
+                ActualValue: 12.5m,
+                ProgressPercent: 40m,
+                Status: "OnTrack",
+                Notes: "Quarterly update"),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<OkObjectResult>(result);
+
+        var ev = await dbContext.NotificationEvents.SingleAsync(e => e.EventType == "MonitoringUpdateCreated");
+        var updateId = (await dbContext.MonitoringUpdates.SingleAsync()).Id;
+        Assert.Equal(updateId.ToString("D"), ev.PayloadJson.RootElement.GetProperty("entityId").GetString());
+
+        var uns = await dbContext.UserNotifications.Where(n => n.NotificationEventId == ev.Id).ToListAsync();
+        Assert.Single(uns);
+        Assert.Equal(reviewerId, uns[0].UserId);
+    }
+
+    [Fact]
     public async Task Create_monitoring_update_cannot_cross_tenant_returns_not_found()
     {
         var ownerAccountId = Guid.NewGuid();
@@ -1378,6 +1433,55 @@ public sealed class MonitoringControllerTests
     {
         currentUser = new TestCurrentUserContext { IsAuthenticated = true, Role = WorkspaceRoles.Admin };
         return new MonitoringController(currentUser);
+    }
+
+    private static void SeedNotifyAccountAndUsers(LccapDbContext db, Guid accountId, Guid plannerId, Guid reviewerId)
+    {
+        db.Accounts.Add(
+            new Account
+            {
+                Id = accountId,
+                Name = "T",
+                Region = "R",
+                Province = "P",
+                MunicipalityOrCity = "M",
+                LguType = "City",
+                ContactEmail = "c@test",
+                Status = "Active",
+                SettingsJson = JsonDocument.Parse("{}"),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            });
+        db.Users.AddRange(
+            new User
+            {
+                Id = plannerId,
+                AccountId = accountId,
+                Email = "p@test",
+                FullName = "P",
+                PasswordHash = "-",
+                Role = WorkspaceRoles.Planner,
+                Status = "Active",
+                UserScope = "Tenant",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 2, 2, 3, 4, 5, 6, 7, 8 },
+            },
+            new User
+            {
+                Id = reviewerId,
+                AccountId = accountId,
+                Email = "r@test",
+                FullName = "R",
+                PasswordHash = "-",
+                Role = WorkspaceRoles.Reviewer,
+                Status = "Active",
+                UserScope = "Tenant",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 3, 2, 3, 4, 5, 6, 7, 8 },
+            });
     }
 
     private static LccapDbContext CreateDbContext()

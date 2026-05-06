@@ -683,6 +683,63 @@ public sealed class FundingControllerTests
     }
 
     [Fact]
+    public async Task PostFundingAllocation_publishes_workspace_notification_to_reviewer()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var plannerId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        SeedFundingNotifyAccountAndUsers(db, accountId, plannerId, reviewerId);
+        var (planId, actionId, sourceId) = await SeedPlanActionSourceAsync(db, accountId);
+
+        var ctx = new TestCurrentUserContext(accountId, plannerId, true, WorkspaceRoles.Planner);
+        var cmd = new CreateActionFundingAllocationCommand(db, ctx);
+        var body = new CreateActionFundingAllocationApiRequest(
+            actionId,
+            sourceId,
+            FundingProgramId: null,
+            ClimateExpenditureTagId: null,
+            FiscalYear: 2026,
+            AllocatedAmount: 100m,
+            CurrencyCode: null,
+            AllocationStatus: null,
+            Notes: null);
+
+        var ctrl = new FundingController(ctx);
+        var result = await ctrl.CreateAllocation(planId, body, cmd, CancellationToken.None);
+
+        var ok = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(201, ok.StatusCode);
+
+        var ev = await db.NotificationEvents.SingleAsync(e => e.EventType == "ActionFundingAllocationCreated");
+        var uns = await db.UserNotifications.Where(n => n.NotificationEventId == ev.Id).ToListAsync();
+        Assert.Single(uns);
+        Assert.Equal(reviewerId, uns[0].UserId);
+        Assert.Equal(plannerId, ev.CreatedByUserId);
+    }
+
+    [Fact]
+    public async Task ArchiveFundingAllocation_publishes_workspace_notification_to_reviewer()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var plannerId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        SeedFundingNotifyAccountAndUsers(db, accountId, plannerId, reviewerId);
+        var (planId, actionId, sourceId) = await SeedPlanActionSourceAsync(db, accountId);
+        var alloc = await AddAllocationAsync(db, accountId, planId, actionId, sourceId, 2026);
+
+        var ctx = new TestCurrentUserContext(accountId, plannerId, true, WorkspaceRoles.Planner);
+        var cmd = new ArchiveActionFundingAllocationCommand(db, ctx);
+        _ = await cmd.ExecuteAsync(alloc.Id, CancellationToken.None);
+
+        var ev = await db.NotificationEvents.SingleAsync(e => e.EventType == "ActionFundingAllocationArchived");
+        var uns = await db.UserNotifications.Where(n => n.NotificationEventId == ev.Id).ToListAsync();
+        Assert.Single(uns);
+        Assert.Equal(reviewerId, uns[0].UserId);
+    }
+
+    [Fact]
     public async Task DeleteFundingAllocation_other_tenant_returns_not_found()
     {
         using var db = CreateDbContext();
@@ -920,6 +977,55 @@ public sealed class FundingControllerTests
         };
         tag.EnsureRowVersion();
         return tag;
+    }
+
+    private static void SeedFundingNotifyAccountAndUsers(LccapDbContext db, Guid accountId, Guid plannerId, Guid reviewerId)
+    {
+        db.Accounts.Add(
+            new Account
+            {
+                Id = accountId,
+                Name = "T",
+                Region = "R",
+                Province = "P",
+                MunicipalityOrCity = "M",
+                LguType = "City",
+                ContactEmail = "c@test",
+                Status = "Active",
+                SettingsJson = JsonDocument.Parse("{}"),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            });
+        db.Users.AddRange(
+            new User
+            {
+                Id = plannerId,
+                AccountId = accountId,
+                Email = "p@test",
+                FullName = "P",
+                PasswordHash = "-",
+                Role = WorkspaceRoles.Planner,
+                Status = "Active",
+                UserScope = "Tenant",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 2, 2, 3, 4, 5, 6, 7, 8 },
+            },
+            new User
+            {
+                Id = reviewerId,
+                AccountId = accountId,
+                Email = "r@test",
+                FullName = "R",
+                PasswordHash = "-",
+                Role = WorkspaceRoles.Reviewer,
+                Status = "Active",
+                UserScope = "Tenant",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                IsDeleted = false,
+                RowVersion = new byte[] { 3, 2, 3, 4, 5, 6, 7, 8 },
+            });
     }
 
     private sealed class FundingTestDbContext : LccapDbContext

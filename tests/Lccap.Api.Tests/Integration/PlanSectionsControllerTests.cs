@@ -1,10 +1,13 @@
+using System.Text.Json;
 using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Sections.Commands;
 using Lccap.Application.Sections.Queries;
 using Lccap.Domain.Entities;
+using Lccap.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lccap.Api.Tests.Integration;
@@ -387,6 +390,49 @@ public sealed class PlanSectionsControllerTests
     }
 
     [Fact]
+    public async Task Section_comment_create_publishes_workspace_notification_to_reviewer_not_actor_or_public_viewer()
+    {
+        await using var db = CreateNotificationIntegrationDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        var publicViewerId = Guid.NewGuid();
+        var foreignReviewerId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        const string sectionKey = "hazards";
+
+        db.Accounts.AddRange(NewNotifyAccount(accountId), NewNotifyAccount(otherAccountId));
+        db.Users.AddRange(
+            NewNotifyUser(actorId, accountId, WorkspaceRoles.Planner, "actor@test"),
+            NewNotifyUser(reviewerId, accountId, WorkspaceRoles.Reviewer, "rev@test"),
+            NewNotifyUser(publicViewerId, accountId, WorkspaceRoles.PublicViewer, "pub@test"),
+            NewNotifyUser(foreignReviewerId, otherAccountId, WorkspaceRoles.Reviewer, "foreign@test"));
+        db.Plans.Add(NewNotifyPlan(accountId, planId));
+        db.PlanSections.Add(NewNotifyPlanSection(accountId, planId, sectionKey));
+        await db.SaveChangesAsync();
+
+        var clock = new FixedClock(new DateTimeOffset(2026, 5, 6, 12, 0, 0, TimeSpan.Zero));
+        var user = new TestCurrentUserContext(accountId, actorId, true, WorkspaceRoles.Planner);
+        var create = new CreateSectionCommentCommand(db, user, clock);
+        var created = await create.ExecuteAsync(
+            new CreateSectionCommentRequest(planId, sectionKey, "General", "Evidence needed."),
+            CancellationToken.None);
+        Assert.True(created.Success);
+
+        var ev = await db.NotificationEvents.SingleAsync(e => e.EventType == "SectionCommentCreated");
+        Assert.Equal(accountId, ev.AccountId);
+        Assert.Equal(actorId, ev.CreatedByUserId);
+
+        var uns = await db.UserNotifications.Where(n => n.NotificationEventId == ev.Id).ToListAsync();
+        Assert.Single(uns);
+        Assert.Equal(reviewerId, uns[0].UserId);
+        Assert.DoesNotContain(uns, u => u.UserId == actorId);
+        Assert.DoesNotContain(uns, u => u.UserId == publicViewerId);
+        Assert.DoesNotContain(uns, u => u.UserId == foreignReviewerId);
+    }
+
+    [Fact]
     public async Task GetSectionCommentsQuery_excludes_deleted_and_sorts_unresolved_then_newest()
     {
         var accountId = Guid.NewGuid();
@@ -470,6 +516,112 @@ public sealed class PlanSectionsControllerTests
         Assert.Equal("Unresolved older", result.Comments[1].CommentText);
     }
 
+    private static LccapDbContext CreateNotificationIntegrationDbContext()
+    {
+        var options = new DbContextOptionsBuilder<LccapDbContext>()
+            .UseInMemoryDatabase($"plan-sections-notify-{Guid.NewGuid():N}")
+            .Options;
+        return new NotificationIntegrationTestDbContext(options);
+    }
+
+    private static Account NewNotifyAccount(Guid id)
+    {
+        return new Account
+        {
+            Id = id,
+            Name = "Tenant",
+            Region = "R",
+            Province = "P",
+            MunicipalityOrCity = "M",
+            LguType = "City",
+            ContactEmail = "c@test",
+            Status = "Active",
+            SettingsJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static User NewNotifyUser(Guid id, Guid accountId, string role, string email)
+    {
+        return new User
+        {
+            Id = id,
+            AccountId = accountId,
+            Email = email,
+            FullName = "U",
+            PasswordHash = "-",
+            Role = role,
+            Status = "Active",
+            UserScope = "Tenant",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 2, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static Plan NewNotifyPlan(Guid accountId, Guid planId)
+    {
+        return new Plan
+        {
+            Id = planId,
+            AccountId = accountId,
+            Title = "P",
+            StartYear = 2025,
+            EndYear = 2026,
+            Status = "Draft",
+            TemplateMode = "New",
+            VersionNumber = 1,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static PlanSection NewNotifyPlanSection(Guid accountId, Guid planId, string sectionKey)
+    {
+        return new PlanSection
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            SectionKey = sectionKey,
+            Title = "T",
+            Content = string.Empty,
+            SortOrder = 1,
+            SectionMetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private sealed class NotificationIntegrationTestDbContext : LccapDbContext
+    {
+        public NotificationIntegrationTestDbContext(DbContextOptions<LccapDbContext> options)
+            : base(options)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            var jsonConverter = new ValueConverter<JsonDocument?, string?>(
+                value => value == null ? null : value.RootElement.GetRawText(),
+                value => value == null ? null : JsonDocument.Parse(value, new JsonDocumentOptions()));
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties().Where(p => p.ClrType == typeof(JsonDocument)))
+                {
+                    property.SetValueConverter(jsonConverter);
+                }
+            }
+        }
+    }
+
     private static HardeningDbContext CreateHardeningDbContext()
     {
         var options = new DbContextOptionsBuilder<HardeningDbContext>()
@@ -508,7 +660,7 @@ public sealed class PlanSectionsControllerTests
         public DbSet<MapAnnotation> MapAnnotations => null!;
         public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
 
-        public DbSet<User> Users => null!;
+        public DbSet<User> Users => Set<User>();
 
         public DbSet<NotificationEvent> NotificationEvents => null!;
         public DbSet<UserNotification> UserNotifications => null!;
@@ -528,7 +680,6 @@ public sealed class PlanSectionsControllerTests
 
             // Keep the model minimal: commands/tests only need scalar fields.
             _ = modelBuilder.Ignore<Account>();
-            _ = modelBuilder.Ignore<User>();
             modelBuilder.Entity<Plan>().Ignore("Account");
             modelBuilder.Entity<Plan>().Ignore("CreatedByUser");
             modelBuilder.Entity<Plan>().Ignore("UpdatedByUser");
@@ -543,6 +694,18 @@ public sealed class PlanSectionsControllerTests
             modelBuilder.Entity<SectionComment>().Ignore("Plan");
             modelBuilder.Entity<AuditLog>().Ignore("Account");
             modelBuilder.Entity<AuditLog>().Ignore("User");
+
+            // In the trimmed test model we include Users for recipient/audit hardening,
+            // but we don't need (or configure) any navigation relationships.
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.Ignore(u => u.Account);
+                entity.Ignore(u => u.CreatedByUser);
+                entity.Ignore(u => u.UpdatedByUser);
+                entity.Ignore(u => u.DeletedByUser);
+                entity.Ignore(u => u.UserRoles);
+                entity.Ignore(u => u.CreatedPlans);
+            });
         }
     }
 

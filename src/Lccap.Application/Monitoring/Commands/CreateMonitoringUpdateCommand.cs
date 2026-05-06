@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Lccap.Application.Common.Concurrency;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Monitoring;
+using Lccap.Application.Notifications;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -181,6 +182,18 @@ public sealed class CreateMonitoringUpdateCommand
         {
             return new Result(Outcome.Concurrency, null, null);
         }
+
+        await NotificationRecipientResolver.TryPublishWorkspaceEventAsync(
+            _dbContext,
+            _currentUserContext,
+            clock: null,
+            "MonitoringUpdateCreated",
+            "Monitoring update",
+            "A monitoring progress update was recorded.",
+            "MonitoringUpdate",
+            update.Id,
+            indicator.PlanId,
+            cancellationToken);
 
         return new Result(Outcome.Success, null, update);
     }

@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T23:55:00Z",
+      "last_updated_utc": "2026-05-06T18:00:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -15,8 +15,8 @@
   
   "current_state": {
     "phase": "Phase 2",
-    "active_module": "Collaboration",
-    "active_task": "Slice 9.1 Collaboration Notifications Hardening",
+    "active_module": "Notifications / Collaboration",
+    "active_task": "Phase 2 Cleanup Slice B — Collaboration population story + tracker/docs hygiene",
     "status": "done"
   },
 
@@ -1591,7 +1591,7 @@
             "description": "Triggers EF Core save pipeline with interceptors."
           }
         ],
-        "notes": "Central EF Core DbContext; Phase 2 Slice 5A adds DbSets for climate_expenditure_tags, funding_sources, funding_programs, action_funding_allocations."
+        "notes": "Central EF Core DbContext; Phase 2 Slice 5A adds DbSets for climate_expenditure_tags, funding_sources, funding_programs, action_funding_allocations. Phase 2 Cleanup: no SQL migration files in this workspace under db/migrations (or equivalent); schema parity with EF must be confirmed outside this repo snapshot."
       },
       {
         "id": "FILE-0065",
@@ -4517,7 +4517,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area; Phase 2 Slice 5C–5E: CCET + readiness + ActionFundingAllocationPanel; planFundingAllocations state for readiness summary."
+        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area; Phase 2 Slice 5C–5E: CCET + readiness + ActionFundingAllocationPanel; planFundingAllocations state for readiness summary. Phase 2 Slice 9: CollaborationSummaryPanel + NotificationCenterPanel (read-only collaboration awareness; in-app notifications)."
       },
       {
         "id": "FILE-0233",
@@ -5422,7 +5422,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Phase 2 Slice 5A: DbSet members for ClimateExpenditureTags, FundingSources, FundingPrograms, ActionFundingAllocations."
+        "notes": "Phase 2 Slice 5A: DbSet members for ClimateExpenditureTags, FundingSources, FundingPrograms, ActionFundingAllocations. Phase 2 Slice 9: NotificationEvents, UserNotifications, NotificationTemplates, CollaborationGroups, CollaborationGroupMembers."
       },
       {
         "id": "FILE-0316",
@@ -5642,7 +5642,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Phase 2 Slice 5E: planned allocation create form; funding source/program UUID inputs; CCET select; Planned-only API payload; validation and API errors."
+        "notes": "Phase 2 Slice 5E: planned allocation create form; funding source and program catalog dropdowns (not raw UUID entry); CCET select; Planned-only API payload; validation and API errors."
       },
       {
         "id": "FILE-0336",
@@ -5665,6 +5665,358 @@
         "source": "actual",
         "functions": [],
         "notes": "Phase 2 Slice 5E: loads plan allocations; counts and currency sums; integrates form + list; list scope all vs selected action; notifies parent allocation list for readiness panel."
+      },
+      {
+        "id": "FILE-0338",
+        "path": "src/Lccap.Application/Notifications/NotificationRecipientResolver.cs",
+        "layer": "application",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: resolve Admin/Reviewer recipients (exclude actor, max 50, AsNoTracking); TryPublishWorkspaceEventAsync best-effort wrapper for safe payload + CreateNotificationEventCommand."
+      },
+      {
+        "id": "FILE-0339",
+        "path": "src/Lccap.Application/Sections/Commands/CreateSectionCommentCommand.cs",
+        "layer": "application",
+        "module": "sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: after save posts SectionCommentCreated workspace notification."
+      },
+      {
+        "id": "FILE-0340",
+        "path": "src/Lccap.Application/Sections/Commands/ResolveSectionCommentCommand.cs",
+        "layer": "application",
+        "module": "sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: SectionCommentResolved notification."
+      },
+      {
+        "id": "FILE-0341",
+        "path": "src/Lccap.Application/Sections/Commands/ReopenSectionCommentCommand.cs",
+        "layer": "application",
+        "module": "sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: SectionCommentReopened notification."
+      },
+      {
+        "id": "FILE-0342",
+        "path": "src/Lccap.Application/Sections/Commands/ArchiveSectionCommentCommand.cs",
+        "layer": "application",
+        "module": "sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: SectionCommentArchived notification."
+      },
+      {
+        "id": "FILE-0343",
+        "path": "src/Lccap.Application/Monitoring/Commands/CreateMonitoringUpdateCommand.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: MonitoringUpdateCreated notification after successful save."
+      },
+      {
+        "id": "FILE-0344",
+        "path": "src/Lccap.Application/Funding/Commands/CreateActionFundingAllocationCommand.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: ActionFundingAllocationCreated notification after save."
+      },
+      {
+        "id": "FILE-0345",
+        "path": "src/Lccap.Application/Funding/Commands/ArchiveActionFundingAllocationCommand.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: ActionFundingAllocationArchived notification after save."
+      },
+      {
+        "id": "FILE-0346",
+        "path": "src/Lccap.Application/Maps/Commands/CreateGeoJsonLayerCommand.cs",
+        "layer": "application",
+        "module": "maps",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: GeoJsonLayerCreated notification for map asset."
+      },
+      {
+        "id": "FILE-0347",
+        "path": "src/Lccap.Application/Maps/Commands/ArchiveMapAssetCommand.cs",
+        "layer": "application",
+        "module": "maps",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: MapAssetArchived notification."
+      },
+      {
+        "id": "FILE-0348",
+        "path": "tests/Lccap.Api.Tests/Integration/PlanSectionsControllerTests.cs",
+        "layer": "tests",
+        "module": "sections",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: notification integration test; HardeningDbContext Users set for recipient resolution queries."
+      },
+      {
+        "id": "FILE-0349",
+        "path": "tests/Lccap.Api.Tests/Integration/MonitoringControllerTests.cs",
+        "layer": "tests",
+        "module": "monitoring",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: monitoring update notification test with seeded account users."
+      },
+      {
+        "id": "FILE-0350",
+        "path": "tests/Lccap.Api.Tests/Integration/FundingControllerTests.cs",
+        "layer": "tests",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: allocation create/archive notification tests."
+      },
+      {
+        "id": "FILE-0351",
+        "path": "tests/Lccap.Api.Tests/Integration/PlansControllerTests.cs",
+        "layer": "tests",
+        "module": "plans",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Cleanup Slice A: GeoJSON create and map archive notification tests."
+      },
+      {
+        "id": "FILE-0352",
+        "path": "src/Lccap.Api/Controllers/NotificationsController.cs",
+        "layer": "api",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: collaboration summary + my notifications list + mark read / mark all read. Phase 2 scope: in-app feed only; email, WebSocket/push, workflow routing, and notification preferences are Phase 3 / admin backlog."
+      },
+      {
+        "id": "FILE-0353",
+        "path": "src/Lccap.Application/Notifications/Commands/CreateNotificationEventCommand.cs",
+        "layer": "application",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9 / Cleanup Slice A: creates NotificationEvent and fans out UserNotification rows from template + recipients."
+      },
+      {
+        "id": "FILE-0354",
+        "path": "src/Lccap.Application/Notifications/Commands/MarkNotificationReadCommand.cs",
+        "layer": "application",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: marks one user notification read for current user."
+      },
+      {
+        "id": "FILE-0355",
+        "path": "src/Lccap.Application/Notifications/Commands/MarkAllNotificationsReadCommand.cs",
+        "layer": "application",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: marks all unread notifications read for current user."
+      },
+      {
+        "id": "FILE-0356",
+        "path": "src/Lccap.Application/Notifications/Queries/GetMyNotificationsQuery.cs",
+        "layer": "application",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: paginated notification feed for workspace shell."
+      },
+      {
+        "id": "FILE-0357",
+        "path": "src/Lccap.Application/Notifications/Queries/GetCollaborationSummaryQuery.cs",
+        "layer": "application",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: read-only tenant collaboration groups + members for UI summary. Collaboration group population in Phase 2 is seed/admin-managed only; no self-service group CRUD in product."
+      },
+      {
+        "id": "FILE-0358",
+        "path": "src/Lccap.Domain/Entities/CollaborationGroup.cs",
+        "layer": "domain",
+        "module": "collaboration",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2: tenant-scoped collaboration group entity; populated via administrator configuration or seed data in this phase, not end-user CRUD."
+      },
+      {
+        "id": "FILE-0359",
+        "path": "src/Lccap.Domain/Entities/CollaborationGroupMember.cs",
+        "layer": "domain",
+        "module": "collaboration",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2: group membership link; same population story as CollaborationGroup (seed/admin-managed)."
+      },
+      {
+        "id": "FILE-0360",
+        "path": "src/Lccap.Domain/Entities/NotificationEvent.cs",
+        "layer": "domain",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: immutable notification event record; payload for in-app display."
+      },
+      {
+        "id": "FILE-0361",
+        "path": "src/Lccap.Domain/Entities/UserNotification.cs",
+        "layer": "domain",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: per-user inbox row; read state only in Phase 2 product surface."
+      },
+      {
+        "id": "FILE-0362",
+        "path": "src/Lccap.Domain/Entities/NotificationTemplate.cs",
+        "layer": "domain",
+        "module": "notifications",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: templates for workspace event types used when fanning out notifications."
+      },
+      {
+        "id": "FILE-0363",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/CollaborationGroupConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping for CollaborationGroup."
+      },
+      {
+        "id": "FILE-0364",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/CollaborationGroupMemberConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping for CollaborationGroupMember."
+      },
+      {
+        "id": "FILE-0365",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/NotificationEventConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping for NotificationEvent."
+      },
+      {
+        "id": "FILE-0366",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/UserNotificationConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping for UserNotification."
+      },
+      {
+        "id": "FILE-0367",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/NotificationTemplateConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "persistence",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "EF mapping for NotificationTemplate."
+      },
+      {
+        "id": "FILE-0368",
+        "path": "frontend/components/plans/collaboration-summary-panel.tsx",
+        "layer": "frontend",
+        "module": "plans",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: read-only Collaboration card; empty state documents admin/seed-managed groups (no CRUD in UI)."
+      },
+      {
+        "id": "FILE-0369",
+        "path": "frontend/components/plans/notification-center-panel.tsx",
+        "layer": "frontend",
+        "module": "notifications",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 9: in-app notification list with mark read / mark all; no email or real-time transport."
       }
     ]
   }
