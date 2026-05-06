@@ -19,8 +19,11 @@ interface ExposureReadinessPanelProps {
   readonly isLoadingExposureSummaries: boolean;
   readonly isRegisteringHazardLayer: boolean;
   readonly isCreatingExposureJob: boolean;
+  readonly isProcessingExposureJob: boolean;
+  readonly processingExposureJobId: string | null;
   readonly onRegisterHazardLayer: (mapAsset: MapAssetSummary) => Promise<void>;
   readonly onCreateExposureJob: (hazardLayer: HazardLayerSummary) => Promise<void>;
+  readonly onProcessExposureJob: (job: ExposureAnalysisJobSummary) => Promise<void>;
   readonly statusMessage?: string | null;
 }
 
@@ -70,8 +73,11 @@ export function ExposureReadinessPanel({
   isLoadingExposureSummaries,
   isRegisteringHazardLayer,
   isCreatingExposureJob,
+  isProcessingExposureJob,
+  processingExposureJobId,
   onRegisterHazardLayer,
   onCreateExposureJob,
+  onProcessExposureJob,
   statusMessage
 }: ExposureReadinessPanelProps): ReactElement {
   const displayedHazardMapAsset = selectDisplayedHazardMapAsset(selectedMapAssetId, mapAssets, hazardLayerMapAssetIds);
@@ -182,6 +188,20 @@ export function ExposureReadinessPanel({
                   {job.errorMessage ? (
                     <div className="mt-1 text-xs text-rose-700">
                       Error: {job.errorMessage.length > 120 ? `${job.errorMessage.slice(0, 120)}…` : job.errorMessage}
+                    </div>
+                  ) : null}
+
+                  {job.status === "Queued" ? (
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        onClick={() => void onProcessExposureJob(job)}
+                        disabled={isProcessingExposureJob}
+                      >
+                        {isProcessingExposureJob && processingExposureJobId === job.id
+                          ? "Processing…"
+                          : "Process job"}
+                      </Button>
                     </div>
                   ) : null}
                 </div>

@@ -285,6 +285,14 @@ export const planClient = {
     return parseCreatedExposureAnalysisJob(data);
   },
 
+  async processExposureAnalysisJob(planId: string, jobId: string): Promise<ExposureAnalysisJobSummary> {
+    const data = await http.postJson(
+      `/api/plans/${encodeURIComponent(planId)}/exposure-analysis-jobs/${encodeURIComponent(jobId)}/process`,
+      {}
+    );
+    return parseCreatedExposureAnalysisJob(data);
+  },
+
   async getExposureSummaries(planId: string): Promise<readonly ExposureSummary[]> {
     const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/exposure-summaries`);
     return parseExposureSummaries(data);

@@ -43,6 +43,8 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
   const [isLoadingExposureSummaries, setIsLoadingExposureSummaries] = useState(false);
   const [isRegisteringHazardLayer, setIsRegisteringHazardLayer] = useState(false);
   const [isCreatingExposureJob, setIsCreatingExposureJob] = useState(false);
+  const [isProcessingExposureJob, setIsProcessingExposureJob] = useState(false);
+  const [processingExposureJobId, setProcessingExposureJobId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const loadHazardLayers = useCallback(async () => {
@@ -215,6 +217,32 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
     }
   }
 
+  async function handleProcessExposureJob(job: ExposureAnalysisJobSummary): Promise<void> {
+    setIsProcessingExposureJob(true);
+    setProcessingExposureJobId(job.id);
+    setStatusMessage(null);
+
+    try {
+      await planClient.processExposureAnalysisJob(planId, job.id);
+      await loadExposureJobs();
+      await loadExposureSummaries();
+      setStatusMessage("Exposure job processed. Computation engine is not configured yet.");
+    } catch (err: unknown) {
+      if (isApiError(err) && err.status === 409) {
+        await loadExposureJobs();
+        setStatusMessage("Only queued exposure jobs can be processed.");
+      } else if (isApiError(err) && err.status === 404) {
+        await loadExposureJobs();
+        setStatusMessage("Exposure job was not found or is no longer accessible.");
+      } else {
+        setStatusMessage("Unable to process exposure job.");
+      }
+    } finally {
+      setIsProcessingExposureJob(false);
+      setProcessingExposureJobId(null);
+    }
+  }
+
   return (
     <section className="space-y-4" aria-labelledby="plan-map-workspace-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -296,12 +324,15 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
                 evacuationSiteCount={panel.data.counts.evacuationSites}
                 isLoadingHazardLayers={isLoadingHazardLayers}
                 isLoadingExposureJobs={isLoadingExposureJobs}
-              exposureSummaries={exposureSummaries}
-              isLoadingExposureSummaries={isLoadingExposureSummaries}
+                exposureSummaries={exposureSummaries}
+                isLoadingExposureSummaries={isLoadingExposureSummaries}
                 isRegisteringHazardLayer={isRegisteringHazardLayer}
                 isCreatingExposureJob={isCreatingExposureJob}
+                isProcessingExposureJob={isProcessingExposureJob}
+                processingExposureJobId={processingExposureJobId}
                 onRegisterHazardLayer={(mapAsset) => handleRegisterHazardLayer(mapAsset)}
                 onCreateExposureJob={(hazardLayer) => handleCreateExposureJob(hazardLayer)}
+                onProcessExposureJob={(job) => handleProcessExposureJob(job)}
                 statusMessage={statusMessage}
               />
 
