@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarangayFacilityList } from "@/components/plans/barangay-facility-list";
+import { ExposureReadinessPanel } from "@/components/plans/exposure-readiness-panel";
 import { GeoJsonLayerForm } from "@/components/plans/geojson-layer-form";
 import { MapFeatureList } from "@/components/plans/map-feature-list";
 import { MapLayerList } from "@/components/plans/map-layer-list";
@@ -165,6 +166,15 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
 
             <div className="space-y-6">
               <GeoJsonLayerForm planId={planId} onCreated={() => load()} />
+
+              <ExposureReadinessPanel
+                selectedMapAssetId={selectedLayerId}
+                mapAssets={panel.data.mapAssets}
+                hazardLayerMapAssetIds={panel.data.hazardLayerMapAssetIds}
+                barangayCount={panel.data.counts.barangays}
+                criticalFacilityCount={panel.data.counts.criticalFacilities}
+                evacuationSiteCount={panel.data.counts.evacuationSites}
+              />
 
               <BarangayFacilityList barangays={panel.data.barangays} facilities={panel.data.criticalFacilities} />
             </div>
