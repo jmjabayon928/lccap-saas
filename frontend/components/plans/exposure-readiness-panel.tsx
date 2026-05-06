@@ -1,69 +1,120 @@
 import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { MapAssetSummary } from "@/types/plans";
+import type { ExposureAnalysisJobSummary, HazardLayerSummary, MapAssetSummary } from "@/types/plans";
 
 interface ExposureReadinessPanelProps {
+  readonly planId: string;
   readonly selectedMapAssetId: string | null;
   readonly mapAssets: readonly MapAssetSummary[];
   readonly hazardLayerMapAssetIds: readonly string[];
+  readonly hazardLayers: readonly HazardLayerSummary[];
+  readonly exposureJobs: readonly ExposureAnalysisJobSummary[];
   readonly barangayCount: number;
   readonly criticalFacilityCount: number;
   readonly evacuationSiteCount: number;
+  readonly isLoadingHazardLayers: boolean;
+  readonly isLoadingExposureJobs: boolean;
+  readonly isRegisteringHazardLayer: boolean;
+  readonly isCreatingExposureJob: boolean;
+  readonly onRegisterHazardLayer: (mapAsset: MapAssetSummary) => Promise<void>;
+  readonly onCreateExposureJob: (hazardLayer: HazardLayerSummary) => Promise<void>;
+  readonly statusMessage?: string | null;
 }
 
-function computeDisplayedHazardLayer(
+function formatIsoUtc(iso: string): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return iso;
+
+  const d = new Date(ms);
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function shortGuid(value: string | null): string {
+  if (!value) return "—";
+  return value.length > 10 ? `${value.slice(0, 8)}…` : value;
+}
+
+function selectDisplayedHazardMapAsset(
   selectedMapAssetId: string | null,
   mapAssets: readonly MapAssetSummary[],
   hazardLayerMapAssetIds: readonly string[]
 ): MapAssetSummary | null {
-  const selectedLayer = selectedMapAssetId
-    ? mapAssets.find((layer) => layer.id === selectedMapAssetId) ?? null
-    : null;
-
-  const selectedHazardLayer =
+  const selectedLayer = selectedMapAssetId ? mapAssets.find((layer) => layer.id === selectedMapAssetId) ?? null : null;
+  const selectedHazardMapAsset =
     selectedLayer && hazardLayerMapAssetIds.includes(selectedLayer.id) ? selectedLayer : null;
-
-  if (selectedHazardLayer) {
-    return selectedHazardLayer;
-  }
-
-  return mapAssets.find((layer) => hazardLayerMapAssetIds.includes(layer.id)) ?? null;
+  const fallbackHazardMapAsset = mapAssets.find((layer) => hazardLayerMapAssetIds.includes(layer.id)) ?? null;
+  return selectedHazardMapAsset ?? fallbackHazardMapAsset;
 }
 
 export function ExposureReadinessPanel({
   selectedMapAssetId,
   mapAssets,
   hazardLayerMapAssetIds,
+  hazardLayers,
+  exposureJobs,
   barangayCount,
   criticalFacilityCount,
-  evacuationSiteCount
+  evacuationSiteCount,
+  isLoadingHazardLayers,
+  isLoadingExposureJobs,
+  isRegisteringHazardLayer,
+  isCreatingExposureJob,
+  onRegisterHazardLayer,
+  onCreateExposureJob,
+  statusMessage
 }: ExposureReadinessPanelProps): ReactElement {
-  const displayedHazardLayer = computeDisplayedHazardLayer(selectedMapAssetId, mapAssets, hazardLayerMapAssetIds);
-  const hazardExists = displayedHazardLayer !== null;
+  const displayedHazardMapAsset = selectDisplayedHazardMapAsset(selectedMapAssetId, mapAssets, hazardLayerMapAssetIds);
 
-  const hazardStatus = hazardExists ? "Ready" : "Missing";
-  const hazardLayerName = hazardExists ? displayedHazardLayer.name : "No hazard layer selected";
-  const hazardFeatureCount = hazardExists ? displayedHazardLayer.featureCount : 0;
+  const registeredHazardLayer =
+    displayedHazardMapAsset === null
+      ? null
+      : hazardLayers.find((h) => h.isActive && h.mapAssetId === displayedHazardMapAsset.id) ?? null;
 
-  let readinessMessage: string;
-  if (!hazardExists) {
-    readinessMessage = "Upload or select a GeoJSON hazard layer before running exposure analysis.";
-  } else if (barangayCount === 0) {
-    readinessMessage = "Add barangay reference data before running exposure analysis.";
-  } else {
-    readinessMessage = "Reference data is ready for a future exposure analysis run.";
-  }
+  const activeHazardLayerReady = registeredHazardLayer !== null;
+  const canRegisterHazardLayer = displayedHazardMapAsset !== null && !activeHazardLayerReady;
+  const canCreateExposureJob = activeHazardLayerReady && barangayCount > 0;
+
+  const hazardLayerStatus = isLoadingHazardLayers
+    ? "Loading…"
+    : displayedHazardMapAsset
+      ? activeHazardLayerReady
+        ? "Ready"
+        : "Not registered"
+      : "Missing";
+
+  const hazardLayerName = displayedHazardMapAsset ? displayedHazardMapAsset.name : "No hazard layer selected";
+  const hazardFeatureCount = displayedHazardMapAsset ? displayedHazardMapAsset.featureCount : 0;
+
+  const createDisabledReason =
+    displayedHazardMapAsset === null
+      ? "Select a hazard GeoJSON layer to enable exposure analysis."
+      : !activeHazardLayerReady
+        ? "Register the hazard layer before running exposure analysis."
+        : barangayCount === 0
+          ? "Add barangay reference data before running exposure analysis."
+          : null;
+
+  const recentJobs = exposureJobs.slice(0, 5);
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Exposure readiness</CardTitle>
-        <CardDescription>Read-only placeholder for future exposure analysis setup.</CardDescription>
+        <CardDescription>Queue exposure analysis jobs from registered hazard layers.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+
+      <CardContent className="space-y-4">
+        {statusMessage ? <p className="text-sm">{statusMessage}</p> : null}
+
         <div className="space-y-1">
-          <div className="text-sm font-medium text-slate-900">Hazard layer status: {hazardStatus}</div>
+          <div className="text-sm font-medium text-slate-900">Hazard layer status: {hazardLayerStatus}</div>
           <div className="text-sm text-muted-foreground">Hazard layer name: {hazardLayerName}</div>
           <div className="text-sm text-muted-foreground">Hazard feature count: {hazardFeatureCount}</div>
         </div>
@@ -74,13 +125,65 @@ export function ExposureReadinessPanel({
           <div className="text-sm text-muted-foreground">Evacuation sites: {evacuationSiteCount}</div>
         </div>
 
-        <p className="text-sm">{readinessMessage}</p>
+        {isLoadingHazardLayers ? (
+          <p className="text-sm text-muted-foreground">Loading hazard layer registrations…</p>
+        ) : null}
+
+        {canRegisterHazardLayer && displayedHazardMapAsset ? (
+          <div className="space-y-1">
+            <Button
+              type="button"
+              onClick={() => void onRegisterHazardLayer(displayedHazardMapAsset)}
+              disabled={isRegisteringHazardLayer || isLoadingHazardLayers}
+            >
+              {isRegisteringHazardLayer ? "Registering…" : "Register hazard layer"}
+            </Button>
+          </div>
+        ) : null}
 
         <div className="space-y-1">
-          <Button type="button" disabled>
-            Run exposure analysis
+          <Button
+            type="button"
+            onClick={() => {
+              if (registeredHazardLayer) {
+                void onCreateExposureJob(registeredHazardLayer);
+              }
+            }}
+            disabled={!canCreateExposureJob || isCreatingExposureJob}
+          >
+            {isCreatingExposureJob ? "Creating job…" : "Run exposure analysis"}
           </Button>
-          <p className="text-xs text-muted-foreground">Exposure analysis will be enabled in a later Phase 3 slice.</p>
+          {createDisabledReason ? <p className="text-xs text-muted-foreground">{createDisabledReason}</p> : null}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Recent exposure jobs</div>
+            {isLoadingExposureJobs ? <div className="text-xs text-muted-foreground">Loading…</div> : null}
+          </div>
+
+          {recentJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No exposure jobs have been queued yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentJobs.map((job) => (
+                <div key={job.id} className="rounded-md border px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="text-sm font-medium">{job.status}</div>
+                    <div className="text-xs text-muted-foreground">{formatIsoUtc(job.createdAtUtc)}</div>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Hazard layer: {shortGuid(job.hazardLayerId)}
+                  </div>
+                  {job.errorMessage ? (
+                    <div className="mt-1 text-xs text-rose-700">
+                      Error: {job.errorMessage.length > 120 ? `${job.errorMessage.slice(0, 120)}…` : job.errorMessage}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

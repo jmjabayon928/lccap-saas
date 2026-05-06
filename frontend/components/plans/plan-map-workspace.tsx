@@ -13,7 +13,7 @@ import { MapFeatureList } from "@/components/plans/map-feature-list";
 import { MapLayerList } from "@/components/plans/map-layer-list";
 import { isApiError } from "@/lib/api/api-error";
 import { planClient } from "@/lib/plans/plan-client";
-import type { PlanMapWorkspaceResult } from "@/types/plans";
+import type { ExposureAnalysisJobSummary, HazardLayerSummary, MapAssetSummary, PlanMapWorkspaceResult } from "@/types/plans";
 
 interface PlanMapWorkspaceProps {
   readonly planId: string;
@@ -29,6 +29,43 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
   const [panel, setPanel] = useState<PanelState>({ status: "idle" });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
+  const [hazardLayers, setHazardLayers] = useState<readonly HazardLayerSummary[]>([]);
+  const [exposureJobs, setExposureJobs] = useState<readonly ExposureAnalysisJobSummary[]>([]);
+  const [isLoadingHazardLayers, setIsLoadingHazardLayers] = useState(false);
+  const [isLoadingExposureJobs, setIsLoadingExposureJobs] = useState(false);
+  const [isRegisteringHazardLayer, setIsRegisteringHazardLayer] = useState(false);
+  const [isCreatingExposureJob, setIsCreatingExposureJob] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const loadHazardLayers = useCallback(async () => {
+    if (!planId) return;
+
+    setIsLoadingHazardLayers(true);
+    try {
+      const items = await planClient.getHazardLayers(planId);
+      setHazardLayers(items);
+    } catch (err: unknown) {
+      const message = isApiError(err) ? err.message : "Unable to load hazard layers.";
+      setStatusMessage(message);
+    } finally {
+      setIsLoadingHazardLayers(false);
+    }
+  }, [planId]);
+
+  const loadExposureJobs = useCallback(async () => {
+    if (!planId) return;
+
+    setIsLoadingExposureJobs(true);
+    try {
+      const items = await planClient.getExposureAnalysisJobs(planId);
+      setExposureJobs(items);
+    } catch (err: unknown) {
+      const message = isApiError(err) ? err.message : "Unable to load exposure analysis jobs.";
+      setStatusMessage(message);
+    } finally {
+      setIsLoadingExposureJobs(false);
+    }
+  }, [planId]);
 
   const load = useCallback(async () => {
     if (!planId) {
@@ -37,6 +74,7 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
     }
 
     setPanel({ status: "loading" });
+    setStatusMessage(null);
 
     try {
       const data = await planClient.getPlanMapWorkspace(planId);
@@ -50,6 +88,9 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
         const firstHazard = data.hazardLayerMapAssetIds.find((id) => geoLayers.includes(id));
         return firstHazard ?? geoLayers[0] ?? null;
       });
+
+      void loadHazardLayers();
+      void loadExposureJobs();
     } catch (err: unknown) {
       if (isApiError(err)) {
         const notFound = err.status === 404;
@@ -70,7 +111,7 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
         });
       }
     }
-  }, [planId]);
+  }, [planId, loadHazardLayers, loadExposureJobs]);
 
   useEffect(() => {
     void load();
@@ -95,6 +136,57 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
       window.alert(message);
     } finally {
       setArchiveBusyId(null);
+    }
+  }
+
+  async function handleRegisterHazardLayer(mapAsset: MapAssetSummary): Promise<void> {
+    setIsRegisteringHazardLayer(true);
+    setStatusMessage(null);
+
+    try {
+      const payload = {
+        mapAssetId: mapAsset.id,
+        name: mapAsset.name,
+        hazardType: mapAsset.mapType === "Hazard" ? "Hazard" : mapAsset.mapType,
+        severity: "Moderate",
+        source: mapAsset.originalFileName,
+        description: mapAsset.description
+      } as const;
+
+      await planClient.registerHazardLayer(planId, payload);
+      await loadHazardLayers();
+      setStatusMessage("Hazard layer registered.");
+    } catch (err: unknown) {
+      if (isApiError(err) && err.status === 409) {
+        await loadHazardLayers();
+        setStatusMessage("Hazard layer is already registered.");
+      } else {
+        setStatusMessage("Unable to register hazard layer.");
+      }
+    } finally {
+      setIsRegisteringHazardLayer(false);
+    }
+  }
+
+  async function handleCreateExposureJob(hazardLayer: HazardLayerSummary): Promise<void> {
+    setIsCreatingExposureJob(true);
+    setStatusMessage(null);
+
+    try {
+      await planClient.createExposureAnalysisJob(planId, {
+        hazardLayerId: hazardLayer.id
+      });
+      await loadExposureJobs();
+      setStatusMessage("Exposure analysis job queued.");
+    } catch (err: unknown) {
+      if (isApiError(err) && err.status === 409) {
+        await loadExposureJobs();
+        setStatusMessage("A queued or running exposure job already exists for this hazard layer.");
+      } else {
+        setStatusMessage("Unable to queue exposure analysis job.");
+      }
+    } finally {
+      setIsCreatingExposureJob(false);
     }
   }
 
@@ -168,12 +260,22 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
               <GeoJsonLayerForm planId={planId} onCreated={() => load()} />
 
               <ExposureReadinessPanel
+                planId={planId}
                 selectedMapAssetId={selectedLayerId}
                 mapAssets={panel.data.mapAssets}
                 hazardLayerMapAssetIds={panel.data.hazardLayerMapAssetIds}
+                hazardLayers={hazardLayers}
+                exposureJobs={exposureJobs}
                 barangayCount={panel.data.counts.barangays}
                 criticalFacilityCount={panel.data.counts.criticalFacilities}
                 evacuationSiteCount={panel.data.counts.evacuationSites}
+                isLoadingHazardLayers={isLoadingHazardLayers}
+                isLoadingExposureJobs={isLoadingExposureJobs}
+                isRegisteringHazardLayer={isRegisteringHazardLayer}
+                isCreatingExposureJob={isCreatingExposureJob}
+                onRegisterHazardLayer={(mapAsset) => handleRegisterHazardLayer(mapAsset)}
+                onCreateExposureJob={(hazardLayer) => handleCreateExposureJob(hazardLayer)}
+                statusMessage={statusMessage}
               />
 
               <BarangayFacilityList barangays={panel.data.barangays} facilities={panel.data.criticalFacilities} />

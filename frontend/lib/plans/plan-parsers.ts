@@ -26,6 +26,8 @@ import type {
   CollaborationMemberSummary,
   PlanStatus,
   PlanSummary,
+  HazardLayerSummary,
+  ExposureAnalysisJobSummary,
   NotificationEventType,
   MyNotificationSummary,
   MyNotificationsResult,
@@ -1138,6 +1140,134 @@ export function parsePlanMapWorkspace(payload: unknown): PlanMapWorkspaceResult 
     criticalFacilities,
     counts
   };
+}
+
+export function parseHazardLayerSummary(payload: unknown): HazardLayerSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid hazard layer response: expected object", 502, payload);
+  }
+
+  const id = payload.id;
+  const planId = payload.planId;
+  const mapAssetId = payload.mapAssetId;
+  const name = payload.name;
+  const hazardType = payload.hazardType;
+  const severity = payload.severity;
+  const source = payload.source;
+  const description = payload.description;
+  const isActive = payload.isActive;
+  const createdAtUtc = payload.createdAtUtc;
+
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(planId) ||
+    !(mapAssetId === null || typeof mapAssetId === "string") ||
+    !isNonEmptyString(name) ||
+    !isNonEmptyString(hazardType) ||
+    !isNonEmptyString(severity) ||
+    !(source === null || typeof source === "string") ||
+    !(description === null || typeof description === "string") ||
+    typeof isActive !== "boolean" ||
+    !isNonEmptyString(createdAtUtc)
+  ) {
+    throw new ApiError("Invalid hazard layer response: malformed fields", 502, payload);
+  }
+
+  return {
+    id,
+    planId,
+    mapAssetId: typeof mapAssetId === "string" ? mapAssetId : null,
+    name,
+    hazardType,
+    severity,
+    source: typeof source === "string" ? source : null,
+    description: typeof description === "string" ? description : null,
+    isActive,
+    createdAtUtc
+  };
+}
+
+export function parseHazardLayerSummaries(payload: unknown): readonly HazardLayerSummary[] {
+  let list: unknown[] = [];
+  if (isRecord(payload) && Array.isArray(payload.items)) {
+    list = payload.items;
+  } else if (Array.isArray(payload)) {
+    list = payload;
+  } else {
+    throw new ApiError("Invalid hazard layers response: expected items wrapper", 502, payload);
+  }
+
+  return list.map((item, i) => {
+    try {
+      return parseHazardLayerSummary(item);
+    } catch {
+      throw new ApiError(`Invalid hazard layers list: entry ${i} is malformed`, 502, payload);
+    }
+  });
+}
+
+export function parseExposureAnalysisJobSummary(payload: unknown): ExposureAnalysisJobSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid exposure analysis job response: expected object", 502, payload);
+  }
+
+  const id = payload.id;
+  const planId = payload.planId;
+  const status = payload.status;
+  const hazardLayerId = payload.hazardLayerId;
+  const errorMessage = payload.errorMessage;
+  const createdAtUtc = payload.createdAtUtc;
+  const startedAtUtc = optionalIsoOrNull(payload.startedAtUtc);
+  const completedAtUtc = optionalIsoOrNull(payload.completedAtUtc);
+
+  if (
+    !isNonEmptyString(id) ||
+    !isNonEmptyString(planId) ||
+    typeof status !== "string" ||
+    !(hazardLayerId === null || typeof hazardLayerId === "string") ||
+    !(errorMessage === null || typeof errorMessage === "string") ||
+    !isNonEmptyString(createdAtUtc) ||
+    startedAtUtc !== null && !isNonEmptyString(startedAtUtc) ||
+    completedAtUtc !== null && !isNonEmptyString(completedAtUtc)
+  ) {
+    throw new ApiError("Invalid exposure analysis job response: malformed fields", 502, payload);
+  }
+
+  return {
+    id,
+    planId,
+    status,
+    hazardLayerId: typeof hazardLayerId === "string" ? hazardLayerId : null,
+    errorMessage: typeof errorMessage === "string" ? errorMessage : null,
+    createdAtUtc,
+    startedAtUtc,
+    completedAtUtc
+  };
+}
+
+export function parseExposureAnalysisJobSummaries(
+  payload: unknown
+): readonly ExposureAnalysisJobSummary[] {
+  let list: unknown[] = [];
+  if (isRecord(payload) && Array.isArray(payload.items)) {
+    list = payload.items;
+  } else if (Array.isArray(payload)) {
+    list = payload;
+  } else {
+    throw new ApiError("Invalid exposure analysis jobs response: expected items wrapper", 502, payload);
+  }
+
+  return list.map((item, i) => {
+    try {
+      return parseExposureAnalysisJobSummary(item);
+    } catch {
+      throw new ApiError(`Invalid exposure analysis jobs list: entry ${i} is malformed`, 502, payload);
+    }
+  });
+}
+
+export function parseCreatedExposureAnalysisJob(payload: unknown): ExposureAnalysisJobSummary {
+  return parseExposureAnalysisJobSummary(payload);
 }
 
 export function parseGeoJsonLayerFeatureSummaries(payload: unknown): GeoJsonLayerFeatureSummary[] {

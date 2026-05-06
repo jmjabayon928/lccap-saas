@@ -303,6 +303,43 @@ export interface PlanMapWorkspaceResult {
   readonly counts: PlanMapWorkspaceCounts;
 }
 
+export interface HazardLayerSummary {
+  readonly id: string;
+  readonly planId: string;
+  readonly mapAssetId: string | null;
+  readonly name: string;
+  readonly hazardType: string;
+  readonly severity: string;
+  readonly source: string | null;
+  readonly description: string | null;
+  readonly isActive: boolean;
+  readonly createdAtUtc: string;
+}
+
+export type RegisterHazardLayerPayload = {
+  readonly mapAssetId: string;
+  readonly name: string;
+  readonly hazardType: string;
+  readonly severity: "Low" | "Moderate" | "High" | "VeryHigh";
+  readonly source: string | null;
+  readonly description: string | null;
+};
+
+export interface ExposureAnalysisJobSummary {
+  readonly id: string;
+  readonly planId: string;
+  readonly status: string;
+  readonly hazardLayerId: string | null;
+  readonly errorMessage: string | null;
+  readonly createdAtUtc: string;
+  readonly startedAtUtc: string | null;
+  readonly completedAtUtc: string | null;
+}
+
+export type CreateExposureAnalysisJobPayload = {
+  readonly hazardLayerId: string;
+};
+
 export interface GeoJsonFeatureGeometryPayload {
   readonly type?: string;
 }
