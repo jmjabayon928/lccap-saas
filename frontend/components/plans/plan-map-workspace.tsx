@@ -46,8 +46,8 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
           return prev;
         }
 
-        const firstGeo = geoLayers[0];
-        return firstGeo ?? null;
+        const firstHazard = data.hazardLayerMapAssetIds.find((id) => geoLayers.includes(id));
+        return firstHazard ?? geoLayers[0] ?? null;
       });
     } catch (err: unknown) {
       if (isApiError(err)) {

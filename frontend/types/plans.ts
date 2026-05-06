@@ -297,6 +297,7 @@ export interface PlanMapWorkspaceCounts {
 export interface PlanMapWorkspaceResult {
   readonly planId: string;
   readonly mapAssets: readonly MapAssetSummary[];
+  readonly hazardLayerMapAssetIds: readonly string[];
   readonly barangays: readonly BarangaySummary[];
   readonly criticalFacilities: readonly CriticalFacilitySummary[];
   readonly counts: PlanMapWorkspaceCounts;

@@ -103,6 +103,15 @@ public sealed class GetPlanMapWorkspaceQuery
             a.CreatedAtUtc,
             featureCountLookup.TryGetValue(a.Id, out var c) ? c : 0));
 
+        var hazardLayerMapAssetIds = new List<Guid>();
+        foreach (var a in mapAssetRows)
+        {
+            if (a.MapFormat == "GeoJson" && a.MapType == "Hazard")
+            {
+                hazardLayerMapAssetIds.Add(a.Id);
+            }
+        }
+
         var barangayRows = await _dbContext.Barangays.AsNoTracking()
             .Where(b => b.AccountId == accountId && !b.IsDeleted)
             .OrderBy(b => b.Name)
@@ -141,7 +150,13 @@ public sealed class GetPlanMapWorkspaceQuery
 
         var counts = await ComputeCountsAsync(planId, accountId, cancellationToken).ConfigureAwait(false);
 
-        var dto = new PlanMapWorkspaceDto(planId, mapSummaries, barangayRows, facilityRows, counts);
+        var dto = new PlanMapWorkspaceDto(
+            planId,
+            mapSummaries,
+            hazardLayerMapAssetIds,
+            barangayRows,
+            facilityRows,
+            counts);
         return GetPlanMapWorkspaceResult.Success(dto);
     }
 
@@ -220,6 +235,7 @@ public sealed class GetPlanMapWorkspaceResult
 public sealed record PlanMapWorkspaceDto(
     Guid PlanId,
     IReadOnlyList<MapAssetWorkspaceSummaryDto> MapAssets,
+    IReadOnlyList<Guid> HazardLayerMapAssetIds,
     IReadOnlyList<BarangayWorkspaceSummaryDto> Barangays,
     IReadOnlyList<CriticalFacilityWorkspaceSummaryDto> CriticalFacilities,
     PlanMapWorkspaceCountsDto Counts);

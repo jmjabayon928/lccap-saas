@@ -1178,6 +1178,50 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Map_workspace_exposes_hazard_layer_ids()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Map plan");
+
+        var fileHazard = SeedGeoJsonFileAsset(accountId);
+        var fileFlood = SeedGeoJsonFileAsset(accountId);
+        var fileOtherTenant = SeedGeoJsonFileAsset(otherAccountId);
+
+        db.FileAssets.AddRange(fileHazard, fileFlood, fileOtherTenant);
+
+        var hazardActive = NewMapAsset(accountId, plan.Id, fileHazard.Id, "Hazard", deleted: false);
+        hazardActive.MapType = "Hazard";
+        db.MapAssets.Add(hazardActive);
+
+        var floodActive = NewMapAsset(accountId, plan.Id, fileFlood.Id, "Flood", deleted: false);
+        floodActive.MapType = "Flood";
+        db.MapAssets.Add(floodActive);
+
+        var hazardSoftDeleted = NewMapAsset(accountId, plan.Id, fileHazard.Id, "Deleted hazard", deleted: true);
+        hazardSoftDeleted.MapType = "Hazard";
+        db.MapAssets.Add(hazardSoftDeleted);
+
+        var hazardCrossTenantFile = NewMapAsset(accountId, plan.Id, fileOtherTenant.Id, "Cross-tenant file hazard", deleted: false);
+        hazardCrossTenantFile.MapType = "Hazard";
+        db.MapAssets.Add(hazardCrossTenantFile);
+
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanMapWorkspaceQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+
+        var result = await controller.GetPlanMapWorkspace(plan.Id, q, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var ws = Assert.IsType<PlanMapWorkspaceDto>(ok.Value);
+
+        Assert.Equal(new[] { hazardActive.Id }, ws.HazardLayerMapAssetIds);
+    }
+
+    [Fact]
     public async Task Geojson_layer_post_creates_map_asset_and_features()
     {
         using var db = CreateDbContext();

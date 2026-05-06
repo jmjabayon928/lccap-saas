@@ -1088,11 +1088,13 @@ export function parsePlanMapWorkspace(payload: unknown): PlanMapWorkspaceResult 
   }
 
   const mapAssetsRaw = payload.mapAssets;
+  const hazardLayerMapAssetIdsRaw = payload.hazardLayerMapAssetIds;
   const barangaysRaw = payload.barangays;
   const facilitiesRaw = payload.criticalFacilities;
   const countsRaw = payload.counts;
   if (
     !Array.isArray(mapAssetsRaw) ||
+    !Array.isArray(hazardLayerMapAssetIdsRaw) ||
     !Array.isArray(barangaysRaw) ||
     !Array.isArray(facilitiesRaw) ||
     !isRecord(countsRaw)
@@ -1121,9 +1123,17 @@ export function parsePlanMapWorkspace(payload: unknown): PlanMapWorkspaceResult 
 
   const counts = parsePlanMapWorkspaceCounts(countsRaw, payload);
 
+  const hazardLayerMapAssetIds = hazardLayerMapAssetIdsRaw.map((x, i) => {
+    if (!isNonEmptyString(x)) {
+      throw new ApiError(`Invalid hazardLayerMapAssetIds[${i}]`, 502, payload);
+    }
+    return x;
+  });
+
   return {
     planId: planIdRaw,
     mapAssets,
+    hazardLayerMapAssetIds,
     barangays,
     criticalFacilities,
     counts
