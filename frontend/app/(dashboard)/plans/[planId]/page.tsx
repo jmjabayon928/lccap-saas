@@ -20,6 +20,7 @@ import { IndicatorsList } from "@/components/monitoring/indicators-list";
 import { MonitoringUpdateForm } from "@/components/monitoring/monitoring-update-form";
 import { MonitoringUpdateHistory } from "@/components/monitoring/monitoring-update-history";
 import { ExportPanel } from "@/components/exports/export-panel";
+import { EvidenceIndexPanel } from "@/components/exports/evidence-index-panel";
 import { isApiError } from "@/lib/api/api-error";
 import { actionClient } from "@/lib/actions/action-client";
 import { documentClient } from "@/lib/documents/document-client";
@@ -672,6 +673,7 @@ export default function PlanWorkspacePage() {
               Generate a working PDF output for this plan via the API—draft LGU preparation material only, not an official
               submission or national reporting channel.
             </p>
+            <EvidenceIndexPanel planId={planId} />
             <ExportPanel planId={planId} />
           </section>
         </>

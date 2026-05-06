@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T00:00:00Z",
+      "last_updated_utc": "2026-05-06T15:35:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -15,8 +15,8 @@
   
   "current_state": {
     "phase": "Phase 2",
-    "active_module": "Monitoring",
-    "active_task": "Slice 1.1 Monitoring Update History Hardening",
+    "active_module": "Exports",
+    "active_task": "Slice 2 Evidence Index Export",
     "status": "done"
   },
 
@@ -1126,7 +1126,7 @@
             "description": "Registers application services into DI container."
           }
         ],
-        "notes": ""
+        "notes": "Registers evidence index query (GetEvidenceIndexByPlanQuery) for plan-scoped evidence index endpoints."
       },
       {
         "id": "FILE-0044",
@@ -2138,9 +2138,21 @@
             "kind": "endpoint",
             "status": "done",
             "description": "Lists documents for a plan."
+          },
+          {
+            "name": "GetEvidenceIndex",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Returns tenant-scoped evidence index for a plan (JSON)."
+          },
+          {
+            "name": "DownloadEvidenceIndexCsv",
+            "kind": "endpoint",
+            "status": "done",
+            "description": "Returns tenant-scoped evidence index CSV for a plan."
           }
         ],
-        "notes": ""
+        "notes": "Phase 2 Slice 2: adds evidence index JSON + CSV endpoints; CSV escapes fields and protects against spreadsheet formula injection; never exposes file storage paths."
       },
       {
         "id": "FILE-0094",
@@ -2811,9 +2823,15 @@
             "kind": "test",
             "status": "done",
             "description": "Integration test for upload."
+          },
+          {
+            "name": "EvidenceIndex_Should_Be_TenantScoped",
+            "kind": "test",
+            "status": "done",
+            "description": "Evidence index JSON and CSV integration tests: tenant scoping, soft-delete exclusion, CSV safety."
           }
         ],
-        "notes": "Integration FakeDbContext stubs ILccapDbContext: ActionItems, PlanSections, ExportJobs, and other unused DbSets (null!)."
+        "notes": "Includes evidence index JSON/CSV endpoint tests: tenant scoping, soft-delete exclusion, linked section/action fields, file metadata, and CSV escaping + injection protection; asserts stored_path is never exposed."
       },
       {
         "id": "FILE-0129",
@@ -5384,6 +5402,28 @@
         "source": "actual",
         "functions": [],
         "notes": "Detail view for an audit record; shows old/new values and metadata."
+      },
+      {
+        "id": "FILE-0313",
+        "path": "src/Lccap.Application/Documents/Queries/GetEvidenceIndexByPlanQuery.cs",
+        "layer": "application",
+        "module": "documents",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Plan-scoped evidence index query (tenant isolation, efficient projections, deterministic ordering, counts)."
+      },
+      {
+        "id": "FILE-0314",
+        "path": "frontend/components/exports/evidence-index-panel.tsx",
+        "layer": "frontend",
+        "module": "exports",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Evidence index panel in plan workspace: shows counts, evidence table, and CSV download."
       }
     ]
   }

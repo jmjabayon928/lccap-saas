@@ -1,8 +1,14 @@
 import { endpoints } from "@/lib/api/endpoints";
 import { http } from "@/lib/api/http";
-import { parseDocumentsList, parseDocumentSummary, parseUploadDocumentResult } from "@/lib/documents/document-parsers";
+import {
+  parseDocumentsList,
+  parseDocumentSummary,
+  parseEvidenceIndexResult,
+  parseUploadDocumentResult
+} from "@/lib/documents/document-parsers";
 import type {
   DocumentSummary,
+  EvidenceIndexResult,
   UpdateDocumentMetadataRequest,
   UploadDocumentRequest,
   UploadDocumentResult
@@ -38,6 +44,30 @@ export const documentClient = {
   async getDocumentsByPlan(planId: string): Promise<DocumentSummary[]> {
     const data = await http.get(endpoints.documentsByPlan(planId));
     return parseDocumentsList(data);
+  },
+
+  async getEvidenceIndex(planId: string): Promise<EvidenceIndexResult> {
+    const data = await http.get(`/api/plans/${planId}/documents/evidence-index`);
+    return parseEvidenceIndexResult(data);
+  },
+
+  async downloadEvidenceIndexCsv(planId: string): Promise<{ readonly blob: Blob; readonly fileName: string }> {
+    const response = await fetch(`/api/plans/${planId}/documents/evidence-index.csv`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "text/csv"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download evidence index CSV (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const cd = response.headers.get("content-disposition");
+    const fileName = extractFilenameFromContentDisposition(cd) ?? `evidence-index-${planId}.csv`;
+    return { blob, fileName };
   },
 
   async uploadDocument(request: UploadDocumentRequest): Promise<UploadDocumentResult> {
@@ -82,3 +112,18 @@ export const documentClient = {
     await http.deleteVoid(endpoints.archiveDocument(documentId));
   }
 } as const;
+
+function extractFilenameFromContentDisposition(header: string | null): string | null {
+  if (!header) {
+    return null;
+  }
+  const parts = header.split(";").map((p) => p.trim());
+  const filenamePart = parts.find((p) => p.toLowerCase().startsWith("filename="));
+  if (!filenamePart) {
+    return null;
+  }
+  const raw = filenamePart.slice("filename=".length).trim();
+  const unquoted = raw.startsWith("\"") && raw.endsWith("\"") ? raw.slice(1, -1) : raw;
+  const cleaned = unquoted.replaceAll("\\", "").trim();
+  return cleaned.length > 0 ? cleaned : null;
+}

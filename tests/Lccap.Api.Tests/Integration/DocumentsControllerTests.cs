@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
@@ -69,6 +70,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new UploadDocumentCommand(db, ctx, new FakeFileStorageService()),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -114,6 +116,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new UploadDocumentCommand(db, ctx, new FakeFileStorageService()),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -168,6 +171,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new UploadDocumentCommand(db, ctx, new FakeFileStorageService()),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -236,6 +240,281 @@ public sealed class DocumentsControllerTests
     }
 
     [Fact]
+    public async Task Evidence_index_json_is_tenant_scoped_and_excludes_soft_deleted_documents()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+
+        var (plan, section, action) = await SeedPlanSectionAndActionGraph(db, accountId);
+
+        var otherPlan = new Plan
+        {
+            AccountId = otherAccountId,
+            Title = "Other plan",
+            StartYear = 2025,
+            EndYear = 2026,
+            Status = "Draft",
+            TemplateMode = "New",
+            VersionNumber = 1,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1 }
+        };
+        _ = db.Plans.Add(otherPlan);
+
+        var goodFile = new FileAsset
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            OwnerType = "PlanDocument",
+            OwnerId = plan.Id,
+            OriginalFileName = "good.csv",
+            StoredFileName = "good.csv",
+            StoredPath = "uploads/secret/good.csv",
+            ContentType = "text/csv",
+            FileExtension = ".csv",
+            FileSizeBytes = 123,
+            Sha256Hash = "abc123",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            MetadataJson = JsonDocument.Parse("{}"),
+        };
+
+        var deletedFile = new FileAsset
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            OwnerType = "PlanDocument",
+            OwnerId = plan.Id,
+            OriginalFileName = "deleted.pdf",
+            StoredFileName = "deleted.pdf",
+            StoredPath = "uploads/secret/deleted.pdf",
+            ContentType = "application/pdf",
+            FileExtension = ".pdf",
+            FileSizeBytes = 999,
+            Sha256Hash = "deadbeef",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            MetadataJson = JsonDocument.Parse("{}"),
+        };
+
+        var otherTenantFile = new FileAsset
+        {
+            Id = Guid.NewGuid(),
+            AccountId = otherAccountId,
+            OwnerType = "PlanDocument",
+            OwnerId = otherPlan.Id,
+            OriginalFileName = "other.pdf",
+            StoredFileName = "other.pdf",
+            StoredPath = "uploads/secret/other.pdf",
+            ContentType = "application/pdf",
+            FileExtension = ".pdf",
+            FileSizeBytes = 10,
+            Sha256Hash = "00",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            MetadataJson = JsonDocument.Parse("{}"),
+        };
+
+        var goodDoc = new Document
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            FileAssetId = goodFile.Id,
+            Category = "Reference",
+            Title = "Good",
+            Description = null,
+            DocumentDate = new DateOnly(2024, 1, 1),
+            SourceAgency = "LGU",
+            TagsJson = JsonDocument.Parse("[\"alpha\",\"beta\"]"),
+            PlanSectionId = section.Id,
+            ActionItemId = action.Id,
+            EvidenceStatus = "Official",
+            UploadedByUserId = userId,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+
+        var deletedDoc = new Document
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            FileAssetId = deletedFile.Id,
+            Category = "Reference",
+            Title = "Deleted",
+            TagsJson = JsonDocument.Parse("[]"),
+            EvidenceStatus = "Internal",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = true,
+            DeletedAtUtc = DateTimeOffset.UtcNow,
+            DeletedByUserId = userId,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+
+        var otherTenantDoc = new Document
+        {
+            Id = Guid.NewGuid(),
+            AccountId = otherAccountId,
+            PlanId = otherPlan.Id,
+            FileAssetId = otherTenantFile.Id,
+            Category = "Reference",
+            Title = "Other tenant",
+            TagsJson = JsonDocument.Parse("[]"),
+            EvidenceStatus = "Public",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+
+        db.FileAssets.AddRange(goodFile, deletedFile, otherTenantFile);
+        db.Documents.AddRange(goodDoc, deletedDoc, otherTenantDoc);
+        _ = await db.SaveChangesAsync();
+
+        var controller = new DocumentsController(
+            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
+            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var result = await controller.GetEvidenceIndexByPlan(plan.Id, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<EvidenceIndexResult>(ok.Value);
+
+        Assert.Equal(plan.Id, payload.PlanId);
+        Assert.Equal(1, payload.TotalCount);
+        Assert.Single(payload.Items);
+        Assert.Equal(goodDoc.Id, payload.Items[0].DocumentId);
+    }
+
+    [Fact]
+    public async Task Evidence_index_csv_is_text_csv_excludes_stored_path_and_escapes_and_protects_injection()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+        var (plan, section, action) = await SeedPlanSectionAndActionGraph(db, accountId);
+
+        var file = new FileAsset
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            OwnerType = "PlanDocument",
+            OwnerId = plan.Id,
+            OriginalFileName = "orig,name\".csv",
+            StoredFileName = "stored.csv",
+            StoredPath = "uploads/very/secret/path.csv",
+            ContentType = "text/csv",
+            FileExtension = ".csv",
+            FileSizeBytes = 10,
+            Sha256Hash = "00",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            MetadataJson = JsonDocument.Parse("{}"),
+        };
+        _ = db.FileAssets.Add(file);
+
+        var doc = new Document
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            FileAssetId = file.Id,
+            Category = "Reference",
+            Title = "=SUM(1,1)",
+            Description = "Line1\nLine2",
+            DocumentDate = new DateOnly(2024, 2, 2),
+            SourceAgency = "\tAgency",
+            TagsJson = JsonDocument.Parse("[\"a,b\",\"c\\\"d\",\"x\\ny\"]"),
+            PlanSectionId = section.Id,
+            ActionItemId = action.Id,
+            EvidenceStatus = "Draft",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        _ = db.Documents.Add(doc);
+        _ = await db.SaveChangesAsync();
+
+        var controller = new DocumentsController(
+            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
+            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var result = await controller.DownloadEvidenceIndexCsvByPlan(plan.Id, CancellationToken.None);
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Contains("text/csv", fileResult.ContentType, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal($"evidence-index-{plan.Id:D}.csv", fileResult.FileDownloadName);
+
+        var csv = Encoding.UTF8.GetString(fileResult.FileContents);
+
+        Assert.DoesNotContain("storedPath", csv, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("stored_path", csv, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("uploads/very/secret", csv, StringComparison.OrdinalIgnoreCase);
+
+        // formula injection protection
+        Assert.Contains("'=SUM(1,1)", csv, StringComparison.Ordinal);
+        Assert.Contains("'\tAgency", csv, StringComparison.Ordinal);
+
+        // escaping
+        Assert.Contains("\"orig,name\"\".csv\"", csv, StringComparison.Ordinal);
+        Assert.Contains("\"a,b; c\"\"d; x\ny\"", csv, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Evidence_index_cross_tenant_plan_access_returns_not_found()
+    {
+        await using var db = CreateDbContext();
+        var ownerAccountId = Guid.NewGuid();
+        var callerAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(callerAccountId, userId, true, WorkspaceRoles.Admin);
+
+        var ownerPlan = new Plan
+        {
+            AccountId = ownerAccountId,
+            Title = "Owner plan",
+            StartYear = 2025,
+            EndYear = 2026,
+            Status = "Draft",
+            TemplateMode = "New",
+            VersionNumber = 1,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1 }
+        };
+        _ = db.Plans.Add(ownerPlan);
+        _ = await db.SaveChangesAsync();
+
+        var controller = new DocumentsController(
+            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
+            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var result = await controller.GetEvidenceIndexByPlan(ownerPlan.Id, CancellationToken.None);
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
     public async Task InvalidExtensionReturns400()
     {
         var controller = CreateController(
@@ -260,6 +539,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -349,6 +629,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -392,6 +673,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -438,6 +720,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -467,6 +750,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -494,6 +778,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -517,6 +802,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -538,6 +824,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new ArchiveDocumentCommand(db, ctx),
             ctx);
@@ -563,6 +850,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new ArchiveDocumentCommand(db, ctx),
             ctx);
@@ -585,6 +873,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new ArchiveDocumentCommand(db, ctx),
             ctx);
@@ -609,6 +898,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new ArchiveDocumentCommand(db, ctx),
             ctx);
@@ -629,6 +919,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new UpdateDocumentMetadataCommand(db, ctx),
             new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
             ctx);
@@ -670,6 +961,7 @@ public sealed class DocumentsControllerTests
         var controller = new DocumentsController(
             new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery([]),
+            new GetEvidenceIndexByPlanQuery(db, ctx),
             new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
             new ArchiveDocumentCommand(db, ctx),
             ctx);
@@ -802,6 +1094,7 @@ public sealed class DocumentsControllerTests
         return new DocumentsController(
             new FakeUploadDocumentCommand(uploadResult ?? UploadDocumentResult.Created(Guid.NewGuid())),
             new FakeGetDocumentsByPlanQuery(getDocumentsResult ?? []),
+            new GetEvidenceIndexByPlanQuery(new DocumentsFakeDbContext(), new FakeCurrentUserContext()),
             new FakeUpdateDocumentMetadataCommand(updateResult ?? UpdateDocumentMetadataResult.CreateNotFound()),
             new FakeArchiveDocumentCommand(archiveResult ?? ArchiveDocumentResult.CreateNotFound()),
             ctx);

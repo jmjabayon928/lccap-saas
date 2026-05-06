@@ -91,3 +91,40 @@ export interface UploadDocumentResult {
   readonly contentType?: string;
   readonly sizeBytes?: number;
 }
+
+export type EvidenceIndexCountsByEvidenceStatus = Readonly<Partial<Record<EvidenceStatus, number>>>;
+
+export type EvidenceIndexCountsByCategory = Readonly<Partial<Record<DocumentCategory, number>>>;
+
+export interface EvidenceIndexItem {
+  readonly documentId: string;
+  readonly title: string | null;
+  readonly category: DocumentCategory;
+  readonly evidenceStatus: EvidenceStatus;
+  readonly sourceAgency: string | null;
+  readonly documentDate: string | null;
+  readonly description: string | null;
+  readonly tags: readonly string[];
+  readonly planSectionId: string | null;
+  readonly planSectionKey: string | null;
+  readonly planSectionTitle: string | null;
+  readonly actionItemId: string | null;
+  readonly actionTitle: string | null;
+  readonly actionType: string | null;
+  readonly actionSector: string | null;
+  readonly originalFileName: string | null;
+  readonly contentType: string | null;
+  readonly fileSizeBytes: number;
+  readonly sha256Hash: string | null;
+  readonly uploadedByUserId: string | null;
+  readonly createdAtUtc: string;
+}
+
+export interface EvidenceIndexResult {
+  readonly planId: string;
+  readonly generatedAtUtc: string;
+  readonly items: readonly EvidenceIndexItem[];
+  readonly countsByEvidenceStatus: EvidenceIndexCountsByEvidenceStatus;
+  readonly countsByCategory: EvidenceIndexCountsByCategory;
+  readonly totalCount: number;
+}

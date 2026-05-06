@@ -1,5 +1,13 @@
 import { ApiError } from "@/lib/api/api-error";
-import type { DocumentSummary, EvidenceStatus, UploadDocumentResult } from "@/types/documents";
+import { DOCUMENT_CATEGORIES } from "@/types/documents";
+import type {
+  DocumentCategory,
+  DocumentSummary,
+  EvidenceIndexItem,
+  EvidenceIndexResult,
+  EvidenceStatus,
+  UploadDocumentResult
+} from "@/types/documents";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -39,6 +47,16 @@ function normalizeEvidenceStatus(input: string | null): EvidenceStatus {
     (s) => s.toLowerCase() === trimmed.toLowerCase()
   );
   return normalized ?? "Internal";
+}
+
+function normalizeDocumentCategory(input: string | null): DocumentCategory {
+  const trimmed = input?.trim();
+  if (!trimmed) {
+    return "Other";
+  }
+
+  const normalized = DOCUMENT_CATEGORIES.find((c) => c.toLowerCase() === trimmed.toLowerCase());
+  return normalized ?? "Other";
 }
 
 /** Ignore server storage paths — never surface to UI. */
@@ -236,5 +254,105 @@ export function parseUploadDocumentResult(payload: unknown): UploadDocumentResul
     originalFileName: String(originalFileNameRaw),
     contentType: String(contentType),
     sizeBytes: Number(sizeBytes)
+  };
+}
+
+function parseCountMap(raw: unknown): Record<string, number> {
+  if (!isRecord(raw)) {
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof k === "string" && isFiniteNumber(v)) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+export function parseEvidenceIndexItem(payload: unknown): EvidenceIndexItem {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid evidence index item: expected object", 502, payload);
+  }
+  stripIgnoredFields(payload);
+
+  const documentId = payload.documentId ?? payload.documentID ?? payload["DocumentId"];
+  if (!isNonEmptyString(documentId)) {
+    throw new ApiError("Invalid evidence index item: missing documentId", 502, payload);
+  }
+
+  const evidenceStatus = normalizeEvidenceStatus(
+    optionalStringOrNull(payload.evidenceStatus ?? payload["EvidenceStatus"])
+  );
+  const category = normalizeDocumentCategory(optionalStringOrNull(payload.category ?? payload["Category"]));
+
+  const createdAtUtc = optionalIsoOrNull(payload.createdAtUtc ?? payload["CreatedAtUtc"]);
+  if (!isNonEmptyString(createdAtUtc)) {
+    throw new ApiError("Invalid evidence index item: missing createdAtUtc", 502, payload);
+  }
+
+  const fileSizeBytes = payload.fileSizeBytes ?? payload["FileSizeBytes"];
+  if (!isFiniteNumber(fileSizeBytes)) {
+    throw new ApiError("Invalid evidence index item: missing fileSizeBytes", 502, payload);
+  }
+
+  return {
+    documentId,
+    title: optionalStringOrNull(payload.title ?? payload["Title"]),
+    category,
+    evidenceStatus,
+    sourceAgency: optionalStringOrNull(payload.sourceAgency ?? payload["SourceAgency"]),
+    documentDate: optionalIsoOrNull(payload.documentDate ?? payload["DocumentDate"]),
+    description: optionalStringOrNull(payload.description ?? payload["Description"]),
+    tags: parseTagsField(payload),
+    planSectionId: optionalStringOrNull(payload.planSectionId ?? payload["PlanSectionId"]),
+    planSectionKey: optionalStringOrNull(payload.planSectionKey ?? payload["PlanSectionKey"]),
+    planSectionTitle: optionalStringOrNull(payload.planSectionTitle ?? payload["PlanSectionTitle"]),
+    actionItemId: optionalStringOrNull(payload.actionItemId ?? payload["ActionItemId"]),
+    actionTitle: optionalStringOrNull(payload.actionTitle ?? payload["ActionTitle"]),
+    actionType: optionalStringOrNull(payload.actionType ?? payload["ActionType"]),
+    actionSector: optionalStringOrNull(payload.actionSector ?? payload["ActionSector"]),
+    originalFileName: optionalStringOrNull(payload.originalFileName ?? payload["OriginalFileName"]),
+    contentType: optionalStringOrNull(payload.contentType ?? payload["ContentType"]),
+    fileSizeBytes,
+    sha256Hash: optionalStringOrNull(payload.sha256Hash ?? payload["Sha256Hash"]),
+    uploadedByUserId: optionalStringOrNull(payload.uploadedByUserId ?? payload["UploadedByUserId"]),
+    createdAtUtc
+  };
+}
+
+export function parseEvidenceIndexResult(payload: unknown): EvidenceIndexResult {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid evidence index response: expected object", 502, payload);
+  }
+  stripIgnoredFields(payload);
+
+  const planId = payload.planId ?? payload["PlanId"];
+  const generatedAtUtc = payload.generatedAtUtc ?? payload["GeneratedAtUtc"];
+  const totalCount = payload.totalCount ?? payload["TotalCount"];
+  const itemsRaw = payload.items ?? payload["Items"];
+
+  if (!isNonEmptyString(planId) || !isNonEmptyString(generatedAtUtc) || !isFiniteNumber(totalCount) || !Array.isArray(itemsRaw)) {
+    throw new ApiError("Invalid evidence index response: malformed fields", 502, payload);
+  }
+
+  const parsedItems: EvidenceIndexItem[] = [];
+  for (const item of itemsRaw) {
+    parsedItems.push(parseEvidenceIndexItem(item));
+  }
+
+  const countsByEvidenceStatusRaw = payload.countsByEvidenceStatus ?? payload["CountsByEvidenceStatus"];
+  const countsByCategoryRaw = payload.countsByCategory ?? payload["CountsByCategory"];
+
+  const countsByEvidenceStatus = parseCountMap(countsByEvidenceStatusRaw);
+  const countsByCategory = parseCountMap(countsByCategoryRaw);
+
+  return {
+    planId,
+    generatedAtUtc,
+    items: parsedItems,
+    countsByEvidenceStatus,
+    countsByCategory,
+    totalCount
   };
 }

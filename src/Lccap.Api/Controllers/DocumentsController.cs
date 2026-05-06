@@ -2,6 +2,7 @@ using Lccap.Api.Auth;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.Documents.Commands;
 using Lccap.Application.Documents.Queries;
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,7 @@ public sealed class DocumentsController : ControllerBase
 {
     private readonly UploadDocumentCommand _uploadDocumentCommand;
     private readonly GetDocumentsByPlanQuery _getDocumentsByPlanQuery;
+    private readonly GetEvidenceIndexByPlanQuery _getEvidenceIndexByPlanQuery;
     private readonly UpdateDocumentMetadataCommand _updateDocumentMetadataCommand;
     private readonly ArchiveDocumentCommand _archiveDocumentCommand;
     private readonly ICurrentUserContext _currentUser;
@@ -19,12 +21,14 @@ public sealed class DocumentsController : ControllerBase
     public DocumentsController(
         UploadDocumentCommand uploadDocumentCommand,
         GetDocumentsByPlanQuery getDocumentsByPlanQuery,
+        GetEvidenceIndexByPlanQuery getEvidenceIndexByPlanQuery,
         UpdateDocumentMetadataCommand updateDocumentMetadataCommand,
         ArchiveDocumentCommand archiveDocumentCommand,
         ICurrentUserContext currentUser)
     {
         _uploadDocumentCommand = uploadDocumentCommand;
         _getDocumentsByPlanQuery = getDocumentsByPlanQuery;
+        _getEvidenceIndexByPlanQuery = getEvidenceIndexByPlanQuery;
         _updateDocumentMetadataCommand = updateDocumentMetadataCommand;
         _archiveDocumentCommand = archiveDocumentCommand;
         _currentUser = currentUser;
@@ -92,6 +96,121 @@ public sealed class DocumentsController : ControllerBase
             pageSize = paged.PageSize,
             totalCount = paged.TotalCount
         });
+    }
+
+    [HttpGet("api/plans/{planId:guid}/documents/evidence-index")]
+    [RequireWorkspaceRole("Read")]
+    public async Task<IActionResult> GetEvidenceIndexByPlan([FromRoute] Guid planId, CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var result = await _getEvidenceIndexByPlanQuery.ExecuteAsync(planId, cancellationToken);
+
+        if (result.UnauthenticatedAccount)
+        {
+            return BadRequest(new { error = "Authenticated account is required." });
+        }
+
+        if (result.NotFound || result.Result is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(result.Result);
+    }
+
+    [HttpGet("api/plans/{planId:guid}/documents/evidence-index.csv")]
+    [RequireWorkspaceRole("Read")]
+    public async Task<IActionResult> DownloadEvidenceIndexCsvByPlan([FromRoute] Guid planId, CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var result = await _getEvidenceIndexByPlanQuery.ExecuteAsync(planId, cancellationToken);
+
+        if (result.UnauthenticatedAccount)
+        {
+            return BadRequest(new { error = "Authenticated account is required." });
+        }
+
+        if (result.NotFound || result.Result is null)
+        {
+            return NotFound();
+        }
+
+        var csv = BuildEvidenceIndexCsv(result.Result.Items);
+        var bytes = Encoding.UTF8.GetBytes(csv);
+        var fileName = $"evidence-index-{planId:D}.csv";
+        return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
+
+    private static string BuildEvidenceIndexCsv(IReadOnlyList<EvidenceIndexItem> items)
+    {
+        static string SafeCell(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            var normalized = value;
+            var first = normalized.Length > 0 ? normalized[0] : '\0';
+            if (first is '=' or '+' or '-' or '@' or '\t' or '\r')
+            {
+                normalized = $"'{normalized}";
+            }
+
+            var needsQuotes = normalized.IndexOfAny([',', '"', '\r', '\n']) >= 0;
+            if (!needsQuotes)
+            {
+                return normalized;
+            }
+
+            var escaped = normalized.Replace("\"", "\"\"", StringComparison.Ordinal);
+            return $"\"{escaped}\"";
+        }
+
+        static string SafeDate(DateOnly? d) =>
+            d.HasValue ? d.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+
+        static string SafeInstant(DateTimeOffset d) =>
+            d.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+
+        static string SafeLong(long v) =>
+            v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        var sb = new StringBuilder(capacity: Math.Max(256, items.Count * 256));
+        sb.AppendLine("DocumentId,Title,Category,EvidenceStatus,SourceAgency,DocumentDate,LinkedSectionKey,LinkedSectionTitle,LinkedActionTitle,LinkedActionType,LinkedActionSector,OriginalFileName,ContentType,FileSizeBytes,Sha256Hash,Tags,CreatedAtUtc");
+
+        foreach (var i in items)
+        {
+            sb
+                .Append(SafeCell(i.DocumentId.ToString("D"))).Append(',')
+                .Append(SafeCell(i.Title)).Append(',')
+                .Append(SafeCell(i.Category)).Append(',')
+                .Append(SafeCell(i.EvidenceStatus)).Append(',')
+                .Append(SafeCell(i.SourceAgency)).Append(',')
+                .Append(SafeCell(SafeDate(i.DocumentDate))).Append(',')
+                .Append(SafeCell(i.PlanSectionKey)).Append(',')
+                .Append(SafeCell(i.PlanSectionTitle)).Append(',')
+                .Append(SafeCell(i.ActionTitle)).Append(',')
+                .Append(SafeCell(i.ActionType)).Append(',')
+                .Append(SafeCell(i.ActionSector)).Append(',')
+                .Append(SafeCell(i.OriginalFileName)).Append(',')
+                .Append(SafeCell(i.ContentType)).Append(',')
+                .Append(SafeCell(SafeLong(i.FileSizeBytes))).Append(',')
+                .Append(SafeCell(i.Sha256Hash)).Append(',')
+                .Append(SafeCell(i.Tags.Count == 0 ? string.Empty : string.Join("; ", i.Tags))).Append(',')
+                .Append(SafeCell(SafeInstant(i.CreatedAtUtc)))
+                .AppendLine();
+        }
+
+        return sb.ToString();
     }
 
     [HttpPut("api/documents/{documentId:guid}/metadata")]

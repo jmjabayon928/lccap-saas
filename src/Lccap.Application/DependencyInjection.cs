@@ -39,6 +39,7 @@ public static class DependencyInjection
         _ = services.AddScoped<CreateExportJobCommand>();
         _ = services.AddScoped<DownloadExportQuery>();
         _ = services.AddScoped<GetDocumentsByPlanQuery>();
+        _ = services.AddScoped<GetEvidenceIndexByPlanQuery>();
         _ = services.AddScoped<SavePlanSectionCommand>();
         _ = services.AddScoped<RestorePlanSectionCommand>();
         _ = services.AddScoped<GetPlanSectionsQuery>();
