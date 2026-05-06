@@ -55,3 +55,28 @@ export type UpdateActionItemRequest = CreateActionItemRequest & {
 };
 
 export type SaveActionItemResult = ActionItemDetail;
+
+export type ClimateExpenditureTagCategory =
+  | "Adaptation"
+  | "Mitigation"
+  | "CrossCutting"
+  | "DisasterRiskReduction"
+  | "CapacityDevelopment"
+  | "Other";
+
+export interface ClimateExpenditureTagSummary {
+  readonly id: string;
+  readonly tagCode: string;
+  readonly tagName: string;
+  readonly tagCategory: ClimateExpenditureTagCategory;
+  readonly weightPercent: number | null;
+  readonly description: string | null;
+  readonly isActive: boolean;
+  readonly createdAtUtc: string | null;
+}
+
+export interface ClimateExpenditureTagsResult {
+  readonly items: readonly ClimateExpenditureTagSummary[];
+  readonly totalCount: number;
+  readonly includeInactive: boolean;
+}

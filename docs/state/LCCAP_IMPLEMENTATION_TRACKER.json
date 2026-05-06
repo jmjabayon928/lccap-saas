@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T22:30:00Z",
+      "last_updated_utc": "2026-05-06T23:59:59Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -16,7 +16,7 @@
   "current_state": {
     "phase": "Phase 2",
     "active_module": "Funding",
-    "active_task": "Slice 5B CCET Tag Catalog API",
+    "active_task": "Slice 5C CCET Catalog UI and Funding Readiness Display",
     "status": "done"
   },
 
@@ -4517,7 +4517,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area."
+        "notes": "Sections editor + documents + Actions + Monitoring + ExportPanel (PDF draft create/poll/download); isolated load/error per area; Phase 2 Slice 5C: CCET catalog + funding readiness panels beside Actions."
       },
       {
         "id": "FILE-0233",
@@ -4660,7 +4660,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "ActionType, ActionStatus, summary/detail, create/update/save result types for HTTP API."
+        "notes": "ActionType, ActionStatus, summary/detail, create/update/save result types for HTTP API; Phase 2 Slice 5C: ClimateExpenditureTagCategory, ClimateExpenditureTagSummary, ClimateExpenditureTagsResult."
       },
       {
         "id": "FILE-0246",
@@ -4671,7 +4671,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Defensive parse for list/detail/save; array and actions/items/action wrappers; actionItemId fallback; newest-first sort."
+        "notes": "Defensive parse for list/detail/save; array and actions/items/action wrappers; actionItemId fallback; newest-first sort; Slice 5C: parseClimateExpenditureTagSummary, parseClimateExpenditureTagsResult (category fallback Other)."
       },
       {
         "id": "FILE-0247",
@@ -4682,7 +4682,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "GET list/detail; POST create; PUT update via shared http layer."
+        "notes": "GET list/detail; POST create; PUT update via shared http layer; Slice 5C: GET /api/funding/climate-expenditure-tags via http.get."
       },
       {
         "id": "FILE-0248",
@@ -4726,7 +4726,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "Responsive table and cards; selection highlight; inline edit and archive; empty state."
+        "notes": "Responsive table and cards; selection highlight; inline edit and archive; empty state; Slice 5C: read-only Funding column (2xl) + mobile funding line."
       },
       {
         "id": "FILE-0252",
@@ -5566,6 +5566,28 @@
         "source": "actual",
         "functions": [],
         "notes": "Integration tests for CCET catalog: tenant filter, soft-delete, inactive default vs includeInactive, sort, non-read forbid, empty when no account."
+      },
+      {
+        "id": "FILE-0329",
+        "path": "frontend/components/actions/ccet-catalog-panel.tsx",
+        "layer": "frontend",
+        "module": "funding",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5C: read-only CCET catalog by category; loading/error/empty; active count; optional retry."
+      },
+      {
+        "id": "FILE-0330",
+        "path": "frontend/components/actions/action-funding-readiness-panel.tsx",
+        "layer": "frontend",
+        "module": "funding",
+        "file_type": "typescript_react",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5C: budget/source summary, active CCET count, per-action suggested categories; no persistence."
       }
     ]
   }

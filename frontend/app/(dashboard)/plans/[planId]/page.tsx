@@ -15,7 +15,9 @@ import { PlanSectionsPreview } from "@/components/plans/plan-sections-preview";
 import { PlanSummaryCard } from "@/components/plans/plan-summary-card";
 import { SectionCommentsPanel } from "@/components/plans/section-comments-panel";
 import { ActionForm } from "@/components/actions/action-form";
+import { ActionFundingReadinessPanel } from "@/components/actions/action-funding-readiness-panel";
 import { ActionItemsList } from "@/components/actions/action-items-list";
+import { CcetCatalogPanel } from "@/components/actions/ccet-catalog-panel";
 import { IndicatorForm } from "@/components/monitoring/indicator-form";
 import { IndicatorsList } from "@/components/monitoring/indicators-list";
 import { MonitoringUpdateForm } from "@/components/monitoring/monitoring-update-form";
@@ -28,7 +30,7 @@ import { documentClient } from "@/lib/documents/document-client";
 import { monitoringClient } from "@/lib/monitoring/monitoring-client";
 import { planClient } from "@/lib/plans/plan-client";
 import type { DocumentSummary } from "@/types/documents";
-import type { ActionItemSummary, SaveActionItemResult } from "@/types/actions";
+import type { ActionItemSummary, ClimateExpenditureTagsResult, SaveActionItemResult } from "@/types/actions";
 import type {
   MonitoringIndicatorSummary,
   MonitoringUpdateSummary
@@ -50,6 +52,12 @@ type ActionsState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "ready"; items: ActionItemSummary[] }
+  | { status: "error"; message: string };
+
+type CcetState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; data: ClimateExpenditureTagsResult }
   | { status: "error"; message: string };
 
 type MonitoringState =
@@ -110,6 +118,21 @@ function describeActionsError(err: unknown): string {
   return "Could not load action items.";
 }
 
+function describeCcetError(err: unknown): string {
+  if (isApiError(err)) {
+    const notFound = err.status === 404;
+    const forbidden = err.status === 403;
+    if (notFound || forbidden) {
+      return "Climate expenditure tags could not be loaded for your tenant session.";
+    }
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "Could not load climate expenditure tags.";
+}
+
 function describeMonitoringError(err: unknown): string {
   if (isApiError(err)) {
     const notFound = err.status === 404;
@@ -150,6 +173,7 @@ export default function PlanWorkspacePage() {
   const [selectedSectionKey, setSelectedSectionKey] = useState<string | null>(null);
   const [docsState, setDocsState] = useState<DocsState>({ status: "idle" });
   const [actionsState, setActionsState] = useState<ActionsState>({ status: "idle" });
+  const [ccetState, setCcetState] = useState<CcetState>({ status: "idle" });
   const [monitoringState, setMonitoringState] = useState<MonitoringState>({ status: "idle" });
   const [monitoringUpdatesState, setMonitoringUpdatesState] =
     useState<MonitoringUpdatesState>({ status: "idle" });
@@ -206,6 +230,16 @@ export default function PlanWorkspacePage() {
     }
   }, [planId]);
 
+  const loadCcet = useCallback(async () => {
+    setCcetState({ status: "loading" });
+    try {
+      const data = await actionClient.getClimateExpenditureTags();
+      setCcetState({ status: "ready", data });
+    } catch (err) {
+      setCcetState({ status: "error", message: describeCcetError(err) });
+    }
+  }, []);
+
   const loadMonitoring = useCallback(async () => {
     if (!planId) {
       return;
@@ -251,13 +285,15 @@ export default function PlanWorkspacePage() {
     if (state.status !== "ready") {
       setDocsState({ status: "idle" });
       setActionsState({ status: "idle" });
+      setCcetState({ status: "idle" });
       setMonitoringState({ status: "idle" });
       return;
     }
     void loadDocuments();
     void loadActions();
     void loadMonitoring();
-  }, [state.status, loadDocuments, loadActions, loadMonitoring]);
+    void loadCcet();
+  }, [state.status, loadDocuments, loadActions, loadMonitoring, loadCcet]);
 
   useEffect(() => {
     void loadMonitoringUpdates();
@@ -557,6 +593,23 @@ export default function PlanWorkspacePage() {
               Define and track draft adaptation and mitigation measures for export-ready packages—this workspace supports
               LGU preparation and complements existing official systems.
             </p>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
+              <CcetCatalogPanel
+                status={ccetState.status}
+                result={ccetState.status === "ready" ? ccetState.data : undefined}
+                errorMessage={ccetState.status === "error" ? ccetState.message : undefined}
+                onRetry={() => void loadCcet()}
+              />
+              <ActionFundingReadinessPanel
+                actions={actionsState.status === "ready" ? actionsState.items : []}
+                tags={ccetState.status === "ready" ? ccetState.data.items : []}
+                actionsLoading={actionsState.status === "loading" || actionsState.status === "idle"}
+                actionsError={actionsState.status === "error" ? actionsState.message : null}
+                ccetLoading={ccetState.status === "loading" || ccetState.status === "idle"}
+                ccetError={ccetState.status === "error" ? ccetState.message : null}
+              />
+            </div>
 
             {actionsState.status === "loading" || actionsState.status === "idle" ? (
               <Card>

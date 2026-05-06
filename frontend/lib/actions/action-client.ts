@@ -3,11 +3,13 @@ import { http } from "@/lib/api/http";
 import {
   parseActionItem,
   parseActionItemsList,
+  parseClimateExpenditureTagsResult,
   parseSaveActionItemResult
 } from "@/lib/actions/action-parsers";
 import type {
   ActionItemDetail,
   ActionItemSummary,
+  ClimateExpenditureTagsResult,
   CreateActionItemRequest,
   SaveActionItemResult,
   UpdateActionItemRequest
@@ -36,5 +38,19 @@ export const actionClient = {
 
   async archiveActionItem(actionItemId: string): Promise<void> {
     await http.deleteVoid(endpoints.archiveAction(actionItemId));
+  },
+
+  async getClimateExpenditureTags(options?: { includeInactive?: boolean }): Promise<ClimateExpenditureTagsResult> {
+    const params = new URLSearchParams();
+    if (options?.includeInactive === true) {
+      params.set("includeInactive", "true");
+    }
+    const query = params.toString();
+    const path =
+      query.length > 0
+        ? `/api/funding/climate-expenditure-tags?${query}`
+        : `/api/funding/climate-expenditure-tags`;
+    const data = await http.get(path);
+    return parseClimateExpenditureTagsResult(data);
   }
 } as const;

@@ -74,6 +74,7 @@ export function ActionItemsList({
                     <TableHead className="w-28">Type</TableHead>
                     <TableHead>Sector</TableHead>
                     <TableHead className="hidden xl:table-cell">Office</TableHead>
+                    <TableHead className="hidden 2xl:table-cell min-w-[120px]">Funding</TableHead>
                     <TableHead className="w-32">Status</TableHead>
                     <TableHead className="w-36 text-right">Budget</TableHead>
                     <TableHead className="hidden min-w-[200px] xl:table-cell">Timeline</TableHead>
@@ -110,6 +111,17 @@ export function ActionItemsList({
                           <TableCell className="hidden text-muted-foreground xl:table-cell">
                             {item.responsibleOffice?.trim() ? item.responsibleOffice : "—"}
                           </TableCell>
+                          <TableCell className="hidden max-w-[160px] text-muted-foreground 2xl:table-cell">
+                            {item.fundingSource?.trim() ? (
+                              <span className="block truncate text-slate-700" title={item.fundingSource}>
+                                {item.fundingSource}
+                              </span>
+                            ) : (
+                              <span className="text-amber-800/90" title="No funding source on file">
+                                No source
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <ActionStatusBadge status={item.status} />
                           </TableCell>
@@ -142,7 +154,7 @@ export function ActionItemsList({
                         </TableRow>
                         {editingId === item.id ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="bg-slate-50/50 p-3">
+                            <TableCell colSpan={9} className="bg-slate-50/50 p-3">
                               <ActionEditForm
                                 action={item}
                                 onSaved={(updated) => {
@@ -191,6 +203,12 @@ export function ActionItemsList({
                         </span>
                         <ActionBudget budgetAmount={item.budgetAmount} />
                       </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Funding:{" "}
+                        <span className={item.fundingSource?.trim() ? "text-slate-700" : "text-amber-900/85"}>
+                          {item.fundingSource?.trim() ?? "No funding source"}
+                        </span>
+                      </p>
                     </button>
                     <div className="border-t border-border px-3 py-2">
                       <div className="flex flex-wrap gap-2">
