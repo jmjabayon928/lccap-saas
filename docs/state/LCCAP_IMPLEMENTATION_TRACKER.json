@@ -3,7 +3,7 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-06T16:10:00Z",
+      "last_updated_utc": "2026-05-06T22:30:00Z",
       "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
@@ -15,8 +15,8 @@
   
   "current_state": {
     "phase": "Phase 2",
-    "active_module": "Documents",
-    "active_task": "Slice 4 Document Evidence Link Dropdown UX",
+    "active_module": "Funding",
+    "active_task": "Slice 5B CCET Tag Catalog API",
     "status": "done"
   },
 
@@ -1114,7 +1114,7 @@
             "description": "Registers application services into DI container."
           }
         ],
-        "notes": "Registers evidence index query (GetEvidenceIndexByPlanQuery) for plan-scoped evidence index endpoints."
+        "notes": "Registers evidence index query (GetEvidenceIndexByPlanQuery) for plan-scoped evidence index endpoints; Phase 2 Slice 5B registers GetClimateExpenditureTagsQuery."
       },
       {
         "id": "FILE-0044",
@@ -1591,7 +1591,7 @@
             "description": "Triggers EF Core save pipeline with interceptors."
           }
         ],
-        "notes": "Central EF Core DbContext."
+        "notes": "Central EF Core DbContext; Phase 2 Slice 5A adds DbSets for climate_expenditure_tags, funding_sources, funding_programs, action_funding_allocations."
       },
       {
         "id": "FILE-0065",
@@ -5081,7 +5081,7 @@
         "status": "done",
         "source": "actual",
         "functions": [],
-        "notes": "EF mapping checks for action_items soft-delete and editable columns; audit_logs DbSet present."
+        "notes": "EF mapping checks for action_items soft-delete and editable columns; audit_logs DbSet present; Phase 2 Slice 5A mapping coverage for CCET, funding, and action_funding_allocations."
       },
       {
         "id": "FILE-0285",
@@ -5412,6 +5412,160 @@
         "source": "actual",
         "functions": [],
         "notes": "Evidence index panel in plan workspace: shows counts, evidence table, and CSV download."
+      },
+      {
+        "id": "FILE-0315",
+        "path": "src/Lccap.Application/Common/Interfaces/ILccapDbContext.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5A: DbSet members for ClimateExpenditureTags, FundingSources, FundingPrograms, ActionFundingAllocations."
+      },
+      {
+        "id": "FILE-0316",
+        "path": "src/Lccap.Domain/Entities/ClimateExpenditureTag.cs",
+        "layer": "domain",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Maps public.climate_expenditure_tags (BaseEntity, account scoping, JsonDocument metadata_json, soft delete)."
+      },
+      {
+        "id": "FILE-0317",
+        "path": "src/Lccap.Domain/Entities/FundingSource.cs",
+        "layer": "domain",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Maps public.funding_sources."
+      },
+      {
+        "id": "FILE-0318",
+        "path": "src/Lccap.Domain/Entities/FundingProgram.cs",
+        "layer": "domain",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Maps public.funding_programs; FK navigation to FundingSource."
+      },
+      {
+        "id": "FILE-0319",
+        "path": "src/Lccap.Domain/Entities/ActionFundingAllocation.cs",
+        "layer": "domain",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Maps public.action_funding_allocations; FundingApplicationId scalar only (no FundingApplication entity)."
+      },
+      {
+        "id": "FILE-0320",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/ClimateExpenditureTagConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Snake_case mapping, check constraints, JSONB, row_version concurrency, account FK Restrict."
+      },
+      {
+        "id": "FILE-0321",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/FundingSourceConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Snake_case mapping, check constraints per DDL, account FK Restrict."
+      },
+      {
+        "id": "FILE-0322",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/FundingProgramConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Funding program to source Restrict; char(3) currency; check constraints per DDL."
+      },
+      {
+        "id": "FILE-0323",
+        "path": "src/Lccap.Infrastructure/Persistence/Configurations/ActionFundingAllocationConfiguration.cs",
+        "layer": "infrastructure",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Allocation FKs aligned with DB constraint names; funding_application_id scalar only; plan/action cascade, program/ccet set null."
+      },
+      {
+        "id": "FILE-0324",
+        "path": "tests/Lccap.Api.Tests/Integration/PlanSectionsControllerTests.cs",
+        "layer": "tests",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "HardeningDbContext implements new ILccapDbContext DbSets as null stubs (interface contract ripple for Slice 5A)."
+      },
+      {
+        "id": "FILE-0325",
+        "path": "tests/Lccap.Api.Tests/Integration/DocumentsControllerTests.cs",
+        "layer": "tests",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "DocumentsFakeDbContext implements new ILccapDbContext DbSets as null stubs (interface contract ripple for Slice 5A)."
+      },
+      {
+        "id": "FILE-0326",
+        "path": "src/Lccap.Application/Funding/Queries/GetClimateExpenditureTagsQuery.cs",
+        "layer": "application",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Phase 2 Slice 5B: read-only CCET tag list; tenant-scoped, active default, optional includeInactive; AsNoTracking projection without metadata/rowVersion."
+      },
+      {
+        "id": "FILE-0327",
+        "path": "src/Lccap.Api/Controllers/FundingController.cs",
+        "layer": "api",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "GET /api/funding/climate-expenditure-tags; workspace Read; delegates to GetClimateExpenditureTagsQuery."
+      },
+      {
+        "id": "FILE-0328",
+        "path": "tests/Lccap.Api.Tests/Integration/FundingControllerTests.cs",
+        "layer": "tests",
+        "module": "funding",
+        "file_type": "csharp",
+        "status": "done",
+        "source": "actual",
+        "functions": [],
+        "notes": "Integration tests for CCET catalog: tenant filter, soft-delete, inactive default vs includeInactive, sort, non-read forbid, empty when no account."
       }
     ]
   }

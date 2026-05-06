@@ -17,5 +17,13 @@ public interface ILccapDbContext
     DbSet<ExportJob> ExportJobs { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
 
+    DbSet<ClimateExpenditureTag> ClimateExpenditureTags { get; }
+
+    DbSet<FundingSource> FundingSources { get; }
+
+    DbSet<FundingProgram> FundingPrograms { get; }
+
+    DbSet<ActionFundingAllocation> ActionFundingAllocations { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

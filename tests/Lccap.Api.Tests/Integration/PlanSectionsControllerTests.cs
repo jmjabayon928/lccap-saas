@@ -498,6 +498,10 @@ public sealed class PlanSectionsControllerTests
         public DbSet<Document> Documents => null!;
         public DbSet<ExportJob> ExportJobs => null!;
         public DbSet<RefreshToken> RefreshTokens => null!;
+        public DbSet<ClimateExpenditureTag> ClimateExpenditureTags => null!;
+        public DbSet<FundingSource> FundingSources => null!;
+        public DbSet<FundingProgram> FundingPrograms => null!;
+        public DbSet<ActionFundingAllocation> ActionFundingAllocations => null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

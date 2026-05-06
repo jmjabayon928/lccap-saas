@@ -7,6 +7,7 @@ using Lccap.Application.Documents.Commands;
 using Lccap.Application.Documents.Queries;
 using Lccap.Application.Export.Commands;
 using Lccap.Application.Export.Queries;
+using Lccap.Application.Funding.Queries;
 using Lccap.Application.Monitoring.Commands;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
@@ -56,6 +57,7 @@ public static class DependencyInjection
         _ = services.AddScoped<GetActionItemsByPlanQuery>();
         _ = services.AddScoped<GetActionItemByIdQuery>();
         _ = services.AddScoped<GetAuditLogsQuery>();
+        _ = services.AddScoped<GetClimateExpenditureTagsQuery>();
 
         // Auth / session services (Slice 2)
         _ = services.AddScoped<RefreshTokenService>();

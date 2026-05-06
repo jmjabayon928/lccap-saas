@@ -46,6 +46,14 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<MonitoringUpdate> MonitoringUpdates => Set<MonitoringUpdate>();
 
+    public DbSet<ClimateExpenditureTag> ClimateExpenditureTags => Set<ClimateExpenditureTag>();
+
+    public DbSet<FundingSource> FundingSources => Set<FundingSource>();
+
+    public DbSet<FundingProgram> FundingPrograms => Set<FundingProgram>();
+
+    public DbSet<ActionFundingAllocation> ActionFundingAllocations => Set<ActionFundingAllocation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

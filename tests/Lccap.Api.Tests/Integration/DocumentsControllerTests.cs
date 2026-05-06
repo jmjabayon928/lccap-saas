@@ -1370,6 +1370,10 @@ public sealed class DocumentsControllerTests
 
         public DbSet<AuditLog> AuditLogs => null!;
         public DbSet<RefreshToken> RefreshTokens => null!;
+        public DbSet<ClimateExpenditureTag> ClimateExpenditureTags => null!;
+        public DbSet<FundingSource> FundingSources => null!;
+        public DbSet<FundingProgram> FundingPrograms => null!;
+        public DbSet<ActionFundingAllocation> ActionFundingAllocations => null!;
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
     }

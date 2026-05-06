@@ -428,6 +428,10 @@ public sealed class AuthTests
             modelBuilder.Ignore<MonitoringIndicator>();
             modelBuilder.Ignore<MonitoringUpdate>();
             modelBuilder.Ignore<ActionItem>();
+            modelBuilder.Ignore<ActionFundingAllocation>();
+            modelBuilder.Ignore<ClimateExpenditureTag>();
+            modelBuilder.Ignore<FundingProgram>();
+            modelBuilder.Ignore<FundingSource>();
             // Do NOT ignore RefreshToken - it is required for Slice 2 session tests
 
             _ = modelBuilder.Entity<User>(builder =>
