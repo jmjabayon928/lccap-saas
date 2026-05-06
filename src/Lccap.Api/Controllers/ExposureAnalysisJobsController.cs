@@ -111,5 +111,36 @@ public sealed class ExposureAnalysisJobsController : ControllerBase
             _ => StatusCode(outcome.StatusCode),
         };
     }
+
+    [HttpPost("{planId:guid}/exposure-analysis-jobs/{jobId:guid}/process")]
+    [RequireWorkspaceRole("CreateOrEdit")]
+    public async Task<IActionResult> ProcessExposureAnalysisJob(
+        Guid planId,
+        Guid jobId,
+        [FromServices] ProcessExposureAnalysisJobCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        if (_currentUser.AccountId is null || _currentUser.UserId is null)
+        {
+            return Forbid();
+        }
+
+        var outcome = await command.Execute(planId, jobId, cancellationToken).ConfigureAwait(false);
+        return outcome.StatusCode switch
+        {
+            200 when outcome.Job is not null => Ok(outcome.Job),
+            400 => BadRequest(new { errors = outcome.Errors }),
+            401 => Unauthorized(),
+            403 => Forbid(),
+            404 => NotFound(),
+            409 => Conflict(),
+            _ => StatusCode(outcome.StatusCode),
+        };
+    }
 }
 

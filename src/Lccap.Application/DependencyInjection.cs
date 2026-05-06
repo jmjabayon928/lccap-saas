@@ -55,6 +55,7 @@ public static class DependencyInjection
         _ = services.AddScoped<GetPlanExposureAnalysisJobsQuery>();
         _ = services.AddScoped<GetExposureAnalysisJobQuery>();
         _ = services.AddScoped<CreateExposureAnalysisJobCommand>();
+        _ = services.AddScoped<ProcessExposureAnalysisJobCommand>();
         _ = services.AddScoped<GetPlanExposureSummariesQuery>();
         _ = services.AddScoped<GetJobExposureSummariesQuery>();
         _ = services.AddScoped<GetExposureSummaryQuery>();

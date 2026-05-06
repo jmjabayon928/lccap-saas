@@ -295,6 +295,159 @@ public sealed class ExposureAnalysisJobsControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
+    [Fact]
+    public async Task Process_exposure_analysis_job_marks_queued_job_failed_when_engine_not_configured()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var command = new ProcessExposureAnalysisJobCommand(db, currentUser);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal(hazard.Id, dto.HazardLayerId);
+        Assert.Equal("Exposure computation engine is not configured.", dto.ErrorMessage);
+        Assert.NotNull(dto.StartedAtUtc);
+        Assert.NotNull(dto.CompletedAtUtc);
+
+        var saved = await db.ExposureAnalysisJobs.SingleAsync(
+            j => j.Id == job.Id && j.AccountId == accountId && j.PlanId == plan.Id && !j.IsDeleted,
+            CancellationToken.None);
+
+        Assert.Equal("Failed", saved.Status);
+        Assert.NotNull(saved.StartedAtUtc);
+        Assert.NotNull(saved.CompletedAtUtc);
+        Assert.Equal("Exposure computation engine is not configured.", saved.ErrorMessage);
+
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_returns_not_found_for_cross_tenant_job()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+
+        var otherTenantJob = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = Guid.NewGuid(),
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(otherTenantJob);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var command = new ProcessExposureAnalysisJobCommand(db, currentUser);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            otherTenantJob.Id,
+            command,
+            CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_rejects_non_queued_job()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Running",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var command = new ProcessExposureAnalysisJobCommand(db, currentUser);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        Assert.IsType<ConflictResult>(result);
+    }
+
     private static (ExposureAnalysisJobsController Controller, TestCurrentUserContext CurrentUser) CreateController(
         Guid accountId,
         Guid userId,

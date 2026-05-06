@@ -39,8 +39,15 @@ public sealed class ExposureAnalysisJob : BaseEntity
 
     public void MarkRunning(DateTimeOffset startedAtUtc)
     {
+        MarkRunning(startedAtUtc, null);
+    }
+
+    public void MarkRunning(DateTimeOffset startedAtUtc, Guid? updatedByUserId)
+    {
         Status = "Running";
         StartedAtUtc = startedAtUtc;
+        UpdatedAtUtc = startedAtUtc;
+        UpdatedByUserId = updatedByUserId;
     }
 
     public void MarkCompleted(JsonDocument outputJson, DateTimeOffset completedAtUtc)
@@ -52,9 +59,16 @@ public sealed class ExposureAnalysisJob : BaseEntity
 
     public void MarkFailed(string errorMessage, DateTimeOffset completedAtUtc)
     {
+        MarkFailed(errorMessage, completedAtUtc, null);
+    }
+
+    public void MarkFailed(string errorMessage, DateTimeOffset completedAtUtc, Guid? updatedByUserId)
+    {
         Status = "Failed";
-        ErrorMessage = errorMessage;
+        ErrorMessage = errorMessage.Trim();
         CompletedAtUtc = completedAtUtc;
+        UpdatedAtUtc = completedAtUtc;
+        UpdatedByUserId = updatedByUserId;
     }
 
     public void Archive(Guid deletedByUserId, DateTimeOffset deletedAtUtc)
