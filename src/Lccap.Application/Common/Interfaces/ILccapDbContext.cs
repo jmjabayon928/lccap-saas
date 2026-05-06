@@ -39,6 +39,8 @@ public interface ILccapDbContext
 
     DbSet<ExposureAnalysisJob> ExposureAnalysisJobs { get; }
 
+    DbSet<ExposureSummary> ExposureSummaries { get; }
+
     DbSet<User> Users { get; }
 
     DbSet<NotificationEvent> NotificationEvents { get; }

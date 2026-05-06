@@ -19,6 +19,7 @@ using Lccap.Application.HazardLayers.Commands;
 using Lccap.Application.HazardLayers.Queries;
 using Lccap.Application.ExposureAnalysisJobs.Commands;
 using Lccap.Application.ExposureAnalysisJobs.Queries;
+using Lccap.Application.ExposureSummaries.Queries;
 using Lccap.Application.Notifications.Commands;
 using Lccap.Application.Notifications.Queries;
 using Lccap.Application.Sections.Commands;
@@ -54,6 +55,9 @@ public static class DependencyInjection
         _ = services.AddScoped<GetPlanExposureAnalysisJobsQuery>();
         _ = services.AddScoped<GetExposureAnalysisJobQuery>();
         _ = services.AddScoped<CreateExposureAnalysisJobCommand>();
+        _ = services.AddScoped<GetPlanExposureSummariesQuery>();
+        _ = services.AddScoped<GetJobExposureSummariesQuery>();
+        _ = services.AddScoped<GetExposureSummaryQuery>();
         _ = services.AddScoped<UploadDocumentCommand>();
         _ = services.AddScoped<UpdateDocumentMetadataCommand>();
         _ = services.AddScoped<ArchiveDocumentCommand>();

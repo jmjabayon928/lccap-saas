@@ -1383,6 +1383,8 @@ public sealed class DocumentsControllerTests
 
         public DbSet<ExposureAnalysisJob> ExposureAnalysisJobs => null!;
 
+        public DbSet<ExposureSummary> ExposureSummaries => null!;
+
         public DbSet<User> Users => null!;
 
         public DbSet<NotificationEvent> NotificationEvents => null!;

@@ -42,6 +42,10 @@ public class PlanWorkspaceMappingTests
         Assert.Equal(
             "exposure_analysis_jobs",
             ctx.Model.FindEntityType(typeof(ExposureAnalysisJob))!.GetTableName());
+
+        Assert.Equal(
+            "exposure_summaries",
+            ctx.Model.FindEntityType(typeof(ExposureSummary))!.GetTableName());
     }
 
     [Fact]
@@ -60,6 +64,7 @@ public class PlanWorkspaceMappingTests
                      typeof(ActionItem),
                      typeof(AuditLog),
                      typeof(ExposureAnalysisJob),
+                     typeof(ExposureSummary),
                  })
         {
             var rv = ctx.Model.FindEntityType(clrType)!.FindProperty(nameof(BaseEntity.RowVersion));
@@ -564,6 +569,11 @@ public class PlanWorkspaceMappingTests
             "jsonb",
             ctx.Model.FindEntityType(typeof(ExposureAnalysisJob))!.FindProperty(nameof(ExposureAnalysisJob.OutputJson))!
                 .GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(ExposureSummary))!.FindProperty(nameof(ExposureSummary.SummaryJson))!
+                .GetRelationalTypeMapping()?.StoreType);
     }
 
     [Fact]
@@ -639,6 +649,66 @@ public class PlanWorkspaceMappingTests
 
         var deletedByFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_analysis_jobs_deleted_by");
         Assert.Equal(DeleteBehavior.SetNull, deletedByFk.DeleteBehavior);
+    }
+
+    [Fact]
+    public void Exposure_summaries_foreign_keys_match_expected_accounts_and_cascades()
+    {
+        using var ctx = CreateContext();
+
+        var fks = ctx.Model.FindEntityType(typeof(ExposureSummary))!.GetForeignKeys();
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_account");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_plan");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_job");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_barangay");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_facility");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_hazard");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_created_by");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_updated_by");
+        Assert.Contains(fks, fk => fk.GetConstraintName() == "fk_exposure_summaries_deleted_by");
+
+        var accountFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_account");
+        Assert.Equal(DeleteBehavior.Restrict, accountFk.DeleteBehavior);
+
+        var planFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_plan");
+        Assert.Equal(DeleteBehavior.Cascade, planFk.DeleteBehavior);
+
+        var jobFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_job");
+        Assert.Equal(DeleteBehavior.SetNull, jobFk.DeleteBehavior);
+
+        var barangayFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_barangay");
+        Assert.Equal(DeleteBehavior.SetNull, barangayFk.DeleteBehavior);
+
+        var facilityFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_facility");
+        Assert.Equal(DeleteBehavior.SetNull, facilityFk.DeleteBehavior);
+
+        var hazardFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_hazard");
+        Assert.Equal(DeleteBehavior.SetNull, hazardFk.DeleteBehavior);
+
+        var createdByFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_created_by");
+        Assert.Equal(DeleteBehavior.SetNull, createdByFk.DeleteBehavior);
+
+        var updatedByFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_updated_by");
+        Assert.Equal(DeleteBehavior.SetNull, updatedByFk.DeleteBehavior);
+
+        var deletedByFk = fks.Single(fk => fk.GetConstraintName() == "fk_exposure_summaries_deleted_by");
+        Assert.Equal(DeleteBehavior.SetNull, deletedByFk.DeleteBehavior);
+    }
+
+    [Fact]
+    public void Exposure_summaries_numeric_fields_have_expected_store_types()
+    {
+        using var ctx = CreateContext();
+
+        var entity = ctx.Model.FindEntityType(typeof(ExposureSummary))!;
+
+        Assert.Equal(
+            "numeric(18,4)",
+            entity.FindProperty(nameof(ExposureSummary.ExposedAreaHectares))!.GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "numeric(10,4)",
+            entity.FindProperty(nameof(ExposureSummary.RiskScore))!.GetRelationalTypeMapping()?.StoreType);
     }
 
     [Fact]

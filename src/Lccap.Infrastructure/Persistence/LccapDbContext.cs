@@ -68,6 +68,8 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<ExposureAnalysisJob> ExposureAnalysisJobs => Set<ExposureAnalysisJob>();
 
+    public DbSet<ExposureSummary> ExposureSummaries => Set<ExposureSummary>();
+
     public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
 
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
