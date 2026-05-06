@@ -1,11 +1,20 @@
 import { ApiError } from "@/lib/api/api-error";
 import type {
+  ActionDashboardSummary,
   CreatePlanResult,
   CreateSectionCommentRequest,
+  EvidenceDashboardSummary,
+  ExportReadinessDashboardSummary,
+  FundingCurrencyTotal,
+  FundingDashboardSummary,
+  MonitoringDashboardSummary,
+  PlanActivityItem,
+  PlanOperationalDashboard,
   PlanSectionHistoryEntry,
   PlanSectionSummary,
   PlanStatus,
   PlanSummary,
+  ReviewDashboardSummary,
   SectionCommentSummary,
   SectionCommentType,
   SavePlanSectionResult,
@@ -492,5 +501,320 @@ export function normalizeCreateSectionCommentRequest(
   return {
     commentType: request.commentType,
     commentText: request.commentText
+  };
+}
+
+function parseFundingCurrencyTotal(payload: unknown, index: number, parent: unknown): FundingCurrencyTotal {
+  if (!isRecord(payload)) {
+    throw new ApiError(`Invalid dashboard: currency total ${index} is not an object`, 502, parent);
+  }
+  const currencyCode = payload.currencyCode;
+  const totalAllocatedAmount = payload.totalAllocatedAmount;
+  if (!isNonEmptyString(currencyCode)) {
+    throw new ApiError(`Invalid dashboard: currency total ${index} missing currencyCode`, 502, parent);
+  }
+  if (!isFiniteNumber(totalAllocatedAmount)) {
+    throw new ApiError(`Invalid dashboard: currency total ${index} missing totalAllocatedAmount`, 502, parent);
+  }
+  return { currencyCode, totalAllocatedAmount };
+}
+
+function parseEvidenceDashboardSummary(record: Record<string, unknown>, parent: unknown): EvidenceDashboardSummary {
+  const totalDocuments = record.totalDocuments;
+  const officialEvidenceCount = record.officialEvidenceCount;
+  const publicEvidenceCount = record.publicEvidenceCount;
+  const draftEvidenceCount = record.draftEvidenceCount;
+  const internalEvidenceCount = record.internalEvidenceCount;
+  const linkedToSectionCount = record.linkedToSectionCount;
+  const linkedToActionCount = record.linkedToActionCount;
+  if (
+    !isFiniteNumber(totalDocuments) ||
+    !isFiniteNumber(officialEvidenceCount) ||
+    !isFiniteNumber(publicEvidenceCount) ||
+    !isFiniteNumber(draftEvidenceCount) ||
+    !isFiniteNumber(internalEvidenceCount) ||
+    !isFiniteNumber(linkedToSectionCount) ||
+    !isFiniteNumber(linkedToActionCount)
+  ) {
+    throw new ApiError("Invalid dashboard: malformed evidence summary", 502, parent);
+  }
+  return {
+    totalDocuments,
+    officialEvidenceCount,
+    publicEvidenceCount,
+    draftEvidenceCount,
+    internalEvidenceCount,
+    linkedToSectionCount,
+    linkedToActionCount
+  };
+}
+
+function parseActionDashboardSummary(record: Record<string, unknown>, parent: unknown): ActionDashboardSummary {
+  const fields = [
+    "totalActions",
+    "plannedCount",
+    "inProgressCount",
+    "onTrackCount",
+    "delayedCount",
+    "completedCount",
+    "cancelledCount",
+    "actionsWithBudgetCount",
+    "actionsWithFundingSourceCount",
+    "missingFundingSourceCount"
+  ] as const;
+  const nums: Record<string, number> = {};
+  for (const k of fields) {
+    const v = record[k];
+    if (!isFiniteNumber(v)) {
+      throw new ApiError(`Invalid dashboard: action summary missing ${k}`, 502, parent);
+    }
+    nums[k] = v;
+  }
+  return {
+    totalActions: nums.totalActions,
+    plannedCount: nums.plannedCount,
+    inProgressCount: nums.inProgressCount,
+    onTrackCount: nums.onTrackCount,
+    delayedCount: nums.delayedCount,
+    completedCount: nums.completedCount,
+    cancelledCount: nums.cancelledCount,
+    actionsWithBudgetCount: nums.actionsWithBudgetCount,
+    actionsWithFundingSourceCount: nums.actionsWithFundingSourceCount,
+    missingFundingSourceCount: nums.missingFundingSourceCount
+  };
+}
+
+function parseMonitoringDashboardSummary(
+  record: Record<string, unknown>,
+  parent: unknown
+): MonitoringDashboardSummary {
+  const totalIndicators = record.totalIndicators;
+  const notStartedCount = record.notStartedCount;
+  const inProgressCount = record.inProgressCount;
+  const onTrackCount = record.onTrackCount;
+  const delayedCount = record.delayedCount;
+  const completedCount = record.completedCount;
+  const totalMonitoringUpdates = record.totalMonitoringUpdates;
+  const indicatorsWithUpdatesCount = record.indicatorsWithUpdatesCount;
+  const latestRaw = record.latestMonitoringUpdateAtUtc;
+  if (
+    !isFiniteNumber(totalIndicators) ||
+    !isFiniteNumber(notStartedCount) ||
+    !isFiniteNumber(inProgressCount) ||
+    !isFiniteNumber(onTrackCount) ||
+    !isFiniteNumber(delayedCount) ||
+    !isFiniteNumber(completedCount) ||
+    !isFiniteNumber(totalMonitoringUpdates) ||
+    !isFiniteNumber(indicatorsWithUpdatesCount)
+  ) {
+    throw new ApiError("Invalid dashboard: malformed monitoring summary", 502, parent);
+  }
+  const latestMonitoringUpdateAtUtc =
+    latestRaw === null || latestRaw === undefined
+      ? null
+      : typeof latestRaw === "string" && latestRaw.trim()
+        ? latestRaw
+        : null;
+  return {
+    totalIndicators,
+    notStartedCount,
+    inProgressCount,
+    onTrackCount,
+    delayedCount,
+    completedCount,
+    totalMonitoringUpdates,
+    indicatorsWithUpdatesCount,
+    latestMonitoringUpdateAtUtc
+  };
+}
+
+function parseReviewDashboardSummary(record: Record<string, unknown>, parent: unknown): ReviewDashboardSummary {
+  const totalComments = record.totalComments;
+  const unresolvedComments = record.unresolvedComments;
+  const resolvedComments = record.resolvedComments;
+  const dataGapComments = record.dataGapComments;
+  const validationComments = record.validationComments;
+  const revisionRequestComments = record.revisionRequestComments;
+  if (
+    !isFiniteNumber(totalComments) ||
+    !isFiniteNumber(unresolvedComments) ||
+    !isFiniteNumber(resolvedComments) ||
+    !isFiniteNumber(dataGapComments) ||
+    !isFiniteNumber(validationComments) ||
+    !isFiniteNumber(revisionRequestComments)
+  ) {
+    throw new ApiError("Invalid dashboard: malformed review summary", 502, parent);
+  }
+  return {
+    totalComments,
+    unresolvedComments,
+    resolvedComments,
+    dataGapComments,
+    validationComments,
+    revisionRequestComments
+  };
+}
+
+function parseFundingDashboardSummary(record: Record<string, unknown>, parent: unknown): FundingDashboardSummary {
+  const totalAllocations = record.totalAllocations;
+  const ccetTaggedAllocations = record.ccetTaggedAllocations;
+  const untaggedAllocations = record.untaggedAllocations;
+  const allocationTotalsByCurrency = record.allocationTotalsByCurrency;
+  if (
+    !isFiniteNumber(totalAllocations) ||
+    !isFiniteNumber(ccetTaggedAllocations) ||
+    !isFiniteNumber(untaggedAllocations) ||
+    !Array.isArray(allocationTotalsByCurrency)
+  ) {
+    throw new ApiError("Invalid dashboard: malformed funding summary", 502, parent);
+  }
+  const totals = allocationTotalsByCurrency.map((x, i) => parseFundingCurrencyTotal(x, i, parent));
+  return {
+    totalAllocations,
+    ccetTaggedAllocations,
+    untaggedAllocations,
+    allocationTotalsByCurrency: totals
+  };
+}
+
+function parseExportReadinessDashboardSummary(
+  record: Record<string, unknown>,
+  parent: unknown
+): ExportReadinessDashboardSummary {
+  const hasOfficialEvidence = record.hasOfficialEvidence;
+  const hasActions = record.hasActions;
+  const hasMonitoring = record.hasMonitoring;
+  const hasFundingAllocations = record.hasFundingAllocations;
+  const hasUnresolvedComments = record.hasUnresolvedComments;
+  const suggestedNextSteps = record.suggestedNextSteps;
+  if (
+    typeof hasOfficialEvidence !== "boolean" ||
+    typeof hasActions !== "boolean" ||
+    typeof hasMonitoring !== "boolean" ||
+    typeof hasFundingAllocations !== "boolean" ||
+    typeof hasUnresolvedComments !== "boolean" ||
+    !Array.isArray(suggestedNextSteps) ||
+    !suggestedNextSteps.every((s) => typeof s === "string")
+  ) {
+    throw new ApiError("Invalid dashboard: malformed export readiness", 502, parent);
+  }
+  return {
+    hasOfficialEvidence,
+    hasActions,
+    hasMonitoring,
+    hasFundingAllocations,
+    hasUnresolvedComments,
+    suggestedNextSteps: suggestedNextSteps as string[]
+  };
+}
+
+function parsePlanActivityItem(payload: unknown, index: number, parent: unknown): PlanActivityItem {
+  if (!isRecord(payload)) {
+    throw new ApiError(`Invalid dashboard: activity ${index} is not an object`, 502, parent);
+  }
+  const id = payload.id;
+  const action = payload.action;
+  const entityType = payload.entityType;
+  const entityId = payload.entityId;
+  const createdAtUtc = payload.createdAtUtc;
+  const summary = payload.summary;
+  if (!isNonEmptyString(id)) {
+    throw new ApiError(`Invalid dashboard: activity ${index} missing id`, 502, parent);
+  }
+  if (typeof action !== "string" || !action.trim()) {
+    throw new ApiError(`Invalid dashboard: activity ${index} missing action`, 502, parent);
+  }
+  if (!isNonEmptyString(entityType)) {
+    throw new ApiError(`Invalid dashboard: activity ${index} missing entityType`, 502, parent);
+  }
+  if (entityId !== null && typeof entityId !== "string") {
+    throw new ApiError(`Invalid dashboard: activity ${index} invalid entityId`, 502, parent);
+  }
+  if (!isNonEmptyString(createdAtUtc)) {
+    throw new ApiError(`Invalid dashboard: activity ${index} missing createdAtUtc`, 502, parent);
+  }
+  if (typeof summary !== "string") {
+    throw new ApiError(`Invalid dashboard: activity ${index} missing summary`, 502, parent);
+  }
+  return {
+    id,
+    action,
+    entityType,
+    entityId: entityId === null ? null : entityId,
+    createdAtUtc,
+    summary
+  };
+}
+
+export function parsePlanOperationalDashboard(payload: unknown): PlanOperationalDashboard {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid dashboard response: expected object", 502, payload);
+  }
+
+  const planId = payload.planId;
+  const planTitle = payload.planTitle;
+  const planningPeriodStart = payload.planningPeriodStart;
+  const planningPeriodEnd = payload.planningPeriodEnd;
+  const status = payload.status;
+  const generatedAtUtc = payload.generatedAtUtc;
+  const evidence = payload.evidence;
+  const actions = payload.actions;
+  const monitoring = payload.monitoring;
+  const review = payload.review;
+  const funding = payload.funding;
+  const exportReadiness = payload.exportReadiness;
+  const recentActivity = payload.recentActivity;
+
+  if (!isNonEmptyString(planId)) {
+    throw new ApiError("Invalid dashboard: missing planId", 502, payload);
+  }
+  if (!isNonEmptyString(planTitle)) {
+    throw new ApiError("Invalid dashboard: missing planTitle", 502, payload);
+  }
+  if (!isFiniteNumber(planningPeriodStart) || !isFiniteNumber(planningPeriodEnd)) {
+    throw new ApiError("Invalid dashboard: invalid planning period", 502, payload);
+  }
+  if (typeof status !== "string" || !status.trim()) {
+    throw new ApiError("Invalid dashboard: missing status", 502, payload);
+  }
+  if (!isNonEmptyString(generatedAtUtc)) {
+    throw new ApiError("Invalid dashboard: missing generatedAtUtc", 502, payload);
+  }
+  if (!isRecord(evidence)) {
+    throw new ApiError("Invalid dashboard: missing evidence", 502, payload);
+  }
+  if (!isRecord(actions)) {
+    throw new ApiError("Invalid dashboard: missing actions", 502, payload);
+  }
+  if (!isRecord(monitoring)) {
+    throw new ApiError("Invalid dashboard: missing monitoring", 502, payload);
+  }
+  if (!isRecord(review)) {
+    throw new ApiError("Invalid dashboard: missing review", 502, payload);
+  }
+  if (!isRecord(funding)) {
+    throw new ApiError("Invalid dashboard: missing funding", 502, payload);
+  }
+  if (!isRecord(exportReadiness)) {
+    throw new ApiError("Invalid dashboard: missing exportReadiness", 502, payload);
+  }
+  if (!Array.isArray(recentActivity)) {
+    throw new ApiError("Invalid dashboard: missing recentActivity", 502, payload);
+  }
+
+  return {
+    planId,
+    planTitle,
+    planningPeriodStart,
+    planningPeriodEnd,
+    status: status.trim(),
+    generatedAtUtc,
+    evidence: parseEvidenceDashboardSummary(evidence, payload),
+    actions: parseActionDashboardSummary(actions, payload),
+    monitoring: parseMonitoringDashboardSummary(monitoring, payload),
+    review: parseReviewDashboardSummary(review, payload),
+    funding: parseFundingDashboardSummary(funding, payload),
+    exportReadiness: parseExportReadinessDashboardSummary(exportReadiness, payload),
+    recentActivity: recentActivity.map((item, i) => parsePlanActivityItem(item, i, payload))
   };
 }

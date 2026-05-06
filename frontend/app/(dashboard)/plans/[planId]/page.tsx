@@ -12,6 +12,10 @@ import { DocumentUploadForm } from "@/components/documents/document-upload-form"
 import { DocumentsList } from "@/components/documents/documents-list";
 import { PlanSectionEditor } from "@/components/plans/plan-section-editor";
 import { PlanSectionsPreview } from "@/components/plans/plan-sections-preview";
+import {
+  PlanOperationalDashboard,
+  type OperationalDashboardPanelState
+} from "@/components/plans/plan-operational-dashboard";
 import { PlanSummaryCard } from "@/components/plans/plan-summary-card";
 import { SectionCommentsPanel } from "@/components/plans/section-comments-panel";
 import { ActionForm } from "@/components/actions/action-form";
@@ -176,6 +180,28 @@ function describeFundingProgramsError(err: unknown): string {
   return "Could not load funding programs.";
 }
 
+function describeOperationalDashboardError(err: unknown): { message: string; retryable: boolean } {
+  if (isApiError(err)) {
+    const notFound = err.status === 404;
+    const forbidden = err.status === 403;
+    const message =
+      notFound || forbidden
+        ? "The operational dashboard could not be loaded for this plan."
+        : err.message;
+    return {
+      message,
+      retryable: !notFound && !forbidden
+    };
+  }
+  if (err instanceof Error) {
+    return { message: err.message, retryable: true };
+  }
+  return {
+    message: "Something went wrong while loading the operational dashboard.",
+    retryable: true
+  };
+}
+
 function describeMonitoringError(err: unknown): string {
   if (isApiError(err)) {
     const notFound = err.status === 404;
@@ -225,6 +251,9 @@ export default function PlanWorkspacePage() {
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [planFundingAllocations, setPlanFundingAllocations] = useState<ActionFundingAllocationSummary[]>([]);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
+  const [operationalPanel, setOperationalPanel] = useState<OperationalDashboardPanelState>({
+    status: "idle"
+  });
 
   const load = useCallback(async () => {
     if (!planId) {
@@ -247,6 +276,21 @@ export default function PlanWorkspacePage() {
     } catch (err) {
       const { message, notFound, retryable } = describeError(err);
       setState({ status: "error", message, notFound, retryable });
+    }
+  }, [planId]);
+
+  const loadOperationalDashboard = useCallback(async () => {
+    if (!planId) {
+      return;
+    }
+
+    setOperationalPanel({ status: "loading" });
+    try {
+      const data = await planClient.getPlanOperationalDashboard(planId);
+      setOperationalPanel({ status: "ready", data });
+    } catch (err) {
+      const { message, retryable } = describeOperationalDashboardError(err);
+      setOperationalPanel({ status: "error", message, retryable });
     }
   }, [planId]);
 
@@ -344,6 +388,15 @@ export default function PlanWorkspacePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (state.status !== "ready") {
+      setOperationalPanel({ status: "idle" });
+      return;
+    }
+
+    void loadOperationalDashboard();
+  }, [state.status, loadOperationalDashboard]);
 
   useEffect(() => {
     setSelectedActionId(null);
@@ -595,6 +648,11 @@ export default function PlanWorkspacePage() {
       {state.status === "ready" ? (
         <>
           <PlanSummaryCard plan={state.plan} onPlanUpdated={handlePlanUpdated} onRefresh={() => void load()} />
+
+          <PlanOperationalDashboard
+            panel={operationalPanel}
+            onRetry={() => void loadOperationalDashboard()}
+          />
 
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <PlanSectionsPreview

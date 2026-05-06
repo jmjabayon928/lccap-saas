@@ -2,6 +2,7 @@ import { endpoints } from "@/lib/api/endpoints";
 import { http } from "@/lib/api/http";
 import {
   parseCreatePlanResult,
+  parsePlanOperationalDashboard,
   parsePlanSection,
   parsePlanSectionHistoryList,
   parsePlanSections,
@@ -14,6 +15,7 @@ import type {
   CreatePlanRequest,
   CreatePlanResult,
   CreateSectionCommentRequest,
+  PlanOperationalDashboard,
   PlanSectionDetail,
   PlanSectionHistoryEntry,
   PlanSectionSummary,
@@ -67,6 +69,18 @@ export const planClient = {
   async getPlanById(planId: string): Promise<PlanSummary> {
     const data = await http.get(endpoints.planById(planId));
     return parsePlanSummary(data);
+  },
+
+  async getPlanOperationalDashboard(
+    planId: string,
+    options?: { recentActivityLimit?: number }
+  ): Promise<PlanOperationalDashboard> {
+    const suffix =
+      options?.recentActivityLimit != null
+        ? `?recentActivityLimit=${encodeURIComponent(String(options.recentActivityLimit))}`
+        : "";
+    const data = await http.get(`/api/plans/${encodeURIComponent(planId)}/operational-dashboard${suffix}`);
+    return parsePlanOperationalDashboard(data);
   },
 
   async getPlanSections(planId: string): Promise<PlanSectionSummary[]> {

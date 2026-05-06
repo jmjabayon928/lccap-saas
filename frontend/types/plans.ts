@@ -131,3 +131,93 @@ export interface CreateSectionCommentRequest {
   readonly commentType: SectionCommentType;
   readonly commentText: string;
 }
+
+export interface FundingCurrencyTotal {
+  readonly currencyCode: string;
+  readonly totalAllocatedAmount: number;
+}
+
+export interface EvidenceDashboardSummary {
+  readonly totalDocuments: number;
+  readonly officialEvidenceCount: number;
+  readonly publicEvidenceCount: number;
+  readonly draftEvidenceCount: number;
+  readonly internalEvidenceCount: number;
+  readonly linkedToSectionCount: number;
+  readonly linkedToActionCount: number;
+}
+
+export interface ActionDashboardSummary {
+  readonly totalActions: number;
+  readonly plannedCount: number;
+  readonly inProgressCount: number;
+  readonly onTrackCount: number;
+  readonly delayedCount: number;
+  readonly completedCount: number;
+  readonly cancelledCount: number;
+  readonly actionsWithBudgetCount: number;
+  readonly actionsWithFundingSourceCount: number;
+  readonly missingFundingSourceCount: number;
+}
+
+export interface MonitoringDashboardSummary {
+  readonly totalIndicators: number;
+  readonly notStartedCount: number;
+  readonly inProgressCount: number;
+  readonly onTrackCount: number;
+  readonly delayedCount: number;
+  readonly completedCount: number;
+  readonly totalMonitoringUpdates: number;
+  readonly indicatorsWithUpdatesCount: number;
+  readonly latestMonitoringUpdateAtUtc: string | null;
+}
+
+export interface ReviewDashboardSummary {
+  readonly totalComments: number;
+  readonly unresolvedComments: number;
+  readonly resolvedComments: number;
+  readonly dataGapComments: number;
+  readonly validationComments: number;
+  readonly revisionRequestComments: number;
+}
+
+export interface FundingDashboardSummary {
+  readonly totalAllocations: number;
+  readonly ccetTaggedAllocations: number;
+  readonly untaggedAllocations: number;
+  readonly allocationTotalsByCurrency: readonly FundingCurrencyTotal[];
+}
+
+export interface ExportReadinessDashboardSummary {
+  readonly hasOfficialEvidence: boolean;
+  readonly hasActions: boolean;
+  readonly hasMonitoring: boolean;
+  readonly hasFundingAllocations: boolean;
+  readonly hasUnresolvedComments: boolean;
+  readonly suggestedNextSteps: readonly string[];
+}
+
+export interface PlanActivityItem {
+  readonly id: string;
+  readonly action: string;
+  readonly entityType: string;
+  readonly entityId: string | null;
+  readonly createdAtUtc: string;
+  readonly summary: string;
+}
+
+export interface PlanOperationalDashboard {
+  readonly planId: string;
+  readonly planTitle: string;
+  readonly planningPeriodStart: number;
+  readonly planningPeriodEnd: number;
+  readonly status: string;
+  readonly generatedAtUtc: string;
+  readonly evidence: EvidenceDashboardSummary;
+  readonly actions: ActionDashboardSummary;
+  readonly monitoring: MonitoringDashboardSummary;
+  readonly review: ReviewDashboardSummary;
+  readonly funding: FundingDashboardSummary;
+  readonly exportReadiness: ExportReadinessDashboardSummary;
+  readonly recentActivity: readonly PlanActivityItem[];
+}

@@ -847,6 +847,240 @@ public sealed class PlansControllerTests
     }
 
     [Fact]
+    public async Task Operational_dashboard_returns_not_found_for_cross_tenant_plan()
+    {
+        using var db = CreateDbContext();
+        var ownerAccountId = Guid.NewGuid();
+        var requesterAccountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var seeded = await SeedPlan(db, ownerAccountId, "Other Account Plan");
+        var controller = CreateController(db, requesterAccountId, userId);
+
+        var result = await controller.GetOperationalDashboard(
+            seeded.Id,
+            recentActivityLimit: null,
+            new GetPlanOperationalDashboardQuery(db, new TestCurrentUserContext(requesterAccountId, userId, true, WorkspaceRoles.Admin)),
+            CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Operational_dashboard_counts_evidence_linkage_and_statuses()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Evidence Plan");
+        var section = NewPlanSection(accountId, plan.Id);
+        _ = db.PlanSections.Add(section);
+        var linkAction = NewAction(plan.Id, accountId, "Planned", budgetAmount: 0m, fundingSource: null);
+        db.ActionItems.Add(linkAction);
+        var file = SeedMinimalFile(accountId);
+        file.OwnerId = plan.Id;
+        _ = db.FileAssets.Add(file);
+        await db.SaveChangesAsync();
+
+        var docs = new[]
+        {
+            NewDocument(accountId, plan.Id, file.Id, "Draft", null, null),
+            NewDocument(accountId, plan.Id, file.Id, "Internal", section.Id, null),
+            NewDocument(accountId, plan.Id, file.Id, "Official", section.Id, linkAction.Id),
+            NewDocument(accountId, plan.Id, file.Id, "Public", null, linkAction.Id),
+        };
+        db.Documents.AddRange(docs);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanOperationalDashboardQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+
+        var result = await controller.GetOperationalDashboard(plan.Id, null, q, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dash = Assert.IsType<PlanOperationalDashboardDto>(ok.Value);
+        Assert.Equal(4, dash.Evidence.TotalDocuments);
+        Assert.Equal(1, dash.Evidence.DraftEvidenceCount);
+        Assert.Equal(1, dash.Evidence.InternalEvidenceCount);
+        Assert.Equal(1, dash.Evidence.OfficialEvidenceCount);
+        Assert.Equal(1, dash.Evidence.PublicEvidenceCount);
+        Assert.Equal(2, dash.Evidence.LinkedToSectionCount);
+        Assert.Equal(2, dash.Evidence.LinkedToActionCount);
+    }
+
+    [Fact]
+    public async Task Operational_dashboard_counts_actions_and_monitoring_correctly()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Counts Plan");
+
+        db.ActionItems.AddRange(
+            NewAction(plan.Id, accountId, "Planned", budgetAmount: 0m, fundingSource: null),
+            NewAction(plan.Id, accountId, "InProgress", budgetAmount: 1m, fundingSource: "LGU"),
+            NewAction(plan.Id, accountId, "OnTrack", budgetAmount: 1m, fundingSource: "GAA"),
+            NewAction(plan.Id, accountId, "Delayed", budgetAmount: 1m, fundingSource: "Grant"),
+            NewAction(plan.Id, accountId, "Completed", budgetAmount: 1m, fundingSource: null),
+            NewAction(plan.Id, accountId, "Cancelled", budgetAmount: 0m, fundingSource: "Local"));
+
+        var indEarly = NewIndicator(plan.Id, accountId, "NotStarted");
+        var indLate = NewIndicator(plan.Id, accountId, "InProgress");
+        db.MonitoringIndicators.AddRange(indEarly, indLate);
+
+        await db.SaveChangesAsync();
+
+        var t0 = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
+        var t1 = new DateTimeOffset(2026, 2, 20, 0, 0, 0, TimeSpan.Zero);
+        db.MonitoringUpdates.AddRange(
+            NewUpdate(accountId, indEarly.Id, t0),
+            NewUpdate(accountId, indLate.Id, t1));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanOperationalDashboardQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Viewer));
+
+        var result = await controller.GetOperationalDashboard(plan.Id, null, q, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dash = Assert.IsType<PlanOperationalDashboardDto>(ok.Value);
+
+        Assert.Equal(6, dash.Actions.TotalActions);
+        Assert.Equal(1, dash.Actions.PlannedCount);
+        Assert.Equal(1, dash.Actions.InProgressCount);
+        Assert.Equal(1, dash.Actions.OnTrackCount);
+        Assert.Equal(1, dash.Actions.DelayedCount);
+        Assert.Equal(1, dash.Actions.CompletedCount);
+        Assert.Equal(1, dash.Actions.CancelledCount);
+        Assert.Equal(4, dash.Actions.ActionsWithBudgetCount);
+        Assert.Equal(4, dash.Actions.ActionsWithFundingSourceCount);
+        Assert.Equal(2, dash.Actions.MissingFundingSourceCount);
+
+        Assert.Equal(2, dash.Monitoring.TotalIndicators);
+        Assert.Equal(2, dash.Monitoring.TotalMonitoringUpdates);
+        Assert.Equal(2, dash.Monitoring.IndicatorsWithUpdatesCount);
+        Assert.Equal(t1, dash.Monitoring.LatestMonitoringUpdateAtUtc);
+    }
+
+    [Fact]
+    public async Task Operational_dashboard_counts_comments_and_funding_by_currency()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Review funding plan");
+
+        db.SectionComments.AddRange(
+            NewComment(plan.Id, accountId, "General", resolved: false),
+            NewComment(plan.Id, accountId, "DataGap", resolved: false),
+            NewComment(plan.Id, accountId, "Validation", resolved: true),
+            NewComment(plan.Id, accountId, "RevisionRequest", resolved: false));
+
+        var action = NewAction(plan.Id, accountId, "Planned");
+        db.ActionItems.Add(action);
+        var source = NewFundingSource(accountId);
+        db.FundingSources.Add(source);
+        await db.SaveChangesAsync();
+
+        db.ActionFundingAllocations.AddRange(
+            NewAllocation(accountId, plan.Id, action.Id, source.Id, 100m, "PHP", tagId: Guid.NewGuid()),
+            NewAllocation(accountId, plan.Id, action.Id, source.Id, 50m, "USD", tagId: null));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanOperationalDashboardQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Reviewer));
+
+        var result = await controller.GetOperationalDashboard(plan.Id, null, q, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dash = Assert.IsType<PlanOperationalDashboardDto>(ok.Value);
+
+        Assert.Equal(4, dash.Review.TotalComments);
+        Assert.Equal(3, dash.Review.UnresolvedComments);
+        Assert.Equal(1, dash.Review.ResolvedComments);
+        Assert.Equal(1, dash.Review.DataGapComments);
+        Assert.Equal(1, dash.Review.ValidationComments);
+        Assert.Equal(1, dash.Review.RevisionRequestComments);
+
+        Assert.Equal(2, dash.Funding.TotalAllocations);
+        Assert.Equal(1, dash.Funding.CcetTaggedAllocations);
+        Assert.Equal(1, dash.Funding.UntaggedAllocations);
+        Assert.Equal(2, dash.Funding.AllocationTotalsByCurrency.Count);
+        Assert.Contains(dash.Funding.AllocationTotalsByCurrency, r => r.CurrencyCode == "PHP" && r.TotalAllocatedAmount == 100m);
+        Assert.Contains(dash.Funding.AllocationTotalsByCurrency, r => r.CurrencyCode == "USD" && r.TotalAllocatedAmount == 50m);
+    }
+
+    [Fact]
+    public async Task Operational_dashboard_activity_omits_sensitive_audit_fields_and_respects_limit()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Audit Plan");
+        var action = NewAction(plan.Id, accountId, "Planned");
+        db.ActionItems.Add(action);
+        await db.SaveChangesAsync();
+
+        for (var i = 0; i < 20; i++)
+        {
+            var audit = new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                AccountId = accountId,
+                UserId = userId,
+                EntityName = "ActionItem",
+                EntityId = action.Id,
+                Action = $"TestAction{i}",
+                OldValuesJson = JsonDocument.Parse("{\"secret\":\"old\"}"),
+                NewValuesJson = JsonDocument.Parse("{\"secret\":\"new\"}"),
+                MetadataJson = JsonDocument.Parse("{\"planId\":\"" + plan.Id + "\"}"),
+                IpAddress = "10.0.0.1",
+                UserAgent = "BadAgent/1.0",
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-i),
+                RowVersion = new byte[] { 9, 2, 3, 4, 5, 6, 7, 8 },
+            };
+            db.AuditLogs.Add(audit);
+        }
+
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanOperationalDashboardQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin));
+
+        var result = await controller.GetOperationalDashboard(plan.Id, 5, q, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var json = JsonSerializer.Serialize(ok.Value, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        Assert.DoesNotContain("ipAddress", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("userAgent", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("oldValuesJson", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("newValuesJson", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("metadataJson", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", json, StringComparison.Ordinal);
+
+        var dash = Assert.IsType<PlanOperationalDashboardDto>(ok.Value);
+        Assert.Equal(5, dash.RecentActivity.Count);
+    }
+
+    [Fact]
+    public async Task Operational_dashboard_suggested_next_steps_include_expected_gaps()
+    {
+        using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var plan = await SeedPlan(db, accountId, "Empty gaps plan");
+        var controller = CreateController(db, accountId, userId);
+        var q = new GetPlanOperationalDashboardQuery(db, new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Planner));
+
+        var result = await controller.GetOperationalDashboard(plan.Id, null, q, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dash = Assert.IsType<PlanOperationalDashboardDto>(ok.Value);
+
+        Assert.Contains("Add official evidence documents.", dash.ExportReadiness.SuggestedNextSteps);
+        Assert.Contains("Define action items for this plan.", dash.ExportReadiness.SuggestedNextSteps);
+    }
+
+    [Fact]
     public async Task Missing_role_claim_returns_forbidden_for_plans()
     {
         using var db = CreateDbContext();
@@ -962,6 +1196,196 @@ public sealed class PlansControllerTests
         _ = db.Plans.Add(plan);
         _ = await db.SaveChangesAsync();
         return plan;
+    }
+
+    private static FileAsset SeedMinimalFile(Guid accountId)
+    {
+        return new FileAsset
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            OwnerType = "PlanDocument",
+            OwnerId = null,
+            OriginalFileName = "evidence.pdf",
+            StoredFileName = "evidence.bin",
+            StoredPath = "internal/test-path",
+            ContentType = "application/pdf",
+            FileExtension = ".pdf",
+            FileSizeBytes = 11,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static Document NewDocument(
+        Guid accountId,
+        Guid planId,
+        Guid fileAssetId,
+        string evidenceStatus,
+        Guid? planSectionId,
+        Guid? actionItemId)
+    {
+        var d = new Document
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            FileAssetId = fileAssetId,
+            Category = "Reference",
+            EvidenceStatus = evidenceStatus,
+            PlanSectionId = planSectionId,
+            ActionItemId = actionItemId,
+            TagsJson = JsonDocument.Parse("[]"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        return d;
+    }
+
+    private static PlanSection NewPlanSection(Guid accountId, Guid planId)
+    {
+        var s = new PlanSection
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            SectionKey = "introduction",
+            Title = "Introduction",
+            Content = string.Empty,
+            SortOrder = 20,
+            SectionMetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 2, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        return s;
+    }
+
+    private static ActionItem NewAction(
+        Guid planId,
+        Guid accountId,
+        string status,
+        decimal budgetAmount = 0m,
+        string? fundingSource = null)
+    {
+        var a = new ActionItem
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            Title = $"Action {status}",
+            ActionType = "Adaptation",
+            Sector = "Water",
+            ResponsibleOffice = null,
+            BudgetAmount = budgetAmount,
+            FundingSource = fundingSource,
+            Status = status,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 3, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        return a;
+    }
+
+    private static MonitoringIndicator NewIndicator(Guid planId, Guid accountId, string status)
+    {
+        var i = new MonitoringIndicator
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            ActionItemId = null,
+            Name = $"Indicator {status}",
+            Description = null,
+            Status = status,
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 4, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        return i;
+    }
+
+    private static MonitoringUpdate NewUpdate(Guid accountId, Guid indicatorId, DateTimeOffset reportedAtUtc)
+    {
+        var u = new MonitoringUpdate
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            MonitoringIndicatorId = indicatorId,
+            PeriodLabel = "Q1",
+            Status = "OnTrack",
+            ReportedAtUtc = reportedAtUtc,
+            CreatedAtUtc = reportedAtUtc,
+            IsDeleted = false,
+            RowVersion = new byte[] { 5, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        return u;
+    }
+
+    private static SectionComment NewComment(Guid planId, Guid accountId, string commentType, bool resolved)
+    {
+        return new SectionComment
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            SectionKey = "introduction",
+            CommentType = commentType,
+            CommentText = "Review text",
+            CreatedByUserId = Guid.NewGuid(),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsResolved = resolved,
+            RowVersion = new byte[] { 6, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static FundingSource NewFundingSource(Guid accountId)
+    {
+        return new FundingSource
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            Name = "Test source",
+            SourceType = "Grant",
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 7, 2, 3, 4, 5, 6, 7, 8 },
+        };
+    }
+
+    private static ActionFundingAllocation NewAllocation(
+        Guid accountId,
+        Guid planId,
+        Guid actionId,
+        Guid sourceId,
+        decimal amount,
+        string currency,
+        Guid? tagId)
+    {
+        var a = new ActionFundingAllocation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            ActionItemId = actionId,
+            FundingSourceId = sourceId,
+            FiscalYear = 2026,
+            AllocatedAmount = amount,
+            CurrencyCode = currency,
+            AllocationStatus = "Planned",
+            ClimateExpenditureTagId = tagId,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 8, 2, 3, 4, 5, 6, 7, 8 },
+        };
+        return a;
     }
 
     private sealed class TestCurrentUserContext : ICurrentUserContext

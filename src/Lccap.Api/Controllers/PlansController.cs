@@ -152,6 +152,36 @@ public sealed class PlansController : ControllerBase
             _ => StatusCode(result.StatusCode),
         };
     }
+
+    [HttpGet("{planId:guid}/operational-dashboard")]
+    [RequireWorkspaceRole("Read")]
+    public async Task<IActionResult> GetOperationalDashboard(
+        Guid planId,
+        [FromQuery] int? recentActivityLimit,
+        [FromServices] GetPlanOperationalDashboardQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        if (_currentUser.AccountId is null)
+        {
+            return Forbid();
+        }
+
+        var limit = recentActivityLimit ?? 15;
+        var result = await query.Execute(planId, limit, cancellationToken);
+        return result.StatusCode switch
+        {
+            StatusCodes.Status200OK => Ok(result.Dashboard),
+            StatusCodes.Status401Unauthorized => Unauthorized(),
+            StatusCodes.Status403Forbidden => Forbid(),
+            StatusCodes.Status404NotFound => NotFound(),
+            _ => StatusCode(result.StatusCode),
+        };
+    }
 }
 
 public sealed record CreatePlanApiRequest(
