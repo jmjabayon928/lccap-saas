@@ -659,6 +659,7 @@ public sealed class PlanSectionsControllerTests
         public DbSet<MapAsset> MapAssets => null!;
         public DbSet<MapAnnotation> MapAnnotations => null!;
         public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
+        public DbSet<HazardLayer> HazardLayers => null!;
 
         public DbSet<User> Users => Set<User>();
 

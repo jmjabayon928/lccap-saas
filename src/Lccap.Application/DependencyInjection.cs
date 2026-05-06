@@ -15,6 +15,8 @@ using Lccap.Application.Funding.Queries;
 using Lccap.Application.Monitoring.Commands;
 using Lccap.Application.Plans.Commands;
 using Lccap.Application.Plans.Queries;
+using Lccap.Application.HazardLayers.Commands;
+using Lccap.Application.HazardLayers.Queries;
 using Lccap.Application.Notifications.Commands;
 using Lccap.Application.Notifications.Queries;
 using Lccap.Application.Sections.Commands;
@@ -45,6 +47,8 @@ public static class DependencyInjection
         _ = services.AddScoped<ArchiveMapAssetCommand>();
         _ = services.AddScoped<GetPlanMapWorkspaceQuery>();
         _ = services.AddScoped<GetGeoJsonLayerFeaturesQuery>();
+        _ = services.AddScoped<GetPlanHazardLayersQuery>();
+        _ = services.AddScoped<RegisterHazardLayerCommand>();
         _ = services.AddScoped<UploadDocumentCommand>();
         _ = services.AddScoped<UpdateDocumentMetadataCommand>();
         _ = services.AddScoped<ArchiveDocumentCommand>();

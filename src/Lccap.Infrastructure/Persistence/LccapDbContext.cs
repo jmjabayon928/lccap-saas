@@ -64,6 +64,8 @@ public class LccapDbContext : DbContext, ILccapDbContext
 
     public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => Set<GeoJsonLayerFeature>();
 
+    public DbSet<HazardLayer> HazardLayers => Set<HazardLayer>();
+
     public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
 
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();

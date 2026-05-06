@@ -437,6 +437,7 @@ public sealed class AuthTests
             modelBuilder.Ignore<MapAsset>();
             modelBuilder.Ignore<MapAnnotation>();
             modelBuilder.Ignore<GeoJsonLayerFeature>();
+            modelBuilder.Ignore<HazardLayer>();
             modelBuilder.Ignore<NotificationEvent>();
             modelBuilder.Ignore<UserNotification>();
             modelBuilder.Ignore<NotificationTemplate>();

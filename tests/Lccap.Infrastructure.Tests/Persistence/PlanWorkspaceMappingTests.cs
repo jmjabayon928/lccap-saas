@@ -470,6 +470,7 @@ public class PlanWorkspaceMappingTests
         Assert.Equal(
             "geojson_layer_features",
             ctx.Model.FindEntityType(typeof(GeoJsonLayerFeature))!.GetTableName());
+        Assert.Equal("hazard_layers", ctx.Model.FindEntityType(typeof(HazardLayer))!.GetTableName());
     }
 
     [Fact]
@@ -484,6 +485,7 @@ public class PlanWorkspaceMappingTests
                      typeof(MapAsset),
                      typeof(MapAnnotation),
                      typeof(GeoJsonLayerFeature),
+                     typeof(HazardLayer),
                  })
         {
             var rv = ctx.Model.FindEntityType(clrType)!.FindProperty(nameof(BaseEntity.RowVersion));
@@ -541,6 +543,11 @@ public class PlanWorkspaceMappingTests
         Assert.Equal(
             "jsonb",
             geoFeat.FindProperty(nameof(GeoJsonLayerFeature.StyleJson))!.GetRelationalTypeMapping()?.StoreType);
+
+        Assert.Equal(
+            "jsonb",
+            ctx.Model.FindEntityType(typeof(HazardLayer))!.FindProperty(nameof(HazardLayer.MetadataJson))!
+                .GetRelationalTypeMapping()?.StoreType);
     }
 
     [Fact]
@@ -577,6 +584,17 @@ public class PlanWorkspaceMappingTests
 
         var cfToBrgy = cfFks.Single(fk => fk.GetConstraintName() == "fk_critical_facilities_barangay");
         Assert.Equal(DeleteBehavior.SetNull, cfToBrgy.DeleteBehavior);
+
+        var hazardFks = ctx.Model.FindEntityType(typeof(HazardLayer))!.GetForeignKeys();
+        Assert.Contains(hazardFks, fk => fk.GetConstraintName() == "fk_hazard_layers_account");
+        Assert.Contains(hazardFks, fk => fk.GetConstraintName() == "fk_hazard_layers_plan");
+        Assert.Contains(hazardFks, fk => fk.GetConstraintName() == "fk_hazard_layers_map_asset");
+
+        var hazardToPlan = hazardFks.Single(fk => fk.GetConstraintName() == "fk_hazard_layers_plan");
+        Assert.Equal(DeleteBehavior.Cascade, hazardToPlan.DeleteBehavior);
+
+        var hazardToAsset = hazardFks.Single(fk => fk.GetConstraintName() == "fk_hazard_layers_map_asset");
+        Assert.Equal(DeleteBehavior.SetNull, hazardToAsset.DeleteBehavior);
     }
 
     [Fact]

@@ -35,6 +35,8 @@ public interface ILccapDbContext
 
     DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures { get; }
 
+    DbSet<HazardLayer> HazardLayers { get; }
+
     DbSet<User> Users { get; }
 
     DbSet<NotificationEvent> NotificationEvents { get; }

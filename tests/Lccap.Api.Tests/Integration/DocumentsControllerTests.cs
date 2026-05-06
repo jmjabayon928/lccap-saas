@@ -1379,6 +1379,7 @@ public sealed class DocumentsControllerTests
         public DbSet<MapAsset> MapAssets => null!;
         public DbSet<MapAnnotation> MapAnnotations => null!;
         public DbSet<GeoJsonLayerFeature> GeoJsonLayerFeatures => null!;
+        public DbSet<HazardLayer> HazardLayers => null!;
 
         public DbSet<User> Users => null!;
 
