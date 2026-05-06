@@ -189,6 +189,82 @@ public sealed class MonitoringController : ControllerBase
         };
     }
 
+    [HttpPost("indicators/{indicatorId:guid}/updates")]
+    [RequireWorkspaceRole("CreateOrEdit")]
+    public async Task<IActionResult> CreateUpdate(
+        Guid indicatorId,
+        [FromBody] CreateMonitoringUpdateApiRequest request,
+        [FromServices] CreateMonitoringUpdateCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanCreateOrEdit(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.PeriodLabel))
+        {
+            return BadRequest("Period label must not be blank.");
+        }
+
+        if (!IsValidStatus(request.Status))
+        {
+            return BadRequest("Update status is invalid.");
+        }
+
+        if (request.ProgressPercent is < 0m or > 100m)
+        {
+            return BadRequest("Progress percent must be between 0 and 100 when provided.");
+        }
+
+        var outcome = await command.ExecuteAsync(
+            new CreateMonitoringUpdateCommand.Request(
+                indicatorId,
+                request.PeriodLabel,
+                request.ActualValue,
+                request.ProgressPercent,
+                request.Status,
+                request.Notes),
+            cancellationToken);
+
+        return outcome.Outcome switch
+        {
+            CreateMonitoringUpdateCommand.Outcome.Success when outcome.Update is not null =>
+                Ok(ToUpdateResponse(outcome.Update)),
+            CreateMonitoringUpdateCommand.Outcome.NotFound =>
+                NotFound("Indicator not found for the current account."),
+            CreateMonitoringUpdateCommand.Outcome.Unauthorized =>
+                Unauthorized("Authenticated account context is required."),
+            CreateMonitoringUpdateCommand.Outcome.Concurrency =>
+                BadRequest("Indicator was updated by another request."),
+            CreateMonitoringUpdateCommand.Outcome.ValidationFailed =>
+                BadRequest(outcome.ValidationMessage ?? "Validation failed."),
+            _ => BadRequest("Could not create monitoring update."),
+        };
+    }
+
+    [HttpGet("indicators/{indicatorId:guid}/updates")]
+    [RequireWorkspaceRole("Read")]
+    public async Task<IActionResult> GetUpdates(
+        Guid indicatorId,
+        [FromServices] GetMonitoringUpdatesByIndicatorQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (!WorkspaceAuthorizationPolicy.CanRead(_currentUser.Role))
+        {
+            return Forbid();
+        }
+
+        var result = await query.ExecuteAsync(indicatorId, cancellationToken);
+        return result.Outcome switch
+        {
+            GetMonitoringUpdatesByIndicatorQuery.Outcome.Success => Ok(result.Items),
+            GetMonitoringUpdatesByIndicatorQuery.Outcome.Unauthorized =>
+                Unauthorized("Authenticated account context is required."),
+            _ => NotFound("Indicator not found for the current account."),
+        };
+    }
+
     [HttpDelete("indicators/{indicatorId:guid}")]
     [RequireWorkspaceRole("Archive")]
     public async Task<IActionResult> ArchiveIndicator(
@@ -266,6 +342,23 @@ public sealed class MonitoringController : ControllerBase
             RowVersion: Convert.ToBase64String(i.RowVersion));
     }
 
+    private static MonitoringUpdateResponse ToUpdateResponse(MonitoringUpdate u)
+    {
+        return new MonitoringUpdateResponse(
+            u.Id,
+            u.MonitoringIndicatorId,
+            u.PeriodLabel,
+            u.ActualValue,
+            u.ProgressPercent,
+            u.Status,
+            u.Notes,
+            u.ReportedAtUtc,
+            u.ReportedByUserId,
+            u.CreatedAtUtc,
+            u.CreatedByUserId,
+            RowVersion: Convert.ToBase64String(u.RowVersion));
+    }
+
     public sealed record CreateIndicatorRequest(
         Guid PlanId,
         Guid? ActionItemId,
@@ -295,6 +388,13 @@ public sealed class MonitoringController : ControllerBase
         string? RowVersion = null,
         string? RowVersionBase64 = null);
 
+    public sealed record CreateMonitoringUpdateApiRequest(
+        string PeriodLabel,
+        decimal? ActualValue,
+        decimal? ProgressPercent,
+        string Status,
+        string? Notes);
+
     public sealed record IndicatorResponse(
         Guid Id,
         Guid AccountId,
@@ -313,5 +413,19 @@ public sealed class MonitoringController : ControllerBase
         string? ResponsibleOffice,
         DateTimeOffset CreatedAtUtc,
         DateTimeOffset? UpdatedAtUtc,
+        string RowVersion);
+
+    public sealed record MonitoringUpdateResponse(
+        Guid Id,
+        Guid MonitoringIndicatorId,
+        string PeriodLabel,
+        decimal? ActualValue,
+        decimal? ProgressPercent,
+        string Status,
+        string? Notes,
+        DateTimeOffset ReportedAtUtc,
+        Guid? ReportedByUserId,
+        DateTimeOffset CreatedAtUtc,
+        Guid? CreatedByUserId,
         string RowVersion);
 }

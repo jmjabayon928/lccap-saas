@@ -12,6 +12,8 @@ export type DocumentCategory =
   | "Reference"
   | "Other";
 
+export type EvidenceStatus = "Draft" | "Internal" | "Official" | "Public";
+
 export const DOCUMENT_CATEGORIES: readonly DocumentCategory[] = [
   "Clup",
   "Cdp",
@@ -48,6 +50,9 @@ export interface DocumentSummary {
   readonly originalFileName: string | null;
   readonly contentType: string | null;
   readonly sizeBytes: number | null;
+    readonly planSectionId?: string | null;
+    readonly actionItemId?: string | null;
+    readonly evidenceStatus: EvidenceStatus;
   readonly uploadedAtUtc: string | null;
   readonly createdAtUtc: string | null;
 }
@@ -59,6 +64,9 @@ export interface UpdateDocumentMetadataRequest {
   readonly documentDate: string | null;
   readonly sourceAgency: string | null;
   readonly tags: readonly string[];
+  readonly planSectionId?: string | null;
+  readonly actionItemId?: string | null;
+  readonly evidenceStatus: EvidenceStatus;
 }
 
 export interface UploadDocumentRequest {
@@ -66,6 +74,9 @@ export interface UploadDocumentRequest {
   readonly category: DocumentCategory;
   readonly title: string;
   readonly description?: string;
+  readonly planSectionId?: string | null;
+  readonly actionItemId?: string | null;
+  readonly evidenceStatus?: EvidenceStatus;
   readonly file: File;
 }
 

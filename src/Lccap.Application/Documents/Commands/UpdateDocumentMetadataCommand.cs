@@ -10,6 +10,14 @@ namespace Lccap.Application.Documents.Commands;
 
 public class UpdateDocumentMetadataCommand
 {
+    private static readonly HashSet<string> AllowedEvidenceStatuses = new(StringComparer.Ordinal)
+    {
+        "Draft",
+        "Internal",
+        "Official",
+        "Public"
+    };
+
     private static readonly string[] CanonicalCategories =
     {
         "Clup",
@@ -51,6 +59,12 @@ public class UpdateDocumentMetadataCommand
 
         var accountId = _currentUserContext.AccountId.Value;
 
+        var evidenceStatus = NormalizeEvidenceStatus(request.EvidenceStatus, out var evidenceStatusError);
+        if (evidenceStatus is null)
+        {
+            return UpdateDocumentMetadataResult.CreateValidationError(evidenceStatusError!);
+        }
+
         if (!TryNormalizeCategory(request.Category, out var normalizedCategory, out var categoryError))
         {
             return UpdateDocumentMetadataResult.CreateValidationError(categoryError!);
@@ -90,21 +104,59 @@ public class UpdateDocumentMetadataCommand
             return UpdateDocumentMetadataResult.CreateNotFound();
         }
 
+        if (request.PlanSectionId.HasValue)
+        {
+            var sectionExists = await _dbContext.PlanSections.AnyAsync(
+                s =>
+                    s.Id == request.PlanSectionId.Value
+                    && s.PlanId == document.PlanId
+                    && s.AccountId == accountId
+                    && !s.IsDeleted,
+                cancellationToken);
+
+            if (!sectionExists)
+            {
+                return UpdateDocumentMetadataResult.CreateValidationError("Linked section is invalid.");
+            }
+        }
+
+        if (request.ActionItemId.HasValue)
+        {
+            var actionExists = await _dbContext.ActionItems.AnyAsync(
+                a =>
+                    a.Id == request.ActionItemId.Value
+                    && a.PlanId == document.PlanId
+                    && a.AccountId == accountId
+                    && !a.IsDeleted,
+                cancellationToken);
+
+            if (!actionExists)
+            {
+                return UpdateDocumentMetadataResult.CreateValidationError("Linked action item is invalid.");
+            }
+        }
+
         var oldSnapshot = BuildMetadataSnapshotJson(
             document.Title,
             document.Category,
             document.Description,
             document.DocumentDate,
             document.SourceAgency,
+            document.PlanSectionId,
+            document.ActionItemId,
+            document.EvidenceStatus,
             DocumentTagParsing.ParseTags(document.TagsJson));
 
-        document.UpdateMetadata(
+        document.UpdateMetadataWithEvidenceLinks(
             normalizedCategory,
             normalizedTitle,
             description,
             request.DocumentDate,
             sourceAgency,
             JsonDocument.Parse(JsonSerializer.Serialize(tags)),
+            request.PlanSectionId,
+            request.ActionItemId,
+            evidenceStatus,
             DateTimeOffset.UtcNow,
             _currentUserContext.UserId);
 
@@ -116,6 +168,9 @@ public class UpdateDocumentMetadataCommand
             document.Description,
             document.DocumentDate,
             document.SourceAgency,
+            document.PlanSectionId,
+            document.ActionItemId,
+            document.EvidenceStatus,
             tags);
 
         var metadata = JsonSerializer.SerializeToDocument(
@@ -152,6 +207,9 @@ public class UpdateDocumentMetadataCommand
             document.Description,
             document.DocumentDate,
             document.SourceAgency,
+            document.PlanSectionId,
+            document.ActionItemId,
+            document.EvidenceStatus,
             tags,
             file.OriginalFileName,
             file.ContentType,
@@ -168,6 +226,9 @@ public class UpdateDocumentMetadataCommand
         string? description,
         DateOnly? documentDate,
         string? sourceAgency,
+        Guid? planSectionId,
+        Guid? actionItemId,
+        string evidenceStatus,
         IReadOnlyList<string> tags)
     {
         return JsonSerializer.SerializeToDocument(
@@ -178,6 +239,9 @@ public class UpdateDocumentMetadataCommand
                 description,
                 documentDate,
                 sourceAgency,
+                planSectionId,
+                actionItemId,
+                evidenceStatus,
                 tags,
             },
             AuditJsonOptions);
@@ -312,6 +376,28 @@ public class UpdateDocumentMetadataCommand
 
         return true;
     }
+
+    private static string? NormalizeEvidenceStatus(string? input, out string? error)
+    {
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return "Internal";
+        }
+
+        var trimmed = input.Trim();
+        foreach (var allowed in AllowedEvidenceStatuses)
+        {
+            if (string.Equals(allowed, trimmed, StringComparison.OrdinalIgnoreCase))
+            {
+                return allowed;
+            }
+        }
+
+        error = "Evidence status is invalid.";
+        return null;
+    }
 }
 
 public sealed record UpdateDocumentMetadataRequest(
@@ -320,6 +406,9 @@ public sealed record UpdateDocumentMetadataRequest(
     string? Description,
     DateOnly? DocumentDate,
     string? SourceAgency,
+    Guid? PlanSectionId,
+    Guid? ActionItemId,
+    string? EvidenceStatus,
     IReadOnlyList<string>? Tags);
 
 public sealed record UpdateDocumentMetadataResult(

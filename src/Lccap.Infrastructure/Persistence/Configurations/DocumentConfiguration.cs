@@ -16,6 +16,10 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
                 _ = t.HasCheckConstraint(
                     "ck_documents_category",
                     "(category)::text IN ('Clup', 'Cdp', 'Drrm', 'HazardStudy', 'ClimateData', 'Map', 'Reference', 'Other')");
+
+                _ = t.HasCheckConstraint(
+                    "ck_documents_evidence_status",
+                    "(evidence_status)::text IN ('Draft', 'Internal', 'Official', 'Public')");
             });
 
         builder.ConfigureBaseEntity();
@@ -34,11 +38,19 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         _ = builder.Property(e => e.AccountId).HasColumnName("account_id").HasColumnType("uuid").IsRequired();
         _ = builder.Property(e => e.PlanId).HasColumnName("plan_id").HasColumnType("uuid").IsRequired();
         _ = builder.Property(e => e.FileAssetId).HasColumnName("file_asset_id").HasColumnType("uuid").IsRequired();
+        _ = builder.Property(e => e.PlanSectionId).HasColumnName("plan_section_id").HasColumnType("uuid");
+        _ = builder.Property(e => e.ActionItemId).HasColumnName("action_item_id").HasColumnType("uuid");
         _ = builder.Property(e => e.Category).HasColumnName("category").HasMaxLength(80).IsRequired();
         _ = builder.Property(e => e.Title).HasColumnName("title").HasMaxLength(250);
         _ = builder.Property(e => e.Description).HasColumnName("description");
         _ = builder.Property(e => e.DocumentDate).HasColumnName("document_date").HasColumnType("date");
         _ = builder.Property(e => e.SourceAgency).HasColumnName("source_agency").HasMaxLength(200);
+        _ = builder.Property(e => e.EvidenceStatus)
+            .HasColumnName("evidence_status")
+            .HasColumnType("varchar(30)")
+            .HasMaxLength(30)
+            .HasDefaultValue("Internal")
+            .IsRequired();
         _ = builder.Property(e => e.TagsJson).HasColumnName("tags_json").HasColumnType("jsonb").IsRequired().HasDefaultValueSql("'[]'::jsonb");
         _ = builder.Property(e => e.UploadedByUserId).HasColumnName("uploaded_by_user_id").HasColumnType("uuid");
         _ = builder.Property(e => e.CreatedAtUtc).HasColumnName("created_at_utc").HasColumnType("timestamptz").HasDefaultValueSql("now()");
@@ -67,6 +79,13 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         _ = builder.HasIndex(e => new { e.AccountId, e.Category }).HasDatabaseName("ix_documents_account_category").HasFilter("is_deleted = false");
         _ = builder.HasIndex(e => new { e.AccountId, e.PlanId }).HasDatabaseName("ix_documents_account_plan").HasFilter("is_deleted = false");
         _ = builder.HasIndex(e => new { e.PlanId, e.CreatedAtUtc }).HasDatabaseName("ix_documents_plan_created").IsDescending(false, true)
+            .HasFilter("is_deleted = false");
+
+        _ = builder.HasIndex(e => new { e.AccountId, e.PlanId, e.PlanSectionId }).HasDatabaseName("ix_documents_plan_section")
+            .HasFilter("is_deleted = false AND plan_section_id IS NOT NULL");
+        _ = builder.HasIndex(e => new { e.AccountId, e.PlanId, e.ActionItemId }).HasDatabaseName("ix_documents_action_item")
+            .HasFilter("is_deleted = false AND action_item_id IS NOT NULL");
+        _ = builder.HasIndex(e => new { e.AccountId, e.PlanId, e.EvidenceStatus }).HasDatabaseName("ix_documents_evidence_status")
             .HasFilter("is_deleted = false");
     }
 }

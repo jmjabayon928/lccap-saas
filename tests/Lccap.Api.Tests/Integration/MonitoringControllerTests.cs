@@ -15,6 +15,31 @@ namespace Lccap.Api.Tests.Integration;
 
 public sealed class MonitoringControllerTests
 {
+    private static decimal? ReadDecimalOrNull(string json, string propertyName)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty(propertyName, out var p))
+        {
+            return null;
+        }
+        return p.ValueKind switch
+        {
+            JsonValueKind.Number => p.GetDecimal(),
+            JsonValueKind.String => decimal.TryParse(p.GetString(), out var d) ? d : null,
+            _ => null,
+        };
+    }
+
+    private static string? ReadStringOrNull(string json, string propertyName)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty(propertyName, out var p) || p.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+        return p.GetString();
+    }
+
     [Fact]
     public async Task CreateIndicator_WithValidAccountAndPlan_Succeeds()
     {
@@ -145,6 +170,431 @@ public sealed class MonitoringControllerTests
         Assert.Equal("OnTrack", body.Status);
         var updated = await dbContext.MonitoringIndicators.SingleAsync(x => x.Id == indicatorId);
         Assert.Equal("After", updated.Name);
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_creates_row_and_updates_indicator_status()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q1 2026",
+                ActualValue: 12.5m,
+                ProgressPercent: 40m,
+                Status: "OnTrack",
+                Notes: "Quarterly update"),
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<MonitoringController.MonitoringUpdateResponse>(ok.Value);
+        Assert.Equal(indicatorId, body.MonitoringIndicatorId);
+        Assert.Equal("Q1 2026", body.PeriodLabel);
+        Assert.Equal("OnTrack", body.Status);
+        Assert.False(string.IsNullOrWhiteSpace(body.RowVersion));
+
+        Assert.Equal(1, await dbContext.MonitoringUpdates.CountAsync());
+        var updatedIndicator = await dbContext.MonitoringIndicators.SingleAsync(x => x.Id == indicatorId);
+        Assert.Equal("OnTrack", updatedIndicator.Status);
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_cannot_cross_tenant_returns_not_found()
+    {
+        var ownerAccountId = Guid.NewGuid();
+        var callerAccountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, ownerAccountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = ownerAccountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = callerAccountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q1 2026",
+                ActualValue: null,
+                ProgressPercent: null,
+                Status: "InProgress",
+                Notes: null),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal(0, await dbContext.MonitoringUpdates.CountAsync());
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_does_not_wipe_indicator_frequency_or_responsible_office()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{\"frequency\":\"Monthly\",\"responsibleOffice\":\"ENRO\",\"currentValue\":10,\"progressPercent\":20}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q2 2026",
+                ActualValue: 12m,
+                ProgressPercent: 30m,
+                Status: "InProgress",
+                Notes: null),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<OkObjectResult>(result);
+
+        var updated = await dbContext.MonitoringIndicators.SingleAsync(x => x.Id == indicatorId);
+        Assert.Equal("Monthly", ReadStringOrNull(updated.MetadataJson, "frequency"));
+        Assert.Equal("ENRO", ReadStringOrNull(updated.MetadataJson, "responsibleOffice"));
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_with_null_actual_and_progress_preserves_indicator_snapshot_values()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{\"frequency\":\"Monthly\",\"responsibleOffice\":\"ENRO\",\"currentValue\":77.5,\"progressPercent\":55}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q3 2026",
+                ActualValue: null,
+                ProgressPercent: null,
+                Status: "OnTrack",
+                Notes: null),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<OkObjectResult>(result);
+
+        var updated = await dbContext.MonitoringIndicators.SingleAsync(x => x.Id == indicatorId);
+        Assert.Equal(77.5m, ReadDecimalOrNull(updated.MetadataJson, "currentValue"));
+        Assert.Equal(55m, ReadDecimalOrNull(updated.MetadataJson, "progressPercent"));
+        Assert.Equal("Monthly", ReadStringOrNull(updated.MetadataJson, "frequency"));
+        Assert.Equal("ENRO", ReadStringOrNull(updated.MetadataJson, "responsibleOffice"));
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_rejects_blank_period_label()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "   ",
+                ActualValue: null,
+                ProgressPercent: null,
+                Status: "NotStarted",
+                Notes: null),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_rejects_invalid_status()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q1",
+                ActualValue: null,
+                ProgressPercent: null,
+                Status: "Bad",
+                Notes: null),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Create_monitoring_update_rejects_progress_percent_over_100()
+    {
+        var accountId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountId, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountId,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountId;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var command = new CreateMonitoringUpdateCommand(dbContext, currentUser);
+        var result = await controller.CreateUpdate(
+            indicatorId,
+            new MonitoringController.CreateMonitoringUpdateApiRequest(
+                PeriodLabel: "Q1",
+                ActualValue: null,
+                ProgressPercent: 101m,
+                Status: "NotStarted",
+                Notes: null),
+            command,
+            CancellationToken.None);
+
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Get_updates_returns_newest_first_excludes_soft_deleted_and_scopes_to_account()
+    {
+        var accountA = Guid.NewGuid();
+        var accountB = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var indicatorId = Guid.NewGuid();
+
+        await using var dbContext = CreateDbContext();
+        await SeedPlanAsync(dbContext, accountA, planId);
+        dbContext.MonitoringIndicators.Add(new MonitoringIndicator
+        {
+            Id = indicatorId,
+            AccountId = accountA,
+            PlanId = planId,
+            Name = "Indicator",
+            Status = "NotStarted",
+            MetadataJson = "{}",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 7, 7, 7, 7, 7, 7, 7, 7 }
+        });
+
+        var t1 = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var t2 = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
+
+        dbContext.MonitoringUpdates.AddRange(
+            new MonitoringUpdate
+            {
+                Id = Guid.NewGuid(),
+                AccountId = accountA,
+                MonitoringIndicatorId = indicatorId,
+                PeriodLabel = "Old",
+                Status = "NotStarted",
+                ReportedAtUtc = t1,
+                CreatedAtUtc = t1,
+                IsDeleted = false,
+                RowVersion = new byte[] { 1 }
+            },
+            new MonitoringUpdate
+            {
+                Id = Guid.NewGuid(),
+                AccountId = accountA,
+                MonitoringIndicatorId = indicatorId,
+                PeriodLabel = "New",
+                Status = "OnTrack",
+                ReportedAtUtc = t2,
+                CreatedAtUtc = t2,
+                IsDeleted = false,
+                RowVersion = new byte[] { 2 }
+            },
+            new MonitoringUpdate
+            {
+                Id = Guid.NewGuid(),
+                AccountId = accountA,
+                MonitoringIndicatorId = indicatorId,
+                PeriodLabel = "Deleted",
+                Status = "InProgress",
+                ReportedAtUtc = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
+                CreatedAtUtc = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
+                IsDeleted = true,
+                RowVersion = new byte[] { 3 }
+            },
+            new MonitoringUpdate
+            {
+                Id = Guid.NewGuid(),
+                AccountId = accountB,
+                MonitoringIndicatorId = indicatorId,
+                PeriodLabel = "OtherTenant",
+                Status = "Completed",
+                ReportedAtUtc = new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero),
+                CreatedAtUtc = new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero),
+                IsDeleted = false,
+                RowVersion = new byte[] { 4 }
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var controller = CreateController(out var currentUser);
+        currentUser.AccountId = accountA;
+        currentUser.UserId = Guid.NewGuid();
+        currentUser.IsAuthenticated = true;
+        currentUser.Role = WorkspaceRoles.Admin;
+
+        var query = new GetMonitoringUpdatesByIndicatorQuery(dbContext, currentUser);
+        var result = await controller.GetUpdates(indicatorId, query, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var list = Assert.IsAssignableFrom<IEnumerable<GetMonitoringUpdatesByIndicatorQuery.MonitoringUpdateListItem>>(ok.Value);
+        var items = list.ToList();
+
+        Assert.Equal(2, items.Count);
+        Assert.Equal("New", items[0].PeriodLabel);
+        Assert.Equal("Old", items[1].PeriodLabel);
     }
 
     [Fact]

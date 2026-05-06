@@ -1,5 +1,5 @@
 import { ApiError } from "@/lib/api/api-error";
-import type { DocumentSummary, UploadDocumentResult } from "@/types/documents";
+import type { DocumentSummary, EvidenceStatus, UploadDocumentResult } from "@/types/documents";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -25,6 +25,20 @@ function optionalStringOrNull(value: unknown): string | null {
 
 function optionalIsoOrNull(value: unknown): string | null {
   return optionalStringOrNull(value);
+}
+
+const ALLOWED_EVIDENCE_STATUSES: readonly EvidenceStatus[] = ["Draft", "Internal", "Official", "Public"];
+
+function normalizeEvidenceStatus(input: string | null): EvidenceStatus {
+  const trimmed = input?.trim();
+  if (!trimmed) {
+    return "Internal";
+  }
+
+  const normalized = ALLOWED_EVIDENCE_STATUSES.find(
+    (s) => s.toLowerCase() === trimmed.toLowerCase()
+  );
+  return normalized ?? "Internal";
 }
 
 /** Ignore server storage paths — never surface to UI. */
@@ -83,6 +97,9 @@ function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | nu
   const description = optionalStringOrNull(raw.description);
   const documentDate = optionalIsoOrNull(raw.documentDate);
   const sourceAgency = optionalStringOrNull(raw.sourceAgency);
+  const planSectionId = optionalStringOrNull(raw.planSectionId);
+  const actionItemId = optionalStringOrNull(raw.actionItemId);
+  const evidenceStatus = normalizeEvidenceStatus(optionalStringOrNull(raw.evidenceStatus));
   const tags = parseTagsField(raw);
   const originalFileNameRaw = raw.originalFileName ?? raw.fileName;
   const contentType = raw.contentType;
@@ -103,6 +120,9 @@ function parseDocumentRecord(raw: Record<string, unknown>): DocumentSummary | nu
     description,
     documentDate,
     sourceAgency,
+    planSectionId,
+    actionItemId,
+    evidenceStatus,
     tags,
     originalFileName: typeof originalFileNameRaw === "string" ? originalFileNameRaw : null,
     contentType: typeof contentType === "string" ? contentType : null,

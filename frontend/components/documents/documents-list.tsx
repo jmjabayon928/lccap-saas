@@ -2,11 +2,28 @@ import { Fragment, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DocumentArchiveButton } from "@/components/documents/document-archive-button";
 import { DocumentCategoryBadge } from "@/components/documents/document-category-badge";
 import { DocumentEditForm } from "@/components/documents/document-edit-form";
 import { DocumentSize } from "@/components/documents/document-size";
 import type { DocumentSummary } from "@/types/documents";
+
+const evidenceTone: Record<string, "default" | "secondary" | "outline"> = {
+  Draft: "outline",
+  Internal: "secondary",
+  Official: "default",
+  Public: "outline",
+};
+
+function EvidenceStatusBadge({ evidenceStatus }: { evidenceStatus: DocumentSummary["evidenceStatus"] }) {
+  const variant = evidenceTone[evidenceStatus] ?? "outline";
+  return (
+    <Badge variant={variant} className="font-medium">
+      {evidenceStatus}
+    </Badge>
+  );
+}
 
 interface DocumentsListProps {
   readonly documents: DocumentSummary[];
@@ -62,6 +79,7 @@ export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived
                   <TableRow>
                     <TableHead>Title</TableHead>
                     <TableHead className="w-32">Category</TableHead>
+                    <TableHead className="w-32 hidden xl:table-cell">Evidence</TableHead>
                     <TableHead className="hidden lg:table-cell">File</TableHead>
                     <TableHead className="hidden xl:table-cell">Type</TableHead>
                     <TableHead className="w-24">Size</TableHead>
@@ -78,6 +96,17 @@ export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived
                         </TableCell>
                         <TableCell>
                           <DocumentCategoryBadge category={d.category} />
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          <div className="space-y-1">
+                            <EvidenceStatusBadge evidenceStatus={d.evidenceStatus} />
+                            {(d.planSectionId || d.actionItemId) ? (
+                              <div className="text-xs text-muted-foreground">
+                                {d.planSectionId ? <div className="font-mono">{`Section: ${d.planSectionId}`}</div> : null}
+                                {d.actionItemId ? <div className="font-mono">{`Action: ${d.actionItemId}`}</div> : null}
+                              </div>
+                            ) : null}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden font-mono text-xs text-slate-700 lg:table-cell">
                           {d.originalFileName ?? "—"}
@@ -142,12 +171,21 @@ export function DocumentsList({ documents, onDocumentUpdated, onDocumentArchived
                     <p className="font-medium text-slate-900">{rowTitle(d)}</p>
                     <DocumentCategoryBadge category={d.category} />
                   </div>
+                          <div className="mt-2">
+                            <EvidenceStatusBadge evidenceStatus={d.evidenceStatus} />
+                          </div>
                   <p className="mt-1 font-mono text-xs text-slate-600">{d.originalFileName ?? "—"}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <DocumentSize bytes={d.sizeBytes} />
                     <span>{d.contentType ?? "—"}</span>
                     <span>{formatWhen(d.uploadedAtUtc, d.createdAtUtc)}</span>
                   </div>
+                          {(d.planSectionId || d.actionItemId) ? (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              {d.planSectionId ? <div className="font-mono">{`Section: ${d.planSectionId}`}</div> : null}
+                              {d.actionItemId ? <div className="font-mono">{`Action: ${d.actionItemId}`}</div> : null}
+                            </div>
+                          ) : null}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button type="button" variant="secondary" size="sm" onClick={() => setEditingId(editingId === d.id ? null : d.id)}>
                       {editingId === d.id ? "Close edit" : "Edit"}

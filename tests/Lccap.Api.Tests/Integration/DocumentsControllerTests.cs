@@ -57,6 +57,141 @@ public sealed class DocumentsControllerTests
     }
 
     [Fact]
+    public async Task Upload_document_supports_evidence_links_and_status_when_valid()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+
+        var (plan, section, action) = await SeedPlanSectionAndActionGraph(db, accountId);
+
+        var controller = new DocumentsController(
+            new UploadDocumentCommand(db, ctx, new FakeFileStorageService()),
+            new FakeGetDocumentsByPlanQuery([]),
+            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var result = await controller.Upload(
+            new UploadDocumentFormRequest
+            {
+                PlanId = plan.Id,
+                Category = "Reference",
+                Title = "Doc",
+                Description = "Desc",
+                EvidenceStatus = "Public",
+                PlanSectionId = section.Id,
+                ActionItemId = action.Id,
+                File = new FakeFormFile("a.pdf", "application/pdf", 100)
+            },
+            CancellationToken.None);
+
+        Assert.IsType<CreatedResult>(result);
+
+        var saved = await db.Documents.SingleAsync(
+            d => d.PlanId == plan.Id
+                && d.AccountId == accountId
+                && d.PlanSectionId == section.Id
+                && d.ActionItemId == action.Id
+                && d.EvidenceStatus == "Public"
+                && !d.IsDeleted,
+            CancellationToken.None);
+
+        Assert.Equal("Public", saved.EvidenceStatus);
+    }
+
+    [Fact]
+    public async Task Upload_document_rejects_invalid_evidence_status()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+
+        var (plan, section, _) = await SeedPlanSectionAndActionGraph(db, accountId);
+
+        var controller = new DocumentsController(
+            new UploadDocumentCommand(db, ctx, new FakeFileStorageService()),
+            new FakeGetDocumentsByPlanQuery([]),
+            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var result = await controller.Upload(
+            new UploadDocumentFormRequest
+            {
+                PlanId = plan.Id,
+                Category = "Reference",
+                Title = "Doc",
+                EvidenceStatus = "Nope",
+                PlanSectionId = section.Id,
+                File = new FakeFormFile("a.pdf", "application/pdf", 100)
+            },
+            CancellationToken.None);
+
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        var error = bad.Value?.GetType().GetProperty("error")?.GetValue(bad.Value) as string;
+        Assert.NotNull(error);
+        Assert.Contains("Evidence status is invalid", error);
+    }
+
+    [Fact]
+    public async Task Upload_document_rejects_cross_tenant_linked_section()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+
+        var (plan, _, action) = await SeedPlanSectionAndActionGraph(db, accountId);
+
+        var otherAccount = Guid.NewGuid();
+        var otherSection = new PlanSection
+        {
+            Id = Guid.NewGuid(),
+            AccountId = otherAccount,
+            PlanId = plan.Id,
+            SectionKey = "other",
+            Title = "Other Section",
+            Content = "content",
+            SortOrder = 0,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            SectionMetadataJson = JsonDocument.Parse("{}")
+        };
+
+        _ = db.PlanSections.Add(otherSection);
+        _ = await db.SaveChangesAsync();
+
+        var controller = new DocumentsController(
+            new UploadDocumentCommand(db, ctx, new FakeFileStorageService()),
+            new FakeGetDocumentsByPlanQuery([]),
+            new FakeUpdateDocumentMetadataCommand(UpdateDocumentMetadataResult.CreateNotFound()),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var result = await controller.Upload(
+            new UploadDocumentFormRequest
+            {
+                PlanId = plan.Id,
+                Category = "Reference",
+                Title = "Doc",
+                EvidenceStatus = "Internal",
+                PlanSectionId = otherSection.Id,
+                ActionItemId = action.Id,
+                File = new FakeFormFile("a.pdf", "application/pdf", 100)
+            },
+            CancellationToken.None);
+
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        var error = bad.Value?.GetType().GetProperty("error")?.GetValue(bad.Value) as string;
+        Assert.NotNull(error);
+        Assert.Contains("Linked section is invalid", error);
+    }
+
+    [Fact]
     public async Task GetDocumentsReturnsOnlySameAccountAndPlan()
     {
         var planId = Guid.NewGuid();
@@ -148,10 +283,176 @@ public sealed class DocumentsControllerTests
         Assert.Equal(new DateOnly(2024, 6, 1), dto.DocumentDate);
         Assert.Equal("LGU", dto.SourceAgency);
         Assert.Equal(new[] { "alpha", "Beta" }, dto.Tags);
+        Assert.Equal("Internal", dto.EvidenceStatus);
+        Assert.Null(dto.PlanSectionId);
+        Assert.Null(dto.ActionItemId);
 
         var reloaded = await db.Documents.SingleAsync(d => d.Id == doc.Id);
         Assert.Equal("Map", reloaded.Category);
         Assert.Equal("Revised title", reloaded.Title);
+        Assert.Equal("Internal", reloaded.EvidenceStatus);
+        Assert.Null(reloaded.PlanSectionId);
+        Assert.Null(reloaded.ActionItemId);
+    }
+
+    [Fact]
+    public async Task Update_document_metadata_supports_evidence_links_and_status_when_valid()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+
+        var (plan, _, doc) = await SeedDocumentGraph(db, accountId);
+
+        var section = new PlanSection
+        {
+            AccountId = accountId,
+            PlanId = plan.Id,
+            SectionKey = "s1",
+            Title = "Section 1",
+            Content = "content",
+            SortOrder = 0,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            SectionMetadataJson = JsonDocument.Parse("{}")
+        };
+
+        _ = db.PlanSections.Add(section);
+
+        var action = new ActionItem
+        {
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Title = "Action 1",
+            Description = null,
+            ActionType = "Adaptation",
+            Sector = "Health",
+            ResponsibleOffice = null,
+            BudgetAmount = 100m,
+            FundingSource = null,
+            TimelineStartUtc = null,
+            TimelineEndUtc = null,
+            Kpi = null,
+            PriorityScore = null,
+            Status = "Planned",
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+
+        _ = db.ActionItems.Add(action);
+        _ = await db.SaveChangesAsync();
+
+        var controller = new DocumentsController(
+            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery([]),
+            new UpdateDocumentMetadataCommand(db, ctx),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var body = new UpdateDocumentMetadataApiRequest
+        {
+            Category = "Map",
+            Title = "  Revised title  ",
+            Description = "  ",
+            DocumentDate = new DateOnly(2024, 6, 1),
+            SourceAgency = " LGU ",
+            Tags = ["alpha"],
+            EvidenceStatus = "Official",
+            PlanSectionId = section.Id,
+            ActionItemId = action.Id
+        };
+
+        var result = await controller.UpdateMetadata(doc.Id, body, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<DocumentListItem>(ok.Value);
+
+        Assert.Equal("Official", dto.EvidenceStatus);
+        Assert.Equal(section.Id, dto.PlanSectionId);
+        Assert.Equal(action.Id, dto.ActionItemId);
+
+        var reloaded = await db.Documents.SingleAsync(d => d.Id == doc.Id);
+        Assert.Equal("Official", reloaded.EvidenceStatus);
+        Assert.Equal(section.Id, reloaded.PlanSectionId);
+        Assert.Equal(action.Id, reloaded.ActionItemId);
+    }
+
+    [Fact]
+    public async Task Update_document_metadata_rejects_invalid_evidence_status()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+        var (_, _, doc) = await SeedDocumentGraph(db, accountId);
+
+        var controller = new DocumentsController(
+            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery([]),
+            new UpdateDocumentMetadataCommand(db, ctx),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var body = new UpdateDocumentMetadataApiRequest
+        {
+            Category = "Reference",
+            Title = "x",
+            EvidenceStatus = "Nope"
+        };
+
+        var result = await controller.UpdateMetadata(doc.Id, body, CancellationToken.None);
+        _ = Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Update_document_metadata_rejects_cross_tenant_linked_section()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var otherAccount = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ctx = new TestCurrentUserContext(accountId, userId, true, WorkspaceRoles.Admin);
+
+        var (plan, _, doc) = await SeedDocumentGraph(db, accountId);
+
+        var otherSection = new PlanSection
+        {
+            AccountId = otherAccount,
+            PlanId = plan.Id,
+            SectionKey = "other",
+            Title = "Other Section",
+            Content = "content",
+            SortOrder = 0,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            SectionMetadataJson = JsonDocument.Parse("{}")
+        };
+
+        _ = db.PlanSections.Add(otherSection);
+        _ = await db.SaveChangesAsync();
+
+        var controller = new DocumentsController(
+            new FakeUploadDocumentCommand(UploadDocumentResult.Created(Guid.NewGuid())),
+            new FakeGetDocumentsByPlanQuery([]),
+            new UpdateDocumentMetadataCommand(db, ctx),
+            new FakeArchiveDocumentCommand(ArchiveDocumentResult.CreateNotFound()),
+            ctx);
+
+        var body = new UpdateDocumentMetadataApiRequest
+        {
+            Category = "Reference",
+            Title = "x",
+            EvidenceStatus = "Internal",
+            PlanSectionId = otherSection.Id,
+            ActionItemId = null
+        };
+
+        var result = await controller.UpdateMetadata(doc.Id, body, CancellationToken.None);
+        _ = Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
@@ -516,6 +817,9 @@ public sealed class DocumentsControllerTests
             null,
             null,
             null,
+            null,
+            null,
+            "Internal",
             Array.Empty<string>(),
             "a.pdf",
             "application/pdf",
@@ -580,6 +884,71 @@ public sealed class DocumentsControllerTests
         _ = db.Documents.Add(doc);
         _ = await db.SaveChangesAsync();
         return (plan, file, doc);
+    }
+
+    private static async Task<(Plan plan, PlanSection section, ActionItem action)> SeedPlanSectionAndActionGraph(
+        LccapDbContext db,
+        Guid accountId)
+    {
+        var plan = new Plan
+        {
+            AccountId = accountId,
+            Title = "Evidence Plan",
+            StartYear = 2025,
+            EndYear = 2026,
+            Status = "Draft",
+            TemplateMode = "New",
+            VersionNumber = 1,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+
+        _ = db.Plans.Add(plan);
+        _ = await db.SaveChangesAsync();
+
+        var section = new PlanSection
+        {
+            AccountId = accountId,
+            PlanId = plan.Id,
+            SectionKey = "s1",
+            Title = "Section 1",
+            Content = "content",
+            SortOrder = 0,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 },
+            SectionMetadataJson = JsonDocument.Parse("{}")
+        };
+
+        _ = db.PlanSections.Add(section);
+
+        var action = new ActionItem
+        {
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Title = "Action 1",
+            Description = null,
+            ActionType = "Adaptation",
+            Sector = "Health",
+            ResponsibleOffice = null,
+            BudgetAmount = 100m,
+            FundingSource = null,
+            TimelineStartUtc = null,
+            TimelineEndUtc = null,
+            Kpi = null,
+            PriorityScore = null,
+            Status = "Planned",
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsDeleted = false,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+
+        _ = db.ActionItems.Add(action);
+
+        _ = await db.SaveChangesAsync();
+        return (plan, section, action);
     }
 
     private static LccapDbContext CreateDbContext()
@@ -697,6 +1066,8 @@ public sealed class DocumentsControllerTests
         public DbSet<ActionItem> ActionItems => null!;
 
         public DbSet<MonitoringIndicator> MonitoringIndicators => null!;
+
+        public DbSet<MonitoringUpdate> MonitoringUpdates => null!;
 
         public DbSet<PlanSection> PlanSections => null!;
 

@@ -55,6 +55,32 @@ public class MonitoringWorkspaceMappingTests
     }
 
     [Fact]
+    public void Monitoring_update_columns_are_mapped()
+    {
+        using var ctx = CreateContext();
+        var entity = ctx.Model.FindEntityType(typeof(MonitoringUpdate));
+
+        Assert.NotNull(entity);
+        Assert.Equal("monitoring_updates", entity!.GetTableName());
+        Assert.Equal("account_id", entity.FindProperty(nameof(MonitoringUpdate.AccountId))!.GetColumnName());
+        Assert.Equal("monitoring_indicator_id", entity.FindProperty(nameof(MonitoringUpdate.MonitoringIndicatorId))!.GetColumnName());
+        Assert.Equal("period_label", entity.FindProperty(nameof(MonitoringUpdate.PeriodLabel))!.GetColumnName());
+        Assert.Equal("actual_value", entity.FindProperty(nameof(MonitoringUpdate.ActualValue))!.GetColumnName());
+        Assert.Equal("progress_percent", entity.FindProperty(nameof(MonitoringUpdate.ProgressPercent))!.GetColumnName());
+        Assert.Equal("status", entity.FindProperty(nameof(MonitoringUpdate.Status))!.GetColumnName());
+        Assert.Equal("notes", entity.FindProperty(nameof(MonitoringUpdate.Notes))!.GetColumnName());
+        Assert.Equal("reported_at_utc", entity.FindProperty(nameof(MonitoringUpdate.ReportedAtUtc))!.GetColumnName());
+        Assert.Equal("reported_by_user_id", entity.FindProperty(nameof(MonitoringUpdate.ReportedByUserId))!.GetColumnName());
+        Assert.Equal("is_deleted", entity.FindProperty(nameof(MonitoringUpdate.IsDeleted))!.GetColumnName());
+        Assert.Equal("deleted_at_utc", entity.FindProperty(nameof(MonitoringUpdate.DeletedAtUtc))!.GetColumnName());
+        Assert.Equal("deleted_by_user_id", entity.FindProperty(nameof(MonitoringUpdate.DeletedByUserId))!.GetColumnName());
+
+        var rv = entity.FindProperty(nameof(BaseEntity.RowVersion));
+        Assert.NotNull(rv);
+        Assert.True(rv!.IsConcurrencyToken);
+    }
+
+    [Fact]
     public void Audit_log_entity_maps_for_monitoring_audit_slice()
     {
         using var ctx = CreateContext();

@@ -48,6 +48,22 @@ public class DocumentWorkspaceMappingTests
     }
 
     [Fact]
+    public void Document_evidence_link_columns_are_mapped()
+    {
+        using var ctx = CreateContext();
+        var entity = ctx.Model.FindEntityType(typeof(Document));
+
+        Assert.NotNull(entity);
+        Assert.Equal("plan_section_id", entity!.FindProperty(nameof(Document.PlanSectionId))!.GetColumnName());
+        Assert.Equal("action_item_id", entity.FindProperty(nameof(Document.ActionItemId))!.GetColumnName());
+
+        var evidenceStatusProp = entity.FindProperty(nameof(Document.EvidenceStatus))!;
+        Assert.Equal("evidence_status", evidenceStatusProp.GetColumnName());
+        Assert.False(evidenceStatusProp.IsNullable);
+        Assert.Equal("Internal", evidenceStatusProp.GetDefaultValue());
+    }
+
+    [Fact]
     public void Audit_log_row_version_is_bytea_concurrency_token()
     {
         using var ctx = CreateContext();

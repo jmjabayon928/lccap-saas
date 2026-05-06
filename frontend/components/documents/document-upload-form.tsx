@@ -16,6 +16,7 @@ import {
   DOCUMENT_CATEGORIES,
   MAX_DOCUMENT_UPLOAD_BYTES,
   type DocumentCategory,
+  type EvidenceStatus,
   type DocumentSummary
 } from "@/types/documents";
 
@@ -55,6 +56,9 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("Reference");
   const [description, setDescription] = useState("");
+  const [evidenceStatus, setEvidenceStatus] = useState<EvidenceStatus>("Internal");
+  const [linkedSectionId, setLinkedSectionId] = useState<string>("");
+  const [linkedActionId, setLinkedActionId] = useState<string>("");
   const [clientError, setClientError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -106,6 +110,9 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
       category,
       title: submittedTitle,
       description: description.trim() || null,
+      evidenceStatus,
+      planSectionId: linkedSectionId.trim() || null,
+      actionItemId: linkedActionId.trim() || null,
       file
     } as const;
 
@@ -116,6 +123,9 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
         category: snapshot.category,
         title: snapshot.title,
         description: snapshot.description ?? undefined,
+        evidenceStatus: snapshot.evidenceStatus,
+        planSectionId: snapshot.planSectionId,
+        actionItemId: snapshot.actionItemId,
         file: snapshot.file
       });
       const summary = uploadResultToSummary(result, {
@@ -123,12 +133,18 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
         category: snapshot.category,
         title: snapshot.title,
         description: snapshot.description ?? undefined,
+        evidenceStatus: snapshot.evidenceStatus,
+        planSectionId: snapshot.planSectionId,
+        actionItemId: snapshot.actionItemId,
         file: snapshot.file
       });
       onUploaded(summary);
       setSuccessMessage(`Uploaded “${snapshot.title}”.`);
       setTitle("");
       setDescription("");
+      setEvidenceStatus("Internal");
+      setLinkedSectionId("");
+      setLinkedActionId("");
       resetFileInput();
       window.setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
@@ -195,6 +211,20 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
                 ))}
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="doc-evidence-status">Evidence status</Label>
+              <Select
+                id="doc-evidence-status"
+                value={evidenceStatus}
+                onChange={(ev) => setEvidenceStatus(ev.target.value as EvidenceStatus)}
+                disabled={isSubmitting}
+              >
+                <option value="Draft">Draft</option>
+                <option value="Internal">Internal</option>
+                <option value="Official">Official</option>
+                <option value="Public">Public</option>
+              </Select>
+            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="doc-desc">Description (optional)</Label>
               <Textarea
@@ -204,6 +234,28 @@ export function DocumentUploadForm({ planId, onUploaded }: DocumentUploadFormPro
                 disabled={isSubmitting}
                 rows={3}
                 placeholder="Short note for reviewers (optional)"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="doc-linked-section">Linked section ID (optional)</Label>
+              <Input
+                id="doc-linked-section"
+                value={linkedSectionId}
+                onChange={(ev) => setLinkedSectionId(ev.target.value)}
+                disabled={isSubmitting}
+                autoComplete="off"
+                placeholder="e.g. 0f3c... (GUID)"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="doc-linked-action">Linked action ID (optional)</Label>
+              <Input
+                id="doc-linked-action"
+                value={linkedActionId}
+                onChange={(ev) => setLinkedActionId(ev.target.value)}
+                disabled={isSubmitting}
+                autoComplete="off"
+                placeholder="e.g. a9d2... (GUID)"
               />
             </div>
           </div>

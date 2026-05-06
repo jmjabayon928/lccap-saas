@@ -80,3 +80,29 @@ export interface SaveMonitoringIndicatorResult {
   readonly createdAtUtc?: string | null;
   readonly updatedAtUtc?: string | null;
 }
+
+export interface MonitoringUpdateSummary {
+  readonly id: string;
+  readonly monitoringIndicatorId: string;
+  readonly periodLabel: string;
+  readonly actualValue: number | null;
+  readonly progressPercent: number | null;
+  readonly status: MonitoringStatus;
+  readonly notes: string | null;
+  readonly reportedAtUtc: string;
+  readonly reportedByUserId: string | null;
+  readonly createdAtUtc: string;
+  readonly createdByUserId: string | null;
+  /** Base64 row version from API (optimistic concurrency). */
+  readonly rowVersion: string;
+}
+
+export interface CreateMonitoringUpdateRequest {
+  readonly periodLabel: string;
+  readonly actualValue: number | null;
+  readonly progressPercent: number | null;
+  readonly status: MonitoringStatus;
+  readonly notes: string | null;
+}
+
+export type CreateMonitoringUpdateResult = MonitoringUpdateSummary;

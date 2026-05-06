@@ -15,6 +15,12 @@ public sealed class Document : BaseEntity
 
     public FileAsset FileAsset { get; set; } = null!;
 
+    public Guid? PlanSectionId { get; set; }
+
+    public Guid? ActionItemId { get; set; }
+
+    public string EvidenceStatus { get; set; } = "Internal";
+
     public string Category { get; set; } = string.Empty;
 
     public string? Title { get; set; }
@@ -68,6 +74,33 @@ public sealed class Document : BaseEntity
         Description = description;
         DocumentDate = documentDate;
         SourceAgency = sourceAgency;
+        TagsJson.Dispose();
+        TagsJson = tagsJson;
+        UpdatedAtUtc = updatedAtUtc;
+        UpdatedByUserId = updatedByUserId;
+    }
+
+    public void UpdateMetadataWithEvidenceLinks(
+        string category,
+        string? title,
+        string? description,
+        DateOnly? documentDate,
+        string? sourceAgency,
+        JsonDocument tagsJson,
+        Guid? planSectionId,
+        Guid? actionItemId,
+        string evidenceStatus,
+        DateTimeOffset updatedAtUtc,
+        Guid? updatedByUserId)
+    {
+        Category = category;
+        Title = title;
+        Description = description;
+        DocumentDate = documentDate;
+        SourceAgency = sourceAgency;
+        PlanSectionId = planSectionId;
+        ActionItemId = actionItemId;
+        EvidenceStatus = evidenceStatus;
         TagsJson.Dispose();
         TagsJson = tagsJson;
         UpdatedAtUtc = updatedAtUtc;

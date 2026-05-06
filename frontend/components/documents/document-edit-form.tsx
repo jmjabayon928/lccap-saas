@@ -12,6 +12,7 @@ import { documentClient } from "@/lib/documents/document-client";
 import {
   DOCUMENT_CATEGORIES,
   type DocumentCategory,
+  type EvidenceStatus,
   type DocumentSummary,
   type UpdateDocumentMetadataRequest
 } from "@/types/documents";
@@ -109,6 +110,9 @@ export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFo
   const [sourceAgency, setSourceAgency] = useState(document.sourceAgency ?? "");
   const [documentDate, setDocumentDate] = useState(() => toDateInputValue(document.documentDate));
   const [tagsText, setTagsText] = useState(initialTagsText);
+  const [evidenceStatus, setEvidenceStatus] = useState<EvidenceStatus>(document.evidenceStatus ?? "Internal");
+  const [linkedSectionId, setLinkedSectionId] = useState<string>(document.planSectionId ?? "");
+  const [linkedActionId, setLinkedActionId] = useState<string>(document.actionItemId ?? "");
   const [clientError, setClientError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -149,7 +153,10 @@ export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFo
       description: description.trim().length > 0 ? description.trim() : null,
       documentDate: fromDateInputValue(documentDate),
       sourceAgency: sa.length > 0 ? sa : null,
-      tags: tagResult.tags
+      tags: tagResult.tags,
+      evidenceStatus,
+      planSectionId: linkedSectionId.trim() ? linkedSectionId.trim() : null,
+      actionItemId: linkedActionId.trim() ? linkedActionId.trim() : null
     };
 
     setIsSubmitting(true);
@@ -226,6 +233,42 @@ export function DocumentEditForm({ document, onSaved, onCancel }: DocumentEditFo
               value={documentDate}
               onChange={(ev) => setDocumentDate(ev.target.value)}
               disabled={isSubmitting}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`doc-edit-evidence-${document.id}`}>Evidence status</Label>
+            <Select
+              id={`doc-edit-evidence-${document.id}`}
+              value={evidenceStatus}
+              onChange={(ev) => setEvidenceStatus(ev.target.value as EvidenceStatus)}
+              disabled={isSubmitting}
+            >
+              <option value="Draft">Draft</option>
+              <option value="Internal">Internal</option>
+              <option value="Official">Official</option>
+              <option value="Public">Public</option>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`doc-edit-linked-section-${document.id}`}>Linked section ID</Label>
+            <Input
+              id={`doc-edit-linked-section-${document.id}`}
+              value={linkedSectionId}
+              onChange={(ev) => setLinkedSectionId(ev.target.value)}
+              disabled={isSubmitting}
+              autoComplete="off"
+              placeholder="Optional GUID"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`doc-edit-linked-action-${document.id}`}>Linked action ID</Label>
+            <Input
+              id={`doc-edit-linked-action-${document.id}`}
+              value={linkedActionId}
+              onChange={(ev) => setLinkedActionId(ev.target.value)}
+              disabled={isSubmitting}
+              autoComplete="off"
+              placeholder="Optional GUID"
             />
           </div>
           <div className="space-y-1 sm:col-span-2">

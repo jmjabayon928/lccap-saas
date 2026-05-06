@@ -3,6 +3,7 @@ import type {
   MonitoringIndicatorDetail,
   MonitoringIndicatorSummary,
   MonitoringStatus,
+  MonitoringUpdateSummary,
   SaveMonitoringIndicatorResult
 } from "@/types/monitoring";
 
@@ -226,4 +227,96 @@ export function parseSaveMonitoringIndicatorResult(payload: unknown): SaveMonito
   }
 
   throw new ApiError("Invalid monitoring indicator response: malformed fields", 502, payload);
+}
+
+function parseMonitoringUpdateRecord(raw: Record<string, unknown>): MonitoringUpdateSummary {
+  const idRaw = raw.id;
+  const monitoringIndicatorIdRaw = raw.monitoringIndicatorId;
+  const periodLabelRaw = raw.periodLabel;
+  const status = parseMonitoringStatus(raw.status);
+  const actualValue = parseOptionalNumberField(raw.actualValue);
+  const progressParsed = parseProgressPercentField(raw.progressPercent);
+  const notesRaw = raw.notes;
+  const reportedAtUtcRaw = raw.reportedAtUtc;
+  const reportedByUserIdRaw = raw.reportedByUserId;
+  const createdAtUtcRaw = raw.createdAtUtc;
+  const createdByUserIdRaw = raw.createdByUserId;
+  const rowVersionRaw = raw.rowVersion ?? raw.rowVersionBase64;
+
+  if (!isNonEmptyString(idRaw)) {
+    throw new ApiError("Invalid monitoring update: missing identifier", 502, raw);
+  }
+  if (!isNonEmptyString(monitoringIndicatorIdRaw)) {
+    throw new ApiError("Invalid monitoring update: missing indicator identifier", 502, raw);
+  }
+  if (!isNonEmptyString(periodLabelRaw)) {
+    throw new ApiError("Invalid monitoring update: missing period label", 502, raw);
+  }
+  if (!status) {
+    throw new ApiError("Invalid monitoring update: missing or invalid status", 502, raw);
+  }
+  if (typeof rowVersionRaw !== "string" || !rowVersionRaw.trim()) {
+    throw new ApiError("Invalid monitoring update: missing rowVersion", 502, raw);
+  }
+  if (typeof reportedAtUtcRaw !== "string" || !reportedAtUtcRaw.trim()) {
+    throw new ApiError("Invalid monitoring update: missing reportedAtUtc", 502, raw);
+  }
+  if (typeof createdAtUtcRaw !== "string" || !createdAtUtcRaw.trim()) {
+    throw new ApiError("Invalid monitoring update: missing createdAtUtc", 502, raw);
+  }
+
+  const progressPresent =
+    raw.progressPercent !== null &&
+    raw.progressPercent !== undefined &&
+    !(typeof raw.progressPercent === "string" && !raw.progressPercent.trim());
+  if (progressPresent && progressParsed === null) {
+    throw new ApiError("Invalid monitoring update: progressPercent must be between 0 and 100", 502, raw);
+  }
+
+  const notes = typeof notesRaw === "string" ? notesRaw : null;
+  const reportedByUserId =
+    typeof reportedByUserIdRaw === "string" && isNonEmptyString(reportedByUserIdRaw)
+      ? reportedByUserIdRaw
+      : null;
+  const createdByUserId =
+    typeof createdByUserIdRaw === "string" && isNonEmptyString(createdByUserIdRaw)
+      ? createdByUserIdRaw
+      : null;
+
+  return {
+    id: idRaw,
+    monitoringIndicatorId: monitoringIndicatorIdRaw,
+    periodLabel: periodLabelRaw,
+    actualValue,
+    progressPercent: progressParsed,
+    status,
+    notes,
+    reportedAtUtc: reportedAtUtcRaw,
+    reportedByUserId,
+    createdAtUtc: createdAtUtcRaw,
+    createdByUserId,
+    rowVersion: rowVersionRaw.trim()
+  };
+}
+
+export function parseMonitoringUpdate(payload: unknown): MonitoringUpdateSummary {
+  if (!isRecord(payload)) {
+    throw new ApiError("Invalid monitoring update response: expected object", 502, payload);
+  }
+  return parseMonitoringUpdateRecord(payload);
+}
+
+export function parseMonitoringUpdatesList(payload: unknown): MonitoringUpdateSummary[] {
+  if (!Array.isArray(payload)) {
+    throw new ApiError("Invalid monitoring updates response: expected array", 502, payload);
+  }
+
+  const parsed: MonitoringUpdateSummary[] = [];
+  for (const item of payload) {
+    if (!isRecord(item)) {
+      throw new ApiError("Invalid monitoring updates response: malformed entry", 502, payload);
+    }
+    parsed.push(parseMonitoringUpdateRecord(item));
+  }
+  return parsed;
 }

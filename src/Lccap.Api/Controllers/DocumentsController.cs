@@ -49,6 +49,9 @@ public sealed class DocumentsController : ControllerBase
                 request.Category,
                 request.Title,
                 request.Description,
+                request.PlanSectionId,
+                request.ActionItemId,
+                request.EvidenceStatus,
                 file?.OpenReadStream(),
                 file?.FileName ?? string.Empty,
                 file?.ContentType,
@@ -116,6 +119,9 @@ public sealed class DocumentsController : ControllerBase
                 body.Description,
                 body.DocumentDate,
                 body.SourceAgency,
+                body.PlanSectionId,
+                body.ActionItemId,
+                body.EvidenceStatus,
                 body.Tags),
             cancellationToken);
 
@@ -177,6 +183,12 @@ public sealed class UploadDocumentFormRequest
 
     public string? Description { get; set; }
 
+    public Guid? PlanSectionId { get; set; }
+
+    public Guid? ActionItemId { get; set; }
+
+    public string? EvidenceStatus { get; set; }
+
     public IFormFile? File { get; set; }
 }
 
@@ -191,6 +203,12 @@ public sealed class UpdateDocumentMetadataApiRequest
     public DateOnly? DocumentDate { get; set; }
 
     public string? SourceAgency { get; set; }
+
+    public Guid? PlanSectionId { get; set; }
+
+    public Guid? ActionItemId { get; set; }
+
+    public string? EvidenceStatus { get; set; }
 
     public string[]? Tags { get; set; }
 }

@@ -6,6 +6,14 @@ namespace Lccap.Application.Documents.Commands;
 
 public class UploadDocumentCommand
 {
+    private static readonly HashSet<string> AllowedEvidenceStatuses = new(StringComparer.Ordinal)
+    {
+        "Draft",
+        "Internal",
+        "Official",
+        "Public"
+    };
+
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".pdf",
@@ -53,6 +61,12 @@ public class UploadDocumentCommand
 
         var accountId = _currentUserContext.AccountId.Value;
 
+        var evidenceStatus = NormalizeEvidenceStatus(request.EvidenceStatus, out var evidenceStatusError);
+        if (evidenceStatus is null)
+        {
+            return UploadDocumentResult.ValidationError(evidenceStatusError!);
+        }
+
         if (request.File is null)
         {
             return UploadDocumentResult.ValidationError("File is required.");
@@ -86,6 +100,38 @@ public class UploadDocumentCommand
         if (!planExists)
         {
             return UploadDocumentResult.PlanNotFound("Plan not found.");
+        }
+
+        if (request.PlanSectionId.HasValue)
+        {
+            var sectionExists = await _dbContext.PlanSections.AnyAsync(
+                s =>
+                    s.Id == request.PlanSectionId.Value
+                    && s.PlanId == request.PlanId
+                    && s.AccountId == accountId
+                    && !s.IsDeleted,
+                cancellationToken);
+
+            if (!sectionExists)
+            {
+                return UploadDocumentResult.ValidationError("Linked section is invalid.");
+            }
+        }
+
+        if (request.ActionItemId.HasValue)
+        {
+            var actionExists = await _dbContext.ActionItems.AnyAsync(
+                a =>
+                    a.Id == request.ActionItemId.Value
+                    && a.PlanId == request.PlanId
+                    && a.AccountId == accountId
+                    && !a.IsDeleted,
+                cancellationToken);
+
+            if (!actionExists)
+            {
+                return UploadDocumentResult.ValidationError("Linked action item is invalid.");
+            }
         }
 
         var now = DateTime.UtcNow;
@@ -123,6 +169,9 @@ public class UploadDocumentCommand
             AccountId = accountId,
             PlanId = request.PlanId,
             FileAssetId = fileAssetId,
+            PlanSectionId = request.PlanSectionId,
+            ActionItemId = request.ActionItemId,
+            EvidenceStatus = evidenceStatus,
             Category = request.Category,
             Title = request.Title,
             Description = request.Description,
@@ -139,6 +188,28 @@ public class UploadDocumentCommand
 
         return UploadDocumentResult.Created(documentId);
     }
+
+    private static string? NormalizeEvidenceStatus(string? input, out string? error)
+    {
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return "Internal";
+        }
+
+        var trimmed = input.Trim();
+        foreach (var allowed in AllowedEvidenceStatuses)
+        {
+            if (string.Equals(allowed, trimmed, StringComparison.OrdinalIgnoreCase))
+            {
+                return allowed;
+            }
+        }
+
+        error = "Evidence status is invalid.";
+        return null;
+    }
 }
 
 public sealed record UploadDocumentRequest(
@@ -146,6 +217,9 @@ public sealed record UploadDocumentRequest(
     string Category,
     string? Title,
     string? Description,
+    Guid? PlanSectionId,
+    Guid? ActionItemId,
+    string? EvidenceStatus,
     Stream? File,
     string FileName,
     string? ContentType,

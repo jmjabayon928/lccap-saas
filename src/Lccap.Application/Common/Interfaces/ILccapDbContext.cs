@@ -9,6 +9,7 @@ public interface ILccapDbContext
     DbSet<PlanSection> PlanSections { get; }
     DbSet<ActionItem> ActionItems { get; }
     DbSet<MonitoringIndicator> MonitoringIndicators { get; }
+    DbSet<MonitoringUpdate> MonitoringUpdates { get; }
     DbSet<FileAsset> FileAssets { get; }
     DbSet<Document> Documents { get; }
     DbSet<AuditLog> AuditLogs { get; }

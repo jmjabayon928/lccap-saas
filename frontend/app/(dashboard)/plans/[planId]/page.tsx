@@ -17,6 +17,8 @@ import { ActionForm } from "@/components/actions/action-form";
 import { ActionItemsList } from "@/components/actions/action-items-list";
 import { IndicatorForm } from "@/components/monitoring/indicator-form";
 import { IndicatorsList } from "@/components/monitoring/indicators-list";
+import { MonitoringUpdateForm } from "@/components/monitoring/monitoring-update-form";
+import { MonitoringUpdateHistory } from "@/components/monitoring/monitoring-update-history";
 import { ExportPanel } from "@/components/exports/export-panel";
 import { isApiError } from "@/lib/api/api-error";
 import { actionClient } from "@/lib/actions/action-client";
@@ -26,7 +28,8 @@ import { planClient } from "@/lib/plans/plan-client";
 import type { DocumentSummary } from "@/types/documents";
 import type { ActionItemSummary, SaveActionItemResult } from "@/types/actions";
 import type {
-  MonitoringIndicatorSummary
+  MonitoringIndicatorSummary,
+  MonitoringUpdateSummary
 } from "@/types/monitoring";
 import type { PlanSectionSummary, PlanSummary } from "@/types/plans";
 
@@ -51,6 +54,12 @@ type MonitoringState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "ready"; items: MonitoringIndicatorSummary[] }
+  | { status: "error"; message: string };
+
+type MonitoringUpdatesState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; items: MonitoringUpdateSummary[] }
   | { status: "error"; message: string };
 
 function describeError(err: unknown): { message: string; notFound: boolean; retryable: boolean } {
@@ -140,6 +149,8 @@ export default function PlanWorkspacePage() {
   const [docsState, setDocsState] = useState<DocsState>({ status: "idle" });
   const [actionsState, setActionsState] = useState<ActionsState>({ status: "idle" });
   const [monitoringState, setMonitoringState] = useState<MonitoringState>({ status: "idle" });
+  const [monitoringUpdatesState, setMonitoringUpdatesState] =
+    useState<MonitoringUpdatesState>({ status: "idle" });
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
 
@@ -206,6 +217,24 @@ export default function PlanWorkspacePage() {
     }
   }, [planId]);
 
+  const loadMonitoringUpdates = useCallback(async () => {
+    if (!selectedIndicatorId) {
+      setMonitoringUpdatesState({ status: "idle" });
+      return;
+    }
+
+    setMonitoringUpdatesState({ status: "loading" });
+    try {
+      const items = await monitoringClient.getUpdatesByIndicator(selectedIndicatorId);
+      setMonitoringUpdatesState({ status: "ready", items });
+    } catch (err) {
+      setMonitoringUpdatesState({
+        status: "error",
+        message: isApiError(err) ? err.message : err instanceof Error ? err.message : "Could not load updates."
+      });
+    }
+  }, [selectedIndicatorId]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -213,6 +242,7 @@ export default function PlanWorkspacePage() {
   useEffect(() => {
     setSelectedActionId(null);
     setSelectedIndicatorId(null);
+    setMonitoringUpdatesState({ status: "idle" });
   }, [planId]);
 
   useEffect(() => {
@@ -226,6 +256,10 @@ export default function PlanWorkspacePage() {
     void loadActions();
     void loadMonitoring();
   }, [state.status, loadDocuments, loadActions, loadMonitoring]);
+
+  useEffect(() => {
+    void loadMonitoringUpdates();
+  }, [loadMonitoringUpdates]);
 
   useEffect(() => {
     if (state.status !== "ready") {
@@ -355,6 +389,18 @@ export default function PlanWorkspacePage() {
       return { status: "ready", items: s.items.filter((x) => x.id !== indicatorId) };
     });
     setSelectedIndicatorId((prev) => (prev === indicatorId ? null : prev));
+  }
+
+  function handleMonitoringUpdateCreated(created: MonitoringUpdateSummary): void {
+    setMonitoringUpdatesState((s) => {
+      if (s.status !== "ready") {
+        return { status: "ready", items: [created] };
+      }
+      const without = s.items.filter((x) => x.id !== created.id);
+      return { status: "ready", items: [created, ...without] };
+    });
+    void loadMonitoring();
+    void loadMonitoringUpdates();
   }
 
   const selectedActionForForm =
@@ -583,20 +629,37 @@ export default function PlanWorkspacePage() {
             ) : null}
 
             {monitoringState.status === "ready" ? (
-              <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-                <IndicatorForm
-                  planId={planId}
-                  selectedIndicator={selectedIndicatorForForm}
-                  onSaved={handleIndicatorSaved}
-                  onCancelEdit={selectedIndicatorId ? () => setSelectedIndicatorId(null) : undefined}
-                />
-                <IndicatorsList
-                  indicators={monitoringState.items}
-                  selectedId={selectedIndicatorId}
-                  onSelect={(id) => setSelectedIndicatorId(id)}
-                  onIndicatorUpdated={handleIndicatorSaved}
-                  onIndicatorArchived={handleIndicatorArchived}
-                />
+              <div className="space-y-6">
+                <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+                  <IndicatorForm
+                    planId={planId}
+                    selectedIndicator={selectedIndicatorForForm}
+                    onSaved={handleIndicatorSaved}
+                    onCancelEdit={selectedIndicatorId ? () => setSelectedIndicatorId(null) : undefined}
+                  />
+                  <IndicatorsList
+                    indicators={monitoringState.items}
+                    selectedId={selectedIndicatorId}
+                    onSelect={(id) => setSelectedIndicatorId(id)}
+                    onIndicatorUpdated={handleIndicatorSaved}
+                    onIndicatorArchived={handleIndicatorArchived}
+                  />
+                </div>
+
+                {selectedIndicatorForForm ? (
+                  <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+                    <MonitoringUpdateForm
+                      indicatorId={selectedIndicatorForForm.id}
+                      defaultStatus={selectedIndicatorForForm.status}
+                      onCreated={handleMonitoringUpdateCreated}
+                    />
+                    <MonitoringUpdateHistory
+                      updates={monitoringUpdatesState.status === "ready" ? monitoringUpdatesState.items : []}
+                      loading={monitoringUpdatesState.status === "loading"}
+                      error={monitoringUpdatesState.status === "error" ? monitoringUpdatesState.message : null}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </section>

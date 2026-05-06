@@ -22,6 +22,9 @@ export function uploadResultToSummary(
     description: request.description ?? null,
     documentDate: null,
     sourceAgency: null,
+    planSectionId: request.planSectionId ?? null,
+    actionItemId: request.actionItemId ?? null,
+    evidenceStatus: request.evidenceStatus ?? "Internal",
     tags: [],
     originalFileName: result.originalFileName ?? request.file.name,
     contentType: result.contentType ?? (request.file.type || "application/octet-stream"),
@@ -42,6 +45,13 @@ export const documentClient = {
     body.append("planId", request.planId);
     body.append("category", request.category);
     body.append("title", request.title);
+    body.append("evidenceStatus", request.evidenceStatus ?? "Internal");
+    if (request.planSectionId) {
+      body.append("planSectionId", request.planSectionId);
+    }
+    if (request.actionItemId) {
+      body.append("actionItemId", request.actionItemId);
+    }
     const desc = request.description?.trim();
     if (desc) {
       body.append("description", desc);
@@ -59,7 +69,10 @@ export const documentClient = {
       description: request.description,
       documentDate: request.documentDate ?? null,
       sourceAgency: request.sourceAgency,
-      tags: [...request.tags]
+      tags: [...request.tags],
+      planSectionId: request.planSectionId ?? null,
+      actionItemId: request.actionItemId ?? null,
+      evidenceStatus: request.evidenceStatus
     };
     const data = await http.putJson(endpoints.updateDocumentMetadata(documentId), payload);
     return parseDocumentSummary(data);

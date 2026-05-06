@@ -3,8 +3,8 @@
       "project": "LCCAP SaaS",
       "architecture": ".NET 8 Clean Architecture + Python AI",
       "tracker_version": "1.0",
-      "last_updated_utc": "2026-05-02T18:00:00Z",
-      "updated_by": "documentation_positioning",
+      "last_updated_utc": "2026-05-06T00:00:00Z",
+      "updated_by": "actual",
       "rules": [
         "Do not overwrite entire file",
         "Update only affected file records",
@@ -14,9 +14,9 @@
     },
   
   "current_state": {
-    "phase": "MVP",
-    "active_module": "Audit",
-    "active_task": "Audit Log Viewer for LGU Admin",
+    "phase": "Phase 2",
+    "active_module": "Monitoring",
+    "active_task": "Slice 1.1 Monitoring Update History Hardening",
     "status": "done"
   },
 
@@ -119,6 +119,92 @@
             "kind": "ddl",
             "status": "done",
             "description": "Additive: public.refresh_tokens for Slice 1 refresh token persistence (no raw tokens; hash only; FKs to users/accounts; partial indexes)"
+          }
+        ]
+      },
+      {
+        "id": "FILE-0320",
+        "path": "db/migrations/003_add_document_evidence_links.sql",
+        "layer": "database",
+        "module": "schema",
+        "file_type": "sql",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "AddDocumentEvidenceLinks",
+            "kind": "ddl",
+            "status": "done",
+            "description": "Add plan_section_id/action_item_id and evidence_status to public.documents; enforce evidence_status values, FKs, and performance indexes."
+          }
+        ],
+        "notes": ""
+      },
+      {
+        "id": "FILE-0321",
+        "path": "src/Lccap.Application/Monitoring/Commands/CreateMonitoringUpdateCommand.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "cs",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "CreateMonitoringUpdateCommand",
+            "kind": "command",
+            "status": "done",
+            "description": "Creates a MonitoringUpdate and updates the parent MonitoringIndicator's status and metadata; writes an audit log entry; enforces tenant isolation."
+          }
+        ]
+      },
+      {
+        "id": "FILE-0322",
+        "path": "src/Lccap.Application/Monitoring/Queries/GetMonitoringUpdatesByIndicatorQuery.cs",
+        "layer": "application",
+        "module": "monitoring",
+        "file_type": "cs",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "GetMonitoringUpdatesByIndicatorQuery",
+            "kind": "query",
+            "status": "done",
+            "description": "Lists monitoring updates for an indicator (newest-first), tenant-scoped, excluding soft-deleted updates."
+          }
+        ]
+      },
+      {
+        "id": "FILE-0323",
+        "path": "frontend/components/monitoring/monitoring-update-form.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "tsx",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "MonitoringUpdateForm",
+            "kind": "component",
+            "status": "done",
+            "description": "Client-side form to create monitoring updates with strict typing and validation."
+          }
+        ]
+      },
+      {
+        "id": "FILE-0324",
+        "path": "frontend/components/monitoring/monitoring-update-history.tsx",
+        "layer": "frontend",
+        "module": "monitoring",
+        "file_type": "tsx",
+        "status": "done",
+        "source": "actual",
+        "functions": [
+          {
+            "name": "MonitoringUpdateHistory",
+            "kind": "component",
+            "status": "done",
+            "description": "Renders monitoring update history newest-first for a selected indicator."
           }
         ]
       },
@@ -1257,7 +1343,7 @@
         "module": "documents",
         "file_type": "csharp",
         "status": "done",
-        "source": "planned_mvp",
+        "source": "actual",
         "functions": [
           {
             "name": "Execute",
@@ -1275,7 +1361,7 @@
         "module": "documents",
         "file_type": "csharp",
         "status": "done",
-        "source": "planned_mvp",
+        "source": "actual",
         "functions": [
           {
             "name": "Execute",
@@ -2039,7 +2125,7 @@
         "module": "documents",
         "file_type": "csharp",
         "status": "done",
-        "source": "planned_mvp",
+        "source": "actual",
         "functions": [
           {
             "name": "UploadDocument",
@@ -2718,7 +2804,7 @@
         "module": "documents",
         "file_type": "csharp",
         "status": "done",
-        "source": "planned_mvp",
+        "source": "actual",
         "functions": [
           {
             "name": "UploadDocument_Should_Return_Success",
