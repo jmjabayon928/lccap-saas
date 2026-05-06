@@ -1,11 +1,15 @@
 # LCCAP SaaS - Enterprise-Style Local Climate Action Planning Workspace
 
-.NET
-PostgreSQL
-Architecture
-AI
-Status
-License
+[![CI](https://github.com/jmjabayon928/lccap-saas/actions/workflows/ci.yml/badge.svg)](https://github.com/jmjabayon928/lccap-saas/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)]()
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791)]()
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%20%7C%20TypeScript-blue)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-success)]()
+[![SaaS](https://img.shields.io/badge/SaaS-Multi--Tenant-orange)]()
+[![Tests](https://img.shields.io/badge/Tests-.NET%20CI%20%2B%20Local%20Frontend-brightgreen)]()
+[![Status](https://img.shields.io/badge/Status-MVP%20%2B%20Phase%202%20Complete-brightgreen)]()
+[![AI](https://img.shields.io/badge/AI-Roadmap%20Only-lightgrey)]()
+[![License](https://img.shields.io/badge/License-Private-lightgrey)]()
 
 **LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, accountability history, and **export-ready draft packages** that teams can refine offline and route through their own official channels.
 
