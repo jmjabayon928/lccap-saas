@@ -1,6 +1,20 @@
 # Exposure Computation Service (Scaffold)
 
-This scaffold service exposes only `GET /health`. It does **not** perform exposure computation, does **not** read or write the database, and does **not** create `ExposureSummary` rows.
+This scaffold service exposes:
+- `GET /health`
+- `POST /compute/exposure` (scaffold-only contract stub)
+
+It does **not** perform exposure computation, does **not** read or write the database, and does **not** create `ExposureSummary` rows.
+
+## `POST /compute/exposure`
+
+This endpoint is scaffold-only and returns a structured safe failure:
+- HTTP status: `200`
+- `success`: `false`
+- `errorCode`: `EngineUnavailable`
+- `results`: `[]`
+
+No exposure computation is performed and no database access is performed.
 
 ## Local development
 
