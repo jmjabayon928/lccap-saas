@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
@@ -11,6 +14,7 @@ using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Application.ExposureAnalysisJobs.Queries;
 using Lccap.Domain.Entities;
 using Lccap.Infrastructure.Persistence;
+using Lccap.Infrastructure.ExposureAnalysisJobs.Python;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -586,6 +590,132 @@ public sealed class ExposureAnalysisJobsControllerTests
     }
 
     [Fact]
+    public async Task Process_exposure_analysis_job_enabled_python_scaffold_posts_to_compute_exposure_and_handles_engine_unavailable()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var scaffoldErrorResponseJson = $@"{{
+  ""success"": false,
+  ""engineName"": ""ExposureComputationScaffold"",
+  ""engineVersion"": ""scaffold"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": ""EngineUnavailable"",
+  ""errorMessage"": ""Exposure computation engine is not configured."",
+  ""diagnostics"": {{
+    ""message"": ""Computation endpoint is scaffolded only."",
+    ""warnings"": [],
+    ""validationNotes"": [],
+    ""geometryFeatureCount"": null,
+    ""barangayCount"": null,
+    ""criticalFacilityCount"": null,
+    ""crsDescription"": null
+  }},
+  ""results"": []
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(scaffoldErrorResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation engine is not configured.", dto.ErrorMessage);
+
+        Assert.Equal(1, httpHandler.CallCount);
+        Assert.NotNull(httpHandler.LastRequest);
+        Assert.NotNull(httpHandler.LastRequestBody);
+
+        Assert.Equal(HttpMethod.Post, httpHandler.LastRequest!.Method);
+        Assert.Equal("/compute/exposure", httpHandler.LastRequest!.RequestUri!.AbsolutePath);
+
+        using var requestJson = JsonDocument.Parse(httpHandler.LastRequestBody!);
+        var root = requestJson.RootElement;
+
+        Assert.True(root.TryGetProperty("jobId", out _), "jobId missing from posted request.");
+        Assert.True(root.TryGetProperty("accountId", out _), "accountId missing from posted request.");
+        Assert.True(root.TryGetProperty("planId", out _), "planId missing from posted request.");
+        Assert.True(root.TryGetProperty("hazardLayerId", out _), "hazardLayerId missing from posted request.");
+        Assert.True(root.TryGetProperty("crsPolicy", out _), "crsPolicy missing from posted request.");
+        Assert.True(root.TryGetProperty("geometryPolicy", out _), "geometryPolicy missing from posted request.");
+        Assert.True(root.TryGetProperty("hazardLayer", out _), "hazardLayer missing from posted request.");
+        Assert.True(root.TryGetProperty("hazardFeatures", out _), "hazardFeatures missing from posted request.");
+        Assert.True(root.TryGetProperty("barangays", out _), "barangays missing from posted request.");
+        Assert.True(root.TryGetProperty("criticalFacilities", out _), "criticalFacilities missing from posted request.");
+
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Process_exposure_analysis_job_uses_python_adapter_when_python_enabled_and_python_validation_failed()
     {
         await using var db = CreateDbContext();
@@ -986,6 +1116,34 @@ public sealed class ExposureAnalysisJobsControllerTests
         {
             CallCount++;
             return Task.FromResult(_result);
+        }
+    }
+
+    private sealed class RecordingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
+
+        public int CallCount { get; private set; }
+        public HttpRequestMessage? LastRequest { get; private set; }
+        public string? LastRequestBody { get; private set; }
+
+        public RecordingHttpMessageHandler(
+            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
+        {
+            _handler = handler;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            LastRequest = request;
+            LastRequestBody = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+            return await _handler(request, cancellationToken).ConfigureAwait(false);
         }
     }
 
