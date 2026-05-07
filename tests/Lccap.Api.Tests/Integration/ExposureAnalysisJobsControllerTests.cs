@@ -4,6 +4,7 @@ using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.ExposureAnalysisJobs.Commands;
 using Lccap.Application.ExposureAnalysisJobs.Computation;
+using Lccap.Application.ExposureAnalysisJobs.Computation.RequestBuilding;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Application.ExposureAnalysisJobs.Queries;
 using Lccap.Domain.Entities;
@@ -305,6 +306,9 @@ public sealed class ExposureAnalysisJobsControllerTests
 
         var plan = await SeedPlan(db, accountId, "Plan");
         var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
 
         var job = new ExposureAnalysisJob
         {
@@ -330,7 +334,11 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
-        var command = new ProcessExposureAnalysisJobCommand(db, currentUser, new NotConfiguredExposureComputationClient());
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db));
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -356,6 +364,173 @@ public sealed class ExposureAnalysisJobsControllerTests
         Assert.NotNull(saved.CompletedAtUtc);
         Assert.Equal("Exposure computation engine is not configured.", saved.ErrorMessage);
 
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_fails_when_hazard_features_are_missing_before_engine_call()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation request could not be prepared.", dto.ErrorMessage);
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_fails_when_barangay_boundaries_are_missing_before_engine_call()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithoutBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation request could not be prepared.", dto.ErrorMessage);
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_fails_when_critical_facility_coordinates_are_missing_before_engine_call()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: false);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation request could not be prepared.", dto.ErrorMessage);
         Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
     }
 
@@ -393,7 +568,11 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
-        var command = new ProcessExposureAnalysisJobCommand(db, currentUser, new NotConfiguredExposureComputationClient());
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db));
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -438,7 +617,11 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
-        var command = new ProcessExposureAnalysisJobCommand(db, currentUser, new NotConfiguredExposureComputationClient());
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db));
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -553,6 +736,122 @@ public sealed class ExposureAnalysisJobsControllerTests
         _ = db.HazardLayers.Add(hazard);
         await db.SaveChangesAsync();
         return hazard;
+    }
+
+    private static async Task SeedGeoJsonLayerFeature(LccapDbContext db, Guid accountId, Guid mapAssetId)
+    {
+        _ = db.GeoJsonLayerFeatures.Add(new GeoJsonLayerFeature
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            MapAssetId = mapAssetId,
+            FeatureId = "feature-1",
+            FeatureType = null,
+            DisplayName = null,
+            PropertiesJson = JsonDocument.Parse("{\"haz\":true}"),
+            GeometryJson = JsonDocument.Parse("{\"type\":\"Point\",\"coordinates\":[0,0]}"),
+            StyleJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = null,
+            CreatedByUserId = null,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null
+        });
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedBarangayWithBoundaryGeoJson(LccapDbContext db, Guid accountId)
+    {
+        _ = db.Barangays.Add(new Barangay
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            Name = "Barangay",
+            Code = null,
+            Latitude = 10m,
+            Longitude = 120m,
+            LandAreaHectares = null,
+            Population = 100,
+            Households = null,
+            Classification = null,
+            BoundaryGeoJson = JsonDocument.Parse("{\"type\":\"Polygon\",\"coordinates\":[]}"),
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = null,
+            CreatedByUserId = null,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedBarangayWithoutBoundaryGeoJson(LccapDbContext db, Guid accountId)
+    {
+        _ = db.Barangays.Add(new Barangay
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            Name = "Barangay",
+            Code = null,
+            Latitude = 10m,
+            Longitude = 120m,
+            LandAreaHectares = null,
+            Population = 100,
+            Households = null,
+            Classification = null,
+            BoundaryGeoJson = null,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = null,
+            CreatedByUserId = null,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        });
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedCriticalFacility(
+        LccapDbContext db,
+        Guid accountId,
+        Guid planId,
+        bool withCoordinates)
+    {
+        _ = db.CriticalFacilities.Add(new CriticalFacility
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = planId,
+            BarangayId = null,
+            Name = "Facility",
+            FacilityType = "Hospital",
+            Latitude = withCoordinates ? 10m : null,
+            Longitude = withCoordinates ? 120m : null,
+            Description = null,
+            Capacity = null,
+            IsEvacuationSite = false,
+            MetadataJson = JsonDocument.Parse("{}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = null,
+            CreatedByUserId = null,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 2, 2, 3, 4, 5, 6, 7, 8 }
+        });
+
+        await db.SaveChangesAsync();
     }
 
     private static LccapDbContext CreateDbContext()

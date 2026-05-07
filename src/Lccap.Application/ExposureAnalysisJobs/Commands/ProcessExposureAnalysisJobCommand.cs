@@ -1,5 +1,6 @@
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.ExposureAnalysisJobs.Computation;
+using Lccap.Application.ExposureAnalysisJobs.Computation.RequestBuilding;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -9,19 +10,23 @@ namespace Lccap.Application.ExposureAnalysisJobs.Commands;
 public sealed class ProcessExposureAnalysisJobCommand
 {
     private static readonly string NotConfiguredErrorMessage = "Exposure computation engine is not configured.";
+    private static readonly string RequestBuilderFailedErrorMessage = "Exposure computation request could not be prepared.";
 
     private readonly ILccapDbContext _dbContext;
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IExposureComputationClient _computationClient;
+    private readonly IExposureComputationRequestBuilder _requestBuilder;
 
     public ProcessExposureAnalysisJobCommand(
         ILccapDbContext dbContext,
         ICurrentUserContext currentUserContext,
-        IExposureComputationClient computationClient)
+        IExposureComputationClient computationClient,
+        IExposureComputationRequestBuilder requestBuilder)
     {
         _dbContext = dbContext;
         _currentUserContext = currentUserContext;
         _computationClient = computationClient;
+        _requestBuilder = requestBuilder;
     }
 
     public async Task<ProcessExposureAnalysisJobResult> Execute(
@@ -71,6 +76,25 @@ public sealed class ProcessExposureAnalysisJobCommand
 
         var nowUtc = DateTimeOffset.UtcNow;
         job.MarkRunning(nowUtc, userId);
+
+        var requestBuildResult = await _requestBuilder.BuildAsync(job, cancellationToken).ConfigureAwait(false);
+        if (!requestBuildResult.IsSuccess)
+        {
+            job.MarkFailed(RequestBuilderFailedErrorMessage, nowUtc, userId);
+
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            return ProcessExposureAnalysisJobResult.Success(
+                new ExposureAnalysisJobDto(
+                    job.Id,
+                    job.PlanId,
+                    job.Status,
+                    hazardLayerId.Value,
+                    job.ErrorMessage,
+                    job.CreatedAtUtc,
+                    job.StartedAtUtc,
+                    job.CompletedAtUtc));
+        }
 
         var request = BuildComputationRequest(job, hazardLayerId.Value);
         var computationResult = await _computationClient.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
