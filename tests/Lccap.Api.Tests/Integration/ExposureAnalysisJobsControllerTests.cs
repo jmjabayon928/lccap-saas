@@ -3,6 +3,7 @@ using Lccap.Api.Auth;
 using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.ExposureAnalysisJobs.Commands;
+using Lccap.Application.ExposureAnalysisJobs.Computation;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Application.ExposureAnalysisJobs.Queries;
 using Lccap.Domain.Entities;
@@ -296,7 +297,7 @@ public sealed class ExposureAnalysisJobsControllerTests
     }
 
     [Fact]
-    public async Task Process_exposure_analysis_job_marks_queued_job_failed_when_engine_not_configured()
+    public async Task Process_exposure_analysis_job_uses_not_configured_computation_client()
     {
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
@@ -329,7 +330,7 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
-        var command = new ProcessExposureAnalysisJobCommand(db, currentUser);
+        var command = new ProcessExposureAnalysisJobCommand(db, currentUser, new NotConfiguredExposureComputationClient());
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -392,7 +393,7 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
-        var command = new ProcessExposureAnalysisJobCommand(db, currentUser);
+        var command = new ProcessExposureAnalysisJobCommand(db, currentUser, new NotConfiguredExposureComputationClient());
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -437,7 +438,7 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
-        var command = new ProcessExposureAnalysisJobCommand(db, currentUser);
+        var command = new ProcessExposureAnalysisJobCommand(db, currentUser, new NotConfiguredExposureComputationClient());
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,

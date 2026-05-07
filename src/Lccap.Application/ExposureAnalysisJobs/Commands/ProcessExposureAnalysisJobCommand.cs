@@ -1,4 +1,5 @@
 using Lccap.Application.Common.Interfaces;
+using Lccap.Application.ExposureAnalysisJobs.Computation;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +12,16 @@ public sealed class ProcessExposureAnalysisJobCommand
 
     private readonly ILccapDbContext _dbContext;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IExposureComputationClient _computationClient;
 
-    public ProcessExposureAnalysisJobCommand(ILccapDbContext dbContext, ICurrentUserContext currentUserContext)
+    public ProcessExposureAnalysisJobCommand(
+        ILccapDbContext dbContext,
+        ICurrentUserContext currentUserContext,
+        IExposureComputationClient computationClient)
     {
         _dbContext = dbContext;
         _currentUserContext = currentUserContext;
+        _computationClient = computationClient;
     }
 
     public async Task<ProcessExposureAnalysisJobResult> Execute(
@@ -65,7 +71,22 @@ public sealed class ProcessExposureAnalysisJobCommand
 
         var nowUtc = DateTimeOffset.UtcNow;
         job.MarkRunning(nowUtc, userId);
-        job.MarkFailed(NotConfiguredErrorMessage, nowUtc, userId);
+
+        var request = BuildComputationRequest(job, hazardLayerId.Value);
+        var computationResult = await _computationClient.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (!computationResult.IsSuccess)
+        {
+            job.MarkFailed(computationResult.ErrorMessage ?? NotConfiguredErrorMessage, nowUtc, userId);
+        }
+        else
+        {
+            job.MarkFailed(
+                computationResult.ErrorMessage ??
+                "Exposure computation succeeded, but exposure summary persistence is not implemented yet.",
+                nowUtc,
+                userId);
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -79,6 +100,26 @@ public sealed class ProcessExposureAnalysisJobCommand
                 job.CreatedAtUtc,
                 job.StartedAtUtc,
                 job.CompletedAtUtc));
+    }
+
+    private static ExposureComputationRequest BuildComputationRequest(
+        ExposureAnalysisJob job,
+        Guid hazardLayerId)
+    {
+        var requestedAtUtc = ExtractOptionalRequestedAtUtc(job.InputJson);
+        var requestedByUserId = ExtractOptionalRequestedByUserId(job.InputJson);
+        var mode = ExtractOptionalMode(job.InputJson);
+
+        // RequestedAtUtc / RequestedByUserId / Mode are optional because input_json is future-proofed
+        // and may be missing or invalid for older queued jobs.
+        return new ExposureComputationRequest(
+            JobId: job.Id,
+            AccountId: job.AccountId,
+            PlanId: job.PlanId,
+            HazardLayerId: hazardLayerId,
+            RequestedAtUtc: requestedAtUtc,
+            RequestedByUserId: requestedByUserId,
+            Mode: mode);
     }
 
     private static Guid? ExtractHazardLayerId(System.Text.Json.JsonDocument inputJson)
@@ -97,6 +138,74 @@ public sealed class ProcessExposureAnalysisJobCommand
         return hazardLayerIdString is not null && Guid.TryParse(hazardLayerIdString, out var parsed)
             ? parsed
             : null;
+    }
+
+    private static DateTimeOffset? ExtractOptionalRequestedAtUtc(System.Text.Json.JsonDocument inputJson)
+    {
+        if (inputJson.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!inputJson.RootElement.TryGetProperty("requestedAtUtc", out var requestedAtUtcElement))
+        {
+            return null;
+        }
+
+        if (requestedAtUtcElement.ValueKind != System.Text.Json.JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var requestedAtUtcString = requestedAtUtcElement.GetString();
+        return requestedAtUtcString is null ? null : DateTimeOffset.TryParse(requestedAtUtcString, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static Guid? ExtractOptionalRequestedByUserId(System.Text.Json.JsonDocument inputJson)
+    {
+        if (inputJson.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!inputJson.RootElement.TryGetProperty("requestedByUserId", out var requestedByUserIdElement))
+        {
+            return null;
+        }
+
+        if (requestedByUserIdElement.ValueKind != System.Text.Json.JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var requestedByUserIdString = requestedByUserIdElement.GetString();
+        return requestedByUserIdString is null ? null : Guid.TryParse(requestedByUserIdString, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static string? ExtractOptionalMode(System.Text.Json.JsonDocument inputJson)
+    {
+        if (inputJson.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!inputJson.RootElement.TryGetProperty("mode", out var modeElement))
+        {
+            return null;
+        }
+
+        if (modeElement.ValueKind != System.Text.Json.JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var mode = modeElement.GetString();
+        if (mode is null) return null;
+        return mode.Trim().Length > 0 ? mode.Trim() : null;
     }
 }
 
