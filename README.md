@@ -7,15 +7,15 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-success)]()
 [![SaaS](https://img.shields.io/badge/SaaS-Multi--Tenant-orange)]()
 [![Tests](https://img.shields.io/badge/Tests-.NET%20CI%20%2B%20Local%20Frontend-brightgreen)]()
-[![Status](https://img.shields.io/badge/Status-MVP%20%2B%20Phase%202%20Complete-brightgreen)]()
-[![AI](https://img.shields.io/badge/AI-Roadmap%20Only-lightgrey)]()
+[![Status](https://img.shields.io/badge/Status-MVP%20%2B%20Phase%202%20Complete%20%2B%20Phase%203%20Exposure%20Partial-brightgreen)]()
+[![AI](https://img.shields.io/badge/AI-Roadmap%20Only%20(Exposure%20Compute%20Implemented)-lightgrey)]()
 [![License](https://img.shields.io/badge/License-Private-lightgrey)]()
 
 **LCCAP SaaS** is an **LGU-facing operating workspace** for organizing **Local Climate Change Action Plan (LCCAP)** preparation: plan sections, supporting documents and evidence, climate actions, monitoring indicators, accountability history, and **export-ready draft packages** that teams can refine offline and route through their own official channels.
 
 It **complements existing official government and donor systems**. It does **not** supersede, replace, or act as an official submission, approval, national reporting, funding, certification, or diagnostic platform.
 
-**Current product state.** The **MVP plus Phase 2** workspace foundation is **locally validated**: evidence organization (index and links), section review comments, CCET and funding-readiness surfaces, funding source/program catalogs and planned action allocations, richer export helpers (package manifest and CSV working outputs), monitoring update history, an operational dashboard-style activity view, a GeoJSON/map-layer workspace foundation, and an in-app **notifications and read-only collaboration summary** foundation with **notification events wired from real workspace actions**. This remains an **LGU preparation workspace** only—not a production-national SaaS, official submission portal, PSF application system, government approval platform, national reporting system, PostGIS exposure engine, full GIS analytics product, or AI decision-making platform.
+**Current product state.** The **MVP plus Phase 2** workspace foundation is **locally validated**: evidence organization (index and links), section review comments, CCET and funding-readiness surfaces, funding source/program catalogs and planned action allocations, richer export helpers (package manifest and CSV working outputs), monitoring update history, an operational dashboard-style activity view, a GeoJSON/map-layer workspace foundation, and an in-app **notifications and read-only collaboration summary** foundation with **notification events wired from real workspace actions**. Additionally, **Phase 3 exposure workflow is partially implemented** for **facility-only exposure analysis** using a feature-flagged **Python FastAPI exposure-computation service** and .NET job processing/persistence, with a **frontend exposure readiness panel** and **exposure summary display/status messaging**. This remains an **LGU preparation workspace** only—not a production-national SaaS, official submission portal, PSF application system, government approval platform, national reporting system, PostGIS exposure engine, full GIS analytics product, or AI decision-making platform.
 
 The same workspace treats climate planning as structured, lifecycle-aware preparation rather than a single static file:
 
@@ -33,9 +33,9 @@ The same workspace treats climate planning as structured, lifecycle-aware prepar
 - Optimistic concurrency prevents accidental overwrites.
 - Paginated lists prevent unbounded tenant responses.
 - Refresh-token-backed sessions support safer local demo and pilot workflows.
-- AI features are planned as asynchronous, auditable jobs in later phases.
+- AI features are planned as asynchronous, auditable jobs in later phases (Phase 3 exposure computation is intentionally limited to facility-only geometry evaluation, not AI decision-making).
 
-Later phases extend capability with interoperability, PostGIS / spatial analytics, exposure summaries, scenario comparison, recommendation-style assistance, and optional AI/Python services if adopted. The shipped **MVP plus Phase 2** scope remains an **internal preparation and organization** workspace for LGU teams, not a mandated channel or analytics authority.
+Later phases extend capability with interoperability, PostGIS / spatial analytics, scenario comparison, recommendation-style assistance, and optional broader AI/Python services if adopted. **Phase 3 exposure workflow is intentionally limited** to facility-only analysis (explicit `EPSG:4326` and `Polygon` / `MultiPolygon` hazard geometries with boundary-inclusive point-in-polygon), and **does not replace** PostGIS-based analytics or official risk assessment outputs. The shipped **MVP plus Phase 2** scope remains an **internal preparation and organization** workspace for LGU teams, not a mandated channel or analytics authority.
 
 ---
 
@@ -47,7 +47,7 @@ Later phases extend capability with interoperability, PostGIS / spatial analytic
 - Phase roadmap
 - Product Overview
 - Target Users
-- Current MVP + Phase 2 Status
+- Current MVP + Phase 2 + Phase 3 Exposure Status
 - Core Modules
 - Completed MVP Capabilities
 - In Progress / Planned Capabilities
@@ -93,6 +93,8 @@ It **complements** official government and donor systems. It does not replace ma
 The MVP is implemented using **.NET 8 Clean Architecture**, **Entity Framework Core**, **PostgreSQL**, and a **Next.js / TypeScript / Tailwind CSS** frontend.
 
 **Phase 2** adds evidence index and CSV exports, document evidence links to sections and actions, **section review comments**, **CCET / funding-readiness** tagging and panels, **funding source and program catalogs** with **action funding allocations** (planned allocations only; not a funding portal), **monitoring update history**, **richer export package** helpers (manifest and matrices as working outputs), **operational dashboard** data for the plan workspace, **map workspace / GeoJSON layer** registration, and **in-app notifications** plus a **read-only collaboration summary** (groups populated via tenant-admin or seed data in Phase 2—no self-service group CRUD, invites, email, or WebSocket delivery).
+
+**Phase 3 exposure workflow is partially implemented** for facility-only exposure analysis: a hazard-layer registration flow from GeoJSON map assets, exposure analysis job queue/processing, a feature-flagged Python FastAPI facility-only computation (explicit `EPSG:4326` with `Polygon` / `MultiPolygon` hazards and boundary-inclusive point-in-polygon containment), .NET persistence of validated facility-only `ExposureSummary` rows, and a frontend exposure readiness panel with completed/failed/zero-summary messaging. This remains limited to facility-only computation (no full PostGIS spatial analytics and no exposed area/population/risk metrics or official risk scoring outputs).
 
 The updated **MVP plus Phase 2** flow has been locally validated end-to-end for the core preparation workspace:
 
@@ -210,7 +212,7 @@ The product should be described as:
 
 ## Phase roadmap
 
-**MVP** delivered the core LGU workspace foundation. **Phase 2** (now reflected in this codebase) deepened preparation workflows, exports, monitoring history, operational visibility, map-layer registration, and notifications/collaboration awareness. **Phase 3** remains future scope: interoperability, PostGIS / spatial analytics, exposure analysis, scenario comparison, recommendation-style assistance, and AI/Python services if planned.
+**MVP** delivered the core LGU workspace foundation. **Phase 2** (now reflected in this codebase) deepened preparation workflows, exports, monitoring history, operational visibility, map-layer registration, and notifications/collaboration awareness. **Phase 3 exposure workflow is partially implemented** for facility-only exposure analysis (hazard layer registration → exposure analysis jobs → facility-only exposure summary persistence → frontend display), while broader Phase 3 GIS/metrics/AI remains future scope: interoperability, PostGIS / spatial analytics, area/population/risk scoring, scenario comparison, recommendation-style assistance, and broader AI/Python services.
 
 Features must not **bleed across phases** without an explicit decision.
 
@@ -218,7 +220,7 @@ Features must not **bleed across phases** without an explicit decision.
 | --- | --- |
 | **MVP** | Core LGU workspace foundation: plan sections, documents/evidence, action items, monitoring indicators, audit history, server-side RBAC, archive/restore, pagination, and export-ready draft PDF package. |
 | **Phase 2** | Evidence index (JSON/CSV); document evidence links to sections and actions; section review comments; CCET / funding-readiness tagging; funding source and program catalogs; action funding allocations (preparation aid, **not** a PSF or funding portal); richer export package helpers (manifest and CSV working outputs); **monitoring update history**; **operational dashboard / activity feed**; **GeoJSON / map layer foundation**; **collaboration and notifications foundation** (in-app feed; events from workspace actions; read-only collaboration summary; groups tenant-admin/seed-managed). |
-| **Phase 3** | Interoperability; **PostGIS** / **spatial analytics**; **exposure summaries**; **scenario comparison**; **recommendation-style** assistance; **AI / Python** services if planned; integration-ready APIs and exports. |
+| **Phase 3** | Facility-only exposure workflow (hazard layer registration → exposure analysis jobs → persisted **ExposureSummary** rows + frontend display) with explicit `EPSG:4326` and `Polygon` / `MultiPolygon` hazard geometries; remaining Phase 3 scope includes **PostGIS** / spatial analytics, exposed area/population/risk metrics, scenario comparison, recommendation-style assistance, and broader AI / Python services. |
 
 ### Phase 2: Collaboration and notifications (boundary)
 
@@ -248,7 +250,8 @@ Account / LGU
         ├── Audit Logs
         ├── Monitoring updates, evidence index, comments, funding readiness, richer exports
         ├── Operational dashboard, map workspace layers, notifications (Phase 2)
-        └── Future AI / advanced spatial analytics (Phase 3)
+        ├── HazardLayer + ExposureAnalysisJobs + ExposureSummaries (Phase 3 exposure workflow, facility-only)
+        └── Future broader AI / advanced spatial analytics (Phase 3 remaining scope)
 ```
 
 This architecture enables the system to organize climate planning work around a clear, auditable structure rather than treating LCCAP as a single static file.
@@ -307,7 +310,7 @@ External/public users are future-phase concepts and are not part of the current 
 
 ---
 
-## Current MVP + Phase 2 Status
+## Current MVP + Phase 2 + Phase 3 Exposure Status
 
 The updated **MVP plus Phase 2** scope is **locally end-to-end validated** for the core LGU workspace flow, the Phase 2 preparation modules listed below, and the major enterprise-style hardening layers.
 
@@ -324,6 +327,19 @@ The updated **MVP plus Phase 2** scope is **locally end-to-end validated** for t
 | Operational dashboard / activity feed | Complete |
 | GeoJSON / map layer foundation | Complete |
 | Collaboration / notifications foundation | Complete |
+
+### Phase 3 exposure workflow status (facility-only)
+
+| Phase 3 exposure module | Status |
+| --- | --- |
+| Hazard layer registration (GeoJSON-based) | Complete |
+| Exposure analysis job queue + processing | Complete |
+| Python FastAPI facility-only exposure computation (Polygon/MultiPolygon, `EPSG:4326`, boundary-inclusive point-in-polygon) | Complete (feature-flagged) |
+| .NET Python adapter and feature flag (`PythonAi:Enabled`) | Complete |
+| ExposureSummary persistence + replace-for-job semantics | Complete |
+| Completed job state + `output_json` engine/diagnostics/persistence metadata | Complete |
+| Frontend exposure readiness panel + completed/failed/zero-summary messaging | Complete |
+| Manual E2E verification document + run checklist | Complete (manual verification required per demo dataset) |
 
 Validated flow (MVP core):
 
@@ -410,6 +426,17 @@ Phase 2 extensions exercised in the same workspace (local validation):
 | Mapping tests for key entities | Complete |
 | API controller tests | Complete |
 | Full .NET solution tests | Complete |
+| HazardLayer registration | Complete |
+| ExposureAnalysisJobs API + processing | Complete |
+| ExposureSummaries read APIs | Complete |
+| Python exposure-computation contract/client/adapter (facility-only) | Complete |
+| PythonAi feature flag wiring (optional adapter) | Complete |
+| ExposureSummary persistence service (transaction boundary) | Complete |
+| Replace-for-job semantics (archive+insert) | Complete |
+| `output_json` engine/diagnostics/persistence metadata | Complete |
+| Completed job state handling (Queued → Completed/Failed) | Complete |
+| Manual Phase 3 exposure verification document | Complete |
+| Phase 3 exposure workflow controller tests | Complete |
 
 ### Completed Frontend Slices
 
@@ -458,6 +485,12 @@ Phase 2 extensions exercised in the same workspace (local validation):
 | RBAC-aware sidebar/actions | Complete |
 | Production-like `npm start` flow | Complete |
 | Frontend type-check and lint validation | Complete |
+| Exposure readiness panel | Complete |
+| Hazard layer registration UI | Complete |
+| Exposure job queue/process UI | Complete |
+| Exposure summaries read-only display | Complete |
+| Completed/Failed/zero-summary messaging | Complete |
+| Refresh jobs and summaries after processing | Complete |
 
 ### Remaining MVP Polish Items
 
@@ -1119,6 +1152,55 @@ GET  /api/collaboration/summary
 
 ---
 
+### 20. Phase 3 Exposure Analysis Workflow
+
+This workflow is intentionally limited to **facility-only exposure analysis** (critical facility points evaluated against hazard geometries). It is designed as preparation support for LGU workflows, not as an official or mandated GIS analytics product.
+
+#### Purpose and limitations
+- Facility-only exposure computation (no exposed area/population/risk metric calculations).
+- Explicit CRS: `EPSG:4326` only (no transformation).
+- Hazard geometries supported: `Polygon`, `MultiPolygon` only.
+- Boundary-inclusive point-in-polygon containment is used (a point on the hazard boundary counts as exposed).
+- Python does **not** access the database; .NET owns persistence and job state.
+
+#### Current API surfaces
+Exposure analysis jobs:
+```text
+GET  /api/plans/{planId}/exposure-analysis-jobs
+POST /api/plans/{planId}/exposure-analysis-jobs
+POST /api/plans/{planId}/exposure-analysis-jobs/{jobId}/process
+```
+Exposure summaries:
+```text
+GET  /api/plans/{planId}/exposure-summaries
+GET  /api/plans/{planId}/exposure-analysis-jobs/{jobId}/exposure-summaries
+GET  /api/plans/{planId}/exposure-summaries/{summaryId}
+```
+
+#### Job lifecycle (behavior)
+- Job starts in `Queued`, transitions to `Running` when processing begins, and ends as `Completed` or `Failed`.
+- Completed jobs persist validated facility-only `ExposureSummary` rows.
+- Replace-for-job semantics: rerunning a job refreshes results by archiving old summaries for that job and inserting fresh ones.
+- Completed jobs store `output_json` with engine/diagnostics/persistence metadata, including persisted summary counts.
+
+#### Feature flag: optional Python adapter
+- The .NET layer can use a Python FastAPI computation service when `PythonAi:Enabled=true`.
+- When disabled, the application remains compatible with the broader computation contract, but facility exposure computation is not performed via the Python adapter.
+
+#### Frontend behavior
+- Hazard layer registration and exposure readiness UI drive the flow: register hazard layer → queue an exposure job → process a queued job.
+- The frontend displays:
+  - job status transitions (Queued/Processing/Completed/Failed),
+  - completed-zero messaging when a successful computation yields zero stored summaries,
+  - and exposure summary cards when results are persisted.
+
+#### Non-goals / not implemented here
+- Full PostGIS exposure analytics.
+- Barangay polygon intersection logic.
+- Exposed area calculation, exposed population approximation, or risk score calculation.
+- Scenario comparison, recommendation engine outputs, or broad AI/RAG workflows.
+
+---
 ## Completed MVP Capabilities
 
 The current MVP implements and validates the major LGU workspace workflow:
@@ -1160,13 +1242,9 @@ This is the core LCCAP planning loop plus the enterprise-style operating control
 - Audit retention or compaction strategy.
 
 ### Phase 3 and longer-term roadmap
-
+- Phase 3 facility-only exposure workflow is partially implemented (facility-only Python FastAPI exposure computation + .NET job processing/persistence + frontend exposure summaries display), limited to explicit `EPSG:4326` and facility points evaluated against registered `Polygon` / `MultiPolygon` hazard geometries (boundary-inclusive point-in-polygon).
+- Remaining Phase 3 roadmap items include PostGIS/spatial analytics, exposed area/population/risk metrics, scenario comparison, recommendation engine outputs, broader AI/RAG workflows, and production hardening.
 - Interoperability with external systems.
-- PostGIS / spatial analytics.
-- Exposure summaries.
-- Scenario comparison.
-- Recommendation engine.
-- AI / Python services (if planned).
 - Integration-ready APIs and exports.
 - Advanced observability.
 - Operational runbooks.
@@ -1209,7 +1287,17 @@ LCCAP SaaS uses a modular Clean Architecture approach.
 └────────────────────────────────────┘
 ```
 
-Future / planned AI layer (not part of the current application build; roadmap):
+Optional Phase 3 computation service (facility-only; feature-flagged):
+
+```text
+┌────────────────────────────────────┐
+│   Python FastAPI Exposure Compute  │
+│  Facility-only point-in-polygon    │
+│  (explicit EPSG:4326; no DB access)│
+└────────────────────────────────────┘
+```
+
+Future / planned AI layer (roadmap; not part of the current application build):
 
 ```text
 ┌────────────────────────────────────┐
@@ -1260,13 +1348,18 @@ Architecture principles:
 - Refresh-on-reload session restoration.
 - One-time 401 refresh retry.
 
+### Phase 3 Exposure Computation (Implemented)
+
+- Python FastAPI exposure-computation service (facility-only point-in-polygon)
+- Shapely geometry evaluation
+- pytest (local validation for the exposure compute service)
+
 ### AI Planned
 
-- Python FastAPI.
 - Async AI jobs.
 - Document intelligence.
 - Summarization.
-- RAG search.
+- RAG search over LCCAP documents and plan data.
 - Recommendation engine.
 
 ### Testing
@@ -1400,6 +1493,9 @@ CriticalFacility
 MapAsset
 MapAnnotation
 GeoJsonLayerFeature
+HazardLayer
+ExposureAnalysisJob
+ExposureSummary
 NotificationEvent
 UserNotification
 NotificationTemplate
@@ -1411,8 +1507,6 @@ Future / Phase 3-oriented entities (not implemented as first-class product surfa
 
 ```text
 AiJob
-ExposureAnalysisJob
-ExposureSummary
 ```
 
 ### Core entity responsibilities
@@ -1436,12 +1530,15 @@ ExposureSummary
 | ActionFundingAllocation | **Planned** funding allocation against an action (preparation; not portal submission). |
 | Barangay / CriticalFacility | Baseline geographic/facility reference records used by readiness and map foundations. |
 | MapAsset / MapAnnotation / GeoJsonLayerFeature | **Map workspace foundation** assets and features (not PostGIS analytics). |
+| HazardLayer | Registered hazard layer linked to a GeoJSON map asset with hazard type/severity used for facility-only exposure computation. |
 | NotificationEvent | Immutable **notification event** record from workspace activity. |
 | UserNotification | Per-user **in-app notification** inbox row. |
 | NotificationTemplate | Templates for fan-out when creating user notifications. |
 | CollaborationGroup / CollaborationGroupMember | **Read-only collaboration summary** support; Phase 2 population is **tenant-admin or seed-managed** (no self-service CRUD in-product). |
 | ExportJob | PDF/package export job status and file link. |
 | AuditLog | Accountability record for changes and restores. |
+| ExposureAnalysisJob | Queued/running/completed/failed exposure job storing input/output JSON and error state (facility-only exposure computation orchestration). |
+| ExposureSummary | Persisted result row from validated facility-only computation; currently stores exposed facility counts and deferred metrics as null (area/population/risk). |
 | Role / Permission / UserRole | Future richer role/permission model support. |
 
 ---
@@ -1449,6 +1546,9 @@ ExposureSummary
 ## AI and Intelligence Roadmap
 
 AI is intentionally designed as an asynchronous support layer, not inline application logic.
+
+Implemented non-AI computation note:
+The Phase 3 facility-only exposure workflow is computed via a Python FastAPI service (Shapely point-in-polygon with boundary-inclusive containment) and orchestrated by .NET job processing/persistence. This facility-only workflow is not AI decision-making, and the AI roadmap below covers broader drafting/RAG/recommendation-style assistance and future analytics beyond facility-only computation.
 
 Planned AI capabilities:
 
@@ -1458,7 +1558,7 @@ Planned AI capabilities:
 - Recommend adaptation and mitigation actions.
 - Generate evidence-linked insights.
 - Support RAG over LCCAP documents and plan data.
-- Support future exposure analysis and prioritization workflows.
+- Support future exposure analysis and prioritization workflows beyond the current facility-only point-in-polygon exposure computation.
 
 AI outputs should be:
 
@@ -1539,7 +1639,7 @@ Frontend behavior priorities:
 - Docker Desktop or a local PostgreSQL 16 instance.
 - PowerShell.
 - Node.js / npm.
-- Python for future AI service.
+- Python for Phase 3 facility-only exposure computation (and future AI services).
 - DBeaver or psql for local database inspection and SQL script execution.
 
 ### Start PostgreSQL
@@ -1621,6 +1721,45 @@ Expected API URL:
 ```text
 http://localhost:5243
 ```
+
+### Run Python exposure-computation service (Phase 3)
+
+The Phase 3 facility-only exposure computation service is a small FastAPI application. It computes whether each critical facility point is inside/on the boundary of registered hazard `Polygon` / `MultiPolygon` geometries using explicit `EPSG:4326` and boundary-inclusive point-in-polygon containment.
+
+Start the service (from the repository’s Python service folder):
+
+```powershell
+cd C:\projects\LCCAP\python\exposure-computation-service
+
+# Create/activate venv (if needed)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# Install dependencies
+python -m pip install -U pip
+python -m pip install -e .
+
+# Start the service
+uvicorn app.main:app --reload --port 8000
+```
+
+Verify health:
+
+```text
+http://localhost:8000/health
+```
+
+If you want the .NET layer to use the Python adapter during exposure job processing, set runtime overrides for the API process (do not commit appsettings changes):
+
+```powershell
+$env:PythonAi__Enabled="true"
+$env:PythonAi__BaseUrl="http://localhost:8000"
+$env:PythonAi__TimeoutSeconds="60"
+```
+
+Notes:
+- `PythonAi__Enabled` is expected to be `false` in committed configuration.
+- Python does **not** access the database; .NET owns job state and persistence.
 
 ### Seed Demo Users Locally
 
@@ -2203,6 +2342,30 @@ After completing the MVP script through PDF export and audit checks, you can wal
 9. **Map foundation** — Register a GeoJSON layer from the plan workspace; confirm map workspace metadata updates (foundation feature, not exposure analytics).
 10. **Notifications and collaboration** — Trigger a workspace action that produces an in-app notification (for example a comment event); open the notification center; view the read-only collaboration summary and confirm there is **no** group configuration UI in Phase 2.
 
+### Phase 3 demo extension: facility-only exposure workflow
+
+After completing the Phase 2 demo extension locally, you can test the **implemented Phase 3 facility-only exposure workflow**. All outcomes below remain **draft/analysis support** only—limited to explicit `EPSG:4326` and facility points evaluated against registered hazard `Polygon` / `MultiPolygon` geometries (no full PostGIS GIS analytics, and no official risk scoring outputs).
+
+Prerequisites (do these first):
+1. Start the Python exposure-computation service and verify `GET /health` is returning `engineName = "FacilityExposureEngine"`.
+2. Start the .NET API with runtime overrides so the Python adapter is enabled:
+   - `PythonAi__Enabled=true`
+   - `PythonAi__BaseUrl=http://localhost:8000`
+
+Then:
+1. Open the plan map workspace.
+2. Select the hazard GeoJSON layer (the UI selection is based on the plan’s GeoJSON layer assets).
+3. Register the hazard layer (if it is not already active).
+4. In the exposure readiness panel, click **Run exposure analysis** to queue a job.
+5. Click **Process job** for the queued job.
+6. Verify the job transitions to `Completed`.
+7. Verify the **Exposure summaries** list:
+   - becomes non-empty when at least one facility is exposed by boundary-inclusive point-in-polygon containment, and
+   - stays empty (and shows the completed-zero message) when the run produces zero stored summaries.
+8. If a run fails (for example Python unavailable or an unsupported hazard geometry), confirm the UI shows failure messaging and that no new stored summaries are persisted for that failed run.
+
+For the repeatable end-to-end verification checklist, use `docs/manual-verification/phase3-exposure-workflow.md`.
+
 ---
 
 ## Testing and Quality Gates
@@ -2249,6 +2412,11 @@ Current test categories:
 - Frontend type-check.
 - Frontend lint.
 - Manual MVP and Phase 2 E2E validation.
+- Python pytest for the Phase 3 facility-only exposure-computation service.
+- Python `compileall` checks for the Phase 3 exposure-computation service.
+- ExposureAnalysisJobsControllerTests for Phase 3 exposure job processing.
+- ExposureSummariesControllerTests for Phase 3 exposure summary persistence/read behavior.
+- Manual Phase 3 E2E verification via `docs/manual-verification/phase3-exposure-workflow.md`.
 
 Quality rules:
 
@@ -2317,14 +2485,12 @@ npm run lint
 - In-app notifications with workspace-driven events; read-only collaboration summary; tenant-admin/seed-managed groups.
 - Continued positioning: complement official systems; no official submission, approval, national reporting, PostGIS exposure engine, full GIS analytics product, or AI decision platform.
 
-### Phase 3 (later)
+### Phase 3 (partially implemented for facility-only exposure analysis)
 
-- Interoperability.
-- PostGIS / spatial analytics and exposure summaries.
-- Scenario comparison and recommendation engine.
-- Integration-ready APIs and exports.
-- Operational hardening.
-- Advanced observability.
+- Phase 3 facility-only exposure workflow is partially implemented (hazard layer registration → exposure analysis jobs → persisted ExposureSummary rows + frontend display).
+- Remaining Phase 3 roadmap items include PostGIS/spatial analytics, exposed area/population/risk metrics, scenario comparison, recommendation engine, broader AI/RAG workflows, and production hardening.
+- Continued interoperability and integration-ready APIs/exports.
+- Operational hardening and advanced observability.
 - Potential BFF-style auth if production deployment requires it.
 
 ---
@@ -2393,6 +2559,16 @@ Safe to demo now:
 - RBAC behavior.
 - Audit history.
 - Refresh-token-backed session behavior.
+- Phase 3 facility-only exposure workflow for critical facilities:
+  - hazard layer registration from GeoJSON map assets
+  - exposure analysis job queue/process
+  - persisted ExposureSummary rows (replace-for-job semantics)
+  - completed/failed/zero-summary UI messaging
+- Python exposure-computation service for facility-only point-in-polygon evaluation:
+  - explicit `EPSG:4326` only
+  - `Polygon` / `MultiPolygon` hazard geometries
+  - boundary-inclusive containment behavior
+- Manual Phase 3 end-to-end verification using `docs/manual-verification/phase3-exposure-workflow.md`.
 
 Do not claim yet:
 
@@ -2401,8 +2577,12 @@ Do not claim yet:
 - Funding eligibility processing.
 - Full GIS analytics or mandated spatial compliance outputs.
 - PostGIS exposure analysis or national exposure reporting.
+- Exposed area calculation and exposed population approximation.
+- Risk score calculation and numeric risk metrics.
 - Real-time collaboration, email notification delivery, or end-user notification centers tied to external channels.
+- Scenario comparison, recommendation engine outputs, or recommendation authority.
 - Automated AI decision-making.
+- Official submission, approval, national reporting, or mandated spatial compliance outputs.
 - Replacement for CCC/DILG/NICCDIES/PlanSmart/UNDP SHIELD systems.
 
 ---
@@ -2540,6 +2720,18 @@ Use this appendix as a concise checklist before screenshots, demos, or local rel
 - Confirm section content appears.
 - Confirm download is tenant-scoped.
 
+### Phase 3 exposure verification
+
+- Confirm the Python exposure-computation service health check is reachable and returns `FacilityExposureEngine` / `facility-v1` with `computationSupported=true` at `GET /health`.
+- Confirm the facility-only compute contract works for a minimal success payload (explicit `EPSG:4326`, hazard `Polygon` / `MultiPolygon`, and boundary-inclusive point-in-polygon containment using `covers(point)`).
+- Start the .NET API with runtime overrides so `PythonAi:Enabled` is enabled for the Phase 3 adapter path.
+- In the frontend plan map workspace, register a hazard layer from the selected GeoJSON hazard layer asset.
+- Queue an exposure analysis job from the exposure readiness panel, then process the queued job.
+- Verify job state transitions to `Completed` and that exposure summaries are displayed after processing.
+- Verify the zero-result path: when the computation succeeds but produces zero stored summaries, the frontend shows the completed-zero message and the summaries list remains empty.
+- Verify safe failure behavior when Python is unavailable or when hazard geometry is unsupported: the job should become `Failed` and summaries should remain empty for that failed run.
+- For a repeatable E2E checklist with runtime prerequisites, use `docs/manual-verification/phase3-exposure-workflow.md`.
+
 ### Positioning verification
 
 - Confirm UI and docs do not claim official submission.
@@ -2601,11 +2793,19 @@ These slices are intentionally deferred beyond the **MVP plus Phase 2** preparat
 - **Email** and **WebSocket**/push delivery.
 - Richer **role-based routing** for notifications and reviews.
 
+### P3 - Exposure workflow hardening (remaining beyond facility-only)
+
+- Extend from facility-only point-in-polygon evaluation to full PostGIS-based spatial analytics.
+- Add barangay polygon intersection logic.
+- Compute exposed area, exposed population approximation, and numeric risk metrics.
+- Enable scenario comparison and recommendation-style outputs (still as auditable jobs, not automated decisions).
+- Production hardening for exposure runs (operational readiness, failure diagnostics, and verification repeatability).
+
 ### P3 - Interoperability
 
 - Add integration-ready APIs.
 - Add structured import/export formats.
-- Add PostGIS support.
+- Add PostGIS support for full spatial analytics beyond facility-only evaluation.
 - Add external system mapping.
 - Add formal data exchange contracts.
 
@@ -2637,6 +2837,21 @@ cd C:\projects\LCCAP\frontend
 npm run type-check
 npm run lint
 npm run build
+```
+
+### Python exposure-computation service (Phase 3)
+
+```powershell
+cd C:\projects\LCCAP\python\exposure-computation-service
+
+# Run Python tests
+python -m pytest -q
+
+# Quick import/bytecode validation
+python -m compileall app tests
+
+# Start the service
+uvicorn app.main:app --reload --port 8000
 ```
 
 ### Run API
@@ -2676,6 +2891,7 @@ When updating the project:
 - Keep tracker JSON updated only after verification passes.
 - Do not document features as complete until tests and manual checks pass.
 - Keep MVP, Phase 2, and Phase 3 boundaries clear.
+- Keep Phase 3 exposure claims aligned to the current facility-only point-in-polygon limitations (explicit `EPSG:4326` and `Polygon` / `MultiPolygon` hazard geometries; deferred area/population/risk metrics).
 - Avoid official-submission language unless a future integration is formally approved.
 
 ---
@@ -2692,6 +2908,9 @@ Safe claims:
 - Section restore.
 - Draft PDF package.
 - Phase 2 preparation aids: evidence index, review comments, funding readiness views, richer CSV exports, operational dashboard, map layer foundation, in-app notification feed, read-only collaboration summary (admin/seed groups).
+- Phase 3 facility-only exposure workflow (hazard layer registration → exposure analysis job queue/process → persisted ExposureSummary rows with replace-for-job semantics; completed/failed/zero-summary messaging in the frontend).
+- Python exposure-computation service for facility-only point-in-polygon evaluation (explicit `EPSG:4326`, `Polygon` / `MultiPolygon` hazards, boundary-inclusive containment).
+- Completed exposure job state with `output_json` engine/diagnostics/persistence metadata persisted for review.
 - Memory-only access token with HttpOnly refresh cookie.
 - Locally validated end-to-end **MVP plus Phase 2** workspace foundation.
 
@@ -2701,6 +2920,9 @@ Avoid claims:
 - National reporting system.
 - Funding approval system or PSF portal replacement.
 - Full GIS analytics or PostGIS exposure authority.
+- Exposed area/population/risk scoring metrics (deferred in facility-only exposure computation).
+- Scenario comparison outputs.
+- Recommendation engine outputs or recommendation authority.
 - Real-time co-editing, email-delivered notifications, or self-service collaboration administration in Phase 2.
 - Replacement for CCC/DILG/NICCDIES/PlanSmart/UNDP SHIELD.
 - Production-scale national deployment.
