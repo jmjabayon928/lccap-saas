@@ -1,20 +1,19 @@
-# Exposure Computation Service (Scaffold)
+# Exposure Computation Service (Facility Exposure)
 
 This scaffold service exposes:
 - `GET /health`
-- `POST /compute/exposure` (scaffold-only contract stub)
+- `POST /compute/exposure` (facility-only point-in-polygon exposure computation)
 
-It does **not** perform exposure computation, does **not** read or write the database, and does **not** create `ExposureSummary` rows.
+It performs facility-only exposure computation and does **not** read or write the database, and does **not** create `ExposureSummary` rows.
 
 ## `POST /compute/exposure`
 
-This endpoint is scaffold-only and returns a structured safe failure:
-- HTTP status: `200`
-- `success`: `false`
-- `errorCode`: `EngineUnavailable`
-- `results`: `[]`
-
-No exposure computation is performed and no database access is performed.
+This endpoint computes whether each critical facility point is inside or on the boundary of hazard polygons:
+- Supported hazard geometries: `Polygon`, `MultiPolygon`
+- CRS required: explicit `EPSG:4326` (no transformation)
+- Boundary-inclusive containment (a point on the polygon boundary counts as exposed)
+- Deferred metrics: no exposed area (`exposedAreaHectares`), population approximation (`exposedPopulation`), or risk score (`riskScore`)
+- No DB access and no exposure summary persistence (the .NET layer owns persistence later)
 
 ## Local development
 
