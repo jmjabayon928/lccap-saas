@@ -26,6 +26,9 @@ public static class DependencyInjection
         _ = services.AddOptions<PythonExposureComputationOptions>()
             .Bind(configuration.GetSection("PythonAi"));
 
+        _ = services.AddOptions<PythonExposureComputationFeatureOptions>()
+            .Bind(configuration.GetSection("PythonAi"));
+
         var pythonBaseUrl = configuration["PythonAi:BaseUrl"];
         _ = services.AddHttpClient<PythonExposureComputationServiceClient>(
             httpClient =>

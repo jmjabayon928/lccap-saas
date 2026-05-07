@@ -4,7 +4,9 @@ using Lccap.Api.Controllers;
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.ExposureAnalysisJobs.Commands;
 using Lccap.Application.ExposureAnalysisJobs.Computation;
+using Lccap.Application.ExposureAnalysisJobs.Computation.Contracts;
 using Lccap.Application.ExposureAnalysisJobs.Computation.RequestBuilding;
+using Lccap.Application.ExposureAnalysisJobs.Computation.Python;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Application.ExposureAnalysisJobs.Queries;
 using Lccap.Domain.Entities;
@@ -12,6 +14,7 @@ using Lccap.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.Options;
 
 namespace Lccap.Api.Tests.Integration;
 
@@ -298,7 +301,7 @@ public sealed class ExposureAnalysisJobsControllerTests
     }
 
     [Fact]
-    public async Task Process_exposure_analysis_job_uses_not_configured_computation_client()
+    public async Task Process_exposure_analysis_job_uses_not_configured_computation_client_when_python_enabled_missing()
     {
         await using var db = CreateDbContext();
         var accountId = Guid.NewGuid();
@@ -334,11 +337,20 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions());
         var command = new ProcessExposureAnalysisJobCommand(
             db,
             currentUser,
             new NotConfiguredExposureComputationClient(),
-            new ExposureComputationRequestBuilder(db));
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -365,6 +377,7 @@ public sealed class ExposureAnalysisJobsControllerTests
         Assert.Equal("Exposure computation engine is not configured.", saved.ErrorMessage);
 
         Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+        Assert.Equal(0, pythonAdapter.CallCount);
     }
 
     [Fact]
@@ -403,11 +416,20 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
         var command = new ProcessExposureAnalysisJobCommand(
             db,
             currentUser,
             new NotConfiguredExposureComputationClient(),
-            new ExposureComputationRequestBuilder(db));
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -419,6 +441,285 @@ public sealed class ExposureAnalysisJobsControllerTests
         var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
         Assert.Equal("Failed", dto.Status);
         Assert.Equal("Exposure computation request could not be prepared.", dto.ErrorMessage);
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+        Assert.Equal(0, pythonAdapter.CallCount);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_uses_not_configured_computation_client_when_python_enabled_false()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = false });
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal(hazard.Id, dto.HazardLayerId);
+        Assert.Equal("Exposure computation engine is not configured.", dto.ErrorMessage);
+        Assert.NotNull(dto.StartedAtUtc);
+        Assert.NotNull(dto.CompletedAtUtc);
+
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+        Assert.Equal(0, pythonAdapter.CallCount);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_uses_python_adapter_when_python_enabled_and_python_engine_unavailable()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal(hazard.Id, dto.HazardLayerId);
+        Assert.Equal("Exposure computation engine is not configured.", dto.ErrorMessage);
+        Assert.Equal(1, pythonAdapter.CallCount);
+
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_uses_python_adapter_when_python_enabled_and_python_validation_failed()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation service returned an invalid response.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal(hazard.Id, dto.HazardLayerId);
+        Assert.Equal("Exposure computation service returned an invalid response.", dto.ErrorMessage);
+        Assert.Equal(1, pythonAdapter.CallCount);
+
+        Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_uses_python_adapter_when_python_enabled_and_python_success_marks_failed_persistence_not_implemented()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Succeeded(
+                engineVersion: "stub",
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal(hazard.Id, dto.HazardLayerId);
+        Assert.Equal(
+            "Exposure computation succeeded, but exposure summary persistence is not implemented yet.",
+            dto.ErrorMessage);
+        Assert.Equal(1, pythonAdapter.CallCount);
+
         Assert.False(await db.ExposureSummaries.AnyAsync(s => !s.IsDeleted, CancellationToken.None));
     }
 
@@ -459,11 +760,20 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions());
         var command = new ProcessExposureAnalysisJobCommand(
             db,
             currentUser,
             new NotConfiguredExposureComputationClient(),
-            new ExposureComputationRequestBuilder(db));
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -515,11 +825,20 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions());
         var command = new ProcessExposureAnalysisJobCommand(
             db,
             currentUser,
             new NotConfiguredExposureComputationClient(),
-            new ExposureComputationRequestBuilder(db));
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -568,11 +887,20 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions());
         var command = new ProcessExposureAnalysisJobCommand(
             db,
             currentUser,
             new NotConfiguredExposureComputationClient(),
-            new ExposureComputationRequestBuilder(db));
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -617,11 +945,20 @@ public sealed class ExposureAnalysisJobsControllerTests
         await db.SaveChangesAsync();
 
         var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var pythonAdapter = new StubPythonExposureComputationClientAdapter(
+            ExposureComputationResult.Failed(
+                "Exposure computation engine is not configured.",
+                engineName: "PythonStub",
+                engineVersion: null,
+                completedAtUtc: DateTimeOffset.UtcNow));
+        var pythonOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions());
         var command = new ProcessExposureAnalysisJobCommand(
             db,
             currentUser,
             new NotConfiguredExposureComputationClient(),
-            new ExposureComputationRequestBuilder(db));
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonOptions);
 
         var result = await controller.ProcessExposureAnalysisJob(
             plan.Id,
@@ -630,6 +967,26 @@ public sealed class ExposureAnalysisJobsControllerTests
             CancellationToken.None);
 
         Assert.IsType<ConflictResult>(result);
+    }
+
+    private sealed class StubPythonExposureComputationClientAdapter : IPythonExposureComputationClientAdapter
+    {
+        private readonly ExposureComputationResult _result;
+
+        public StubPythonExposureComputationClientAdapter(ExposureComputationResult result)
+        {
+            _result = result;
+        }
+
+        public int CallCount { get; private set; }
+
+        public Task<ExposureComputationResult> ExecuteAsync(
+            ExposureComputationServiceRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult(_result);
+        }
     }
 
     private static (ExposureAnalysisJobsController Controller, TestCurrentUserContext CurrentUser) CreateController(

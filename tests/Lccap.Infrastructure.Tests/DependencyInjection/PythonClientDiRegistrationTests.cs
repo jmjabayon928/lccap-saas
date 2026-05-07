@@ -88,6 +88,34 @@ public sealed class PythonClientDiRegistrationTests
     }
 
     [Fact]
+    public void AddInfrastructureServices_binds_python_feature_options_defaults_enabled_false_when_missing()
+    {
+        var provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] = "Host=localhost;Port=5432;Database=lccap_test;Username=postgres;Password=postgres",
+            ["PythonAi:BaseUrl"] = "http://localhost:8000",
+            ["PythonAi:TimeoutSeconds"] = "7",
+        });
+
+        var options = provider.GetRequiredService<IOptions<PythonExposureComputationFeatureOptions>>().Value;
+        Assert.False(options.Enabled);
+    }
+
+    [Fact]
+    public void AddInfrastructureServices_binds_python_feature_options_enabled_when_set()
+    {
+        var provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] = "Host=localhost;Port=5432;Database=lccap_test;Username=postgres;Password=postgres",
+            ["PythonAi:BaseUrl"] = "http://localhost:8000",
+            ["PythonAi:Enabled"] = "true",
+        });
+
+        var options = provider.GetRequiredService<IOptions<PythonExposureComputationFeatureOptions>>().Value;
+        Assert.True(options.Enabled);
+    }
+
+    [Fact]
     public void AddInfrastructureServices_allows_missing_python_base_url()
     {
         var provider = BuildProvider(new Dictionary<string, string?>

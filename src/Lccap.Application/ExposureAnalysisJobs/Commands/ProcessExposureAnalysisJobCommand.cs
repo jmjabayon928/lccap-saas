@@ -1,9 +1,11 @@
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.ExposureAnalysisJobs.Computation;
 using Lccap.Application.ExposureAnalysisJobs.Computation.RequestBuilding;
+using Lccap.Application.ExposureAnalysisJobs.Computation.Python;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Lccap.Application.ExposureAnalysisJobs.Commands;
 
@@ -16,17 +18,23 @@ public sealed class ProcessExposureAnalysisJobCommand
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IExposureComputationClient _computationClient;
     private readonly IExposureComputationRequestBuilder _requestBuilder;
+    private readonly IPythonExposureComputationClientAdapter _pythonAdapter;
+    private readonly IOptions<PythonExposureComputationFeatureOptions> _pythonFeatureOptions;
 
     public ProcessExposureAnalysisJobCommand(
         ILccapDbContext dbContext,
         ICurrentUserContext currentUserContext,
         IExposureComputationClient computationClient,
-        IExposureComputationRequestBuilder requestBuilder)
+        IExposureComputationRequestBuilder requestBuilder,
+        IPythonExposureComputationClientAdapter pythonAdapter,
+        IOptions<PythonExposureComputationFeatureOptions> pythonFeatureOptions)
     {
         _dbContext = dbContext;
         _currentUserContext = currentUserContext;
         _computationClient = computationClient;
         _requestBuilder = requestBuilder;
+        _pythonAdapter = pythonAdapter;
+        _pythonFeatureOptions = pythonFeatureOptions;
     }
 
     public async Task<ProcessExposureAnalysisJobResult> Execute(
@@ -97,7 +105,19 @@ public sealed class ProcessExposureAnalysisJobCommand
         }
 
         var request = BuildComputationRequest(job, hazardLayerId.Value);
-        var computationResult = await _computationClient.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+        ExposureComputationResult computationResult;
+
+        if (_pythonFeatureOptions.Value.Enabled)
+        {
+            // Python adapter expects the rich request produced by the request builder.
+            computationResult = await _pythonAdapter
+                .ExecuteAsync(requestBuildResult.Request!, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            computationResult = await _computationClient.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+        }
 
         if (!computationResult.IsSuccess)
         {
