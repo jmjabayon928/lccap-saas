@@ -1,0 +1,23 @@
+[project]
+name = "exposure-computation-service"
+version = "0.1.0"
+description = "LCCAP exposure computation scaffold (health endpoint only)."
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi",
+  "uvicorn",
+  "httpx",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
