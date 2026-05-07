@@ -112,6 +112,8 @@ export function ExposureReadinessPanel({
           : null;
 
   const recentJobs = exposureJobs.slice(0, 5);
+  const hasCompletedJob = exposureJobs.some((j) => j.status === "Completed");
+  const hasFailedJob = exposureJobs.some((j) => j.status === "Failed");
 
   return (
     <Card>
@@ -180,7 +182,11 @@ export function ExposureReadinessPanel({
                 <div key={job.id} className="rounded-md border px-3 py-2">
                   <div className="flex items-baseline justify-between gap-3">
                     <div className="text-sm font-medium">{job.status}</div>
-                    <div className="text-xs text-muted-foreground">{formatIsoUtc(job.createdAtUtc)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {job.status === "Completed" && job.completedAtUtc
+                        ? formatIsoUtc(job.completedAtUtc)
+                        : formatIsoUtc(job.createdAtUtc)}
+                    </div>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Hazard layer: {shortGuid(job.hazardLayerId)}
@@ -221,9 +227,25 @@ export function ExposureReadinessPanel({
           ) : null}
 
           {!isLoadingExposureSummaries && exposureSummaries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No exposure summaries are available yet. Queued jobs will show stored results here after a future computation slice runs.
-            </p>
+            <>
+              {hasCompletedJob ? (
+                <p className="text-sm text-muted-foreground">
+                  Exposure analysis completed with zero stored exposure summaries. No exposed facilities were found for the completed run.
+                </p>
+              ) : hasFailedJob ? (
+                <p className="text-sm text-muted-foreground">
+                  Exposure analysis has not produced stored summaries yet. Review the failed job message above before running another analysis.
+                </p>
+              ) : exposureJobs.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Exposure summaries will appear here after a queued analysis completes successfully.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No exposure summaries are available yet. Register a hazard layer and queue an exposure analysis job to generate stored results.
+                </p>
+              )}
+            </>
           ) : null}
 
           {!isLoadingExposureSummaries && exposureSummaries.length > 0 ? (

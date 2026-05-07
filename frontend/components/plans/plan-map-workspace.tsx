@@ -223,10 +223,21 @@ export function PlanMapWorkspace({ planId }: PlanMapWorkspaceProps): ReactElemen
     setStatusMessage(null);
 
     try {
-      await planClient.processExposureAnalysisJob(planId, job.id);
+      const updatedJob = await planClient.processExposureAnalysisJob(planId, job.id);
       await loadExposureJobs();
       await loadExposureSummaries();
-      setStatusMessage("Exposure job processed. Computation engine is not configured yet.");
+
+      if (updatedJob.status === "Completed") {
+        setStatusMessage("Exposure job completed. Stored exposure summaries have been refreshed.");
+      } else if (updatedJob.status === "Failed") {
+        if (updatedJob.errorMessage) {
+          setStatusMessage(`Exposure job failed: ${updatedJob.errorMessage}`);
+        } else {
+          setStatusMessage("Exposure job failed. Review the recent exposure jobs list for details.");
+        }
+      } else {
+        setStatusMessage("Exposure job processed. Stored exposure data has been refreshed.");
+      }
     } catch (err: unknown) {
       if (isApiError(err) && err.status === 409) {
         await loadExposureJobs();
