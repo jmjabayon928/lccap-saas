@@ -21,6 +21,7 @@ using Lccap.Application.ExposureAnalysisJobs.Commands;
 using Lccap.Application.ExposureAnalysisJobs.Computation;
 using Lccap.Application.ExposureAnalysisJobs.Computation.Python;
 using Lccap.Application.ExposureAnalysisJobs.Computation.RequestBuilding;
+using Lccap.Application.ExposureAnalysisJobs.ExposureSummariesPersistence;
 using Lccap.Application.ExposureAnalysisJobs.Queries;
 using Lccap.Application.ExposureSummaries.Queries;
 using Lccap.Application.Notifications.Commands;
@@ -65,6 +66,7 @@ public static class DependencyInjection
         _ = services.AddScoped<GetPlanExposureSummariesQuery>();
         _ = services.AddScoped<GetJobExposureSummariesQuery>();
         _ = services.AddScoped<GetExposureSummaryQuery>();
+        _ = services.AddScoped<IExposureSummaryPersistenceService, ExposureSummaryPersistenceService>();
         _ = services.AddScoped<UploadDocumentCommand>();
         _ = services.AddScoped<UpdateDocumentMetadataCommand>();
         _ = services.AddScoped<ArchiveDocumentCommand>();

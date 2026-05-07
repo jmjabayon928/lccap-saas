@@ -1,5 +1,6 @@
 using Lccap.Application.Common.Interfaces;
 using Lccap.Application.ExposureAnalysisJobs.Computation;
+using Lccap.Application.ExposureAnalysisJobs.ExposureSummariesPersistence;
 using Lccap.Application.ExposureAnalysisJobs.Computation.RequestBuilding;
 using Lccap.Application.ExposureAnalysisJobs.Computation.Python;
 using Lccap.Application.ExposureAnalysisJobs.Dtos;
@@ -13,6 +14,8 @@ public sealed class ProcessExposureAnalysisJobCommand
 {
     private static readonly string NotConfiguredErrorMessage = "Exposure computation engine is not configured.";
     private static readonly string RequestBuilderFailedErrorMessage = "Exposure computation request could not be prepared.";
+    private static readonly string PersistenceFailureErrorMessage = "Exposure computation results could not be persisted.";
+    private static readonly string PersistenceConcurrencyErrorMessage = "Exposure analysis job was modified during persistence.";
 
     private readonly ILccapDbContext _dbContext;
     private readonly ICurrentUserContext _currentUserContext;
@@ -20,6 +23,7 @@ public sealed class ProcessExposureAnalysisJobCommand
     private readonly IExposureComputationRequestBuilder _requestBuilder;
     private readonly IPythonExposureComputationClientAdapter _pythonAdapter;
     private readonly IOptions<PythonExposureComputationFeatureOptions> _pythonFeatureOptions;
+    private readonly IExposureSummaryPersistenceService _persistenceService;
 
     public ProcessExposureAnalysisJobCommand(
         ILccapDbContext dbContext,
@@ -27,7 +31,8 @@ public sealed class ProcessExposureAnalysisJobCommand
         IExposureComputationClient computationClient,
         IExposureComputationRequestBuilder requestBuilder,
         IPythonExposureComputationClientAdapter pythonAdapter,
-        IOptions<PythonExposureComputationFeatureOptions> pythonFeatureOptions)
+        IOptions<PythonExposureComputationFeatureOptions> pythonFeatureOptions,
+        IExposureSummaryPersistenceService persistenceService)
     {
         _dbContext = dbContext;
         _currentUserContext = currentUserContext;
@@ -35,6 +40,7 @@ public sealed class ProcessExposureAnalysisJobCommand
         _requestBuilder = requestBuilder;
         _pythonAdapter = pythonAdapter;
         _pythonFeatureOptions = pythonFeatureOptions;
+        _persistenceService = persistenceService;
     }
 
     public async Task<ProcessExposureAnalysisJobResult> Execute(
@@ -125,14 +131,35 @@ public sealed class ProcessExposureAnalysisJobCommand
         }
         else
         {
-            job.MarkFailed(
-                computationResult.ErrorMessage ??
-                "Exposure computation succeeded, but exposure summary persistence is not implemented yet.",
-                nowUtc,
-                userId);
+            var persistResult = await _persistenceService
+                .PersistAsync(job, computationResult, userId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (persistResult.IsConcurrencyConflict)
+            {
+                return ProcessExposureAnalysisJobResult.Conflict(new[] { PersistenceConcurrencyErrorMessage });
+            }
+
+            if (!persistResult.IsSuccess)
+            {
+                job.MarkFailed(PersistenceFailureErrorMessage, nowUtc, userId);
+            }
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // For persistence failures, the command marks the job failed and persists the job update here.
+        // On persistence success, the persistence service already commits and calls SaveChanges.
+        if (computationResult.IsSuccess)
+        {
+            // If persistence succeeded, job is already saved and we must avoid a second SaveChanges outside the transaction.
+            if (job.Status == "Failed")
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
 
         return ProcessExposureAnalysisJobResult.Success(
             new ExposureAnalysisJobDto(
