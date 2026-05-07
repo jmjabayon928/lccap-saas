@@ -1816,6 +1816,1138 @@ public sealed class ExposureAnalysisJobsControllerTests
     }
 
     [Fact]
+    public async Task Process_exposure_analysis_job_python_success_negative_exposed_facility_count_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": ""{criticalFacility.Id}"",
+      ""hazardLayerId"": ""{hazard.Id}"",
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": -1,
+      ""exposedPopulation"": null,
+      ""riskScore"": null,
+      ""summaryJson"": {{
+        ""mode"": ""FacilityOnlyPointInPolygon"",
+        ""boundaryPolicy"": ""BoundaryInclusive"",
+        ""matchedHazardFeatureIds"": [""hazard-1""]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation service returned an invalid response.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_python_success_negative_risk_score_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": ""{criticalFacility.Id}"",
+      ""hazardLayerId"": ""{hazard.Id}"",
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": 1,
+      ""exposedPopulation"": null,
+      ""riskScore"": -0.5,
+      ""summaryJson"": {{
+        ""mode"": ""FacilityOnlyPointInPolygon"",
+        ""boundaryPolicy"": ""BoundaryInclusive"",
+        ""matchedHazardFeatureIds"": [""hazard-1""]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation service returned an invalid response.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_python_success_missing_hazard_layer_id_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": ""{criticalFacility.Id}"",
+      ""hazardLayerId"": null,
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": 1,
+      ""exposedPopulation"": null,
+      ""riskScore"": null,
+      ""summaryJson"": {{
+        ""mode"": ""FacilityOnlyPointInPolygon"",
+        ""boundaryPolicy"": ""BoundaryInclusive"",
+        ""matchedHazardFeatureIds"": [""hazard-1""]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation results could not be persisted.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_python_success_missing_critical_facility_id_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": null,
+      ""hazardLayerId"": ""{hazard.Id}"",
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": 1,
+      ""exposedPopulation"": null,
+      ""riskScore"": null,
+      ""summaryJson"": {{
+        ""mode"": ""FacilityOnlyPointInPolygon"",
+        ""boundaryPolicy"": ""BoundaryInclusive"",
+        ""matchedHazardFeatureIds"": [""hazard-1""]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation results could not be persisted.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_python_success_summary_json_missing_mode_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": ""{criticalFacility.Id}"",
+      ""hazardLayerId"": ""{hazard.Id}"",
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": 1,
+      ""exposedPopulation"": null,
+      ""riskScore"": null,
+      ""summaryJson"": {{
+        ""boundaryPolicy"": ""BoundaryInclusive"",
+        ""matchedHazardFeatureIds"": [""hazard-1""]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation results could not be persisted.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_python_success_summary_json_missing_boundary_policy_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": ""{criticalFacility.Id}"",
+      ""hazardLayerId"": ""{hazard.Id}"",
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": 1,
+      ""exposedPopulation"": null,
+      ""riskScore"": null,
+      ""summaryJson"": {{
+        ""mode"": ""FacilityOnlyPointInPolygon"",
+        ""matchedHazardFeatureIds"": [""hazard-1""]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation results could not be persisted.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task Process_exposure_analysis_job_python_success_summary_json_matched_hazard_feature_ids_non_string_fails_and_keeps_existing_summaries()
+    {
+        await using var db = CreateDbContext();
+        var accountId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var plan = await SeedPlan(db, accountId, "Plan");
+        var hazard = await SeedActiveHazardLayer(db, accountId, plan.Id);
+        await SeedGeoJsonLayerFeature(db, accountId, hazard.MapAssetId!.Value);
+        await SeedBarangayWithBoundaryGeoJson(db, accountId);
+        await SeedCriticalFacility(db, accountId, plan.Id, withCoordinates: true);
+
+        var criticalFacility = await db.CriticalFacilities.SingleAsync(
+            cf => cf.AccountId == accountId && cf.PlanId == plan.Id && !cf.IsDeleted,
+            CancellationToken.None);
+
+        var barangay = await db.Barangays.SingleAsync(
+            b => b.AccountId == accountId && !b.IsDeleted,
+            CancellationToken.None);
+
+        var job = new ExposureAnalysisJob
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            Status = "Queued",
+            InputJson = JsonDocument.Parse($@"{{""hazardLayerId"":""{hazard.Id}"",""requestedAtUtc"":""{DateTimeOffset.UtcNow:O}"",""requestedByUserId"":""{userId}"",""mode"":""BaselineExposure""}}"),
+            OutputJson = null,
+            ErrorMessage = null,
+            StartedAtUtc = null,
+            CompletedAtUtc = null,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-2),
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }
+        };
+        _ = db.ExposureAnalysisJobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var existingSummary = new ExposureSummary
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            PlanId = plan.Id,
+            ExposureAnalysisJobId = job.Id,
+            BarangayId = barangay.Id,
+            CriticalFacilityId = criticalFacility.Id,
+            HazardLayerId = hazard.Id,
+            HazardType = hazard.HazardType,
+            Severity = "High",
+            ExposedAreaHectares = null,
+            ExposedFacilityCount = 2,
+            ExposedPopulation = null,
+            RiskScore = null,
+            SummaryJson = JsonDocument.Parse($@"{{""mode"":""FacilityOnlyPointInPolygon"",""boundaryPolicy"":""BoundaryInclusive"",""matchedHazardFeatureIds"":[""hazard-1""]}}"),
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-20),
+            UpdatedAtUtc = null,
+            CreatedByUserId = userId,
+            UpdatedByUserId = null,
+            IsDeleted = false,
+            DeletedAtUtc = null,
+            DeletedByUserId = null,
+            RowVersion = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }
+        };
+        _ = db.ExposureSummaries.Add(existingSummary);
+        await db.SaveChangesAsync();
+
+        var (controller, currentUser) = CreateController(accountId, userId, role: WorkspaceRoles.Admin);
+        var completedAtUtc = DateTimeOffset.UtcNow;
+        var successResponseJson = $@"{{
+  ""success"": true,
+  ""engineName"": ""FacilityExposureEngine"",
+  ""engineVersion"": ""facility-v1"",
+  ""computationRunId"": null,
+  ""completedAtUtc"": ""{completedAtUtc:O}"",
+  ""errorCode"": null,
+  ""errorMessage"": null,
+  ""diagnostics"": {{
+    ""message"": ""Facility-only point-in-polygon computation completed."",
+    ""warnings"": [],
+    ""validationNotes"": [""exposedAreaHectares, exposedPopulation, and riskScore are deferred.""],
+    ""geometryFeatureCount"": 1,
+    ""barangayCount"": 1,
+    ""criticalFacilityCount"": 1,
+    ""crsDescription"": ""EPSG:4326 (Explicit)""
+  }},
+  ""results"": [
+    {{
+      ""barangayId"": ""{barangay.Id}"",
+      ""criticalFacilityId"": ""{criticalFacility.Id}"",
+      ""hazardLayerId"": ""{hazard.Id}"",
+      ""hazardType"": ""{hazard.HazardType}"",
+      ""severity"": ""High"",
+      ""exposedAreaHectares"": null,
+      ""exposedFacilityCount"": 1,
+      ""exposedPopulation"": null,
+      ""riskScore"": null,
+      ""summaryJson"": {{
+        ""mode"": ""FacilityOnlyPointInPolygon"",
+        ""boundaryPolicy"": ""BoundaryInclusive"",
+        ""matchedHazardFeatureIds"": [""hazard-1"", 123]
+      }}
+    }}
+  ]
+}}";
+
+        var httpHandler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(successResponseJson, Encoding.UTF8, "application/json")
+                    }));
+
+        var httpClient = new HttpClient(httpHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+
+        var pythonClientOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationOptions
+        {
+            ComputePath = "/compute/exposure",
+            TimeoutSeconds = 30
+        });
+
+        var pythonClient = new PythonExposureComputationServiceClient(httpClient, pythonClientOptions);
+        var pythonAdapter = new PythonExposureComputationClientAdapter(pythonClient);
+        var pythonFeatureOptions = Microsoft.Extensions.Options.Options.Create(new PythonExposureComputationFeatureOptions { Enabled = true });
+
+        var command = new ProcessExposureAnalysisJobCommand(
+            db,
+            currentUser,
+            new NotConfiguredExposureComputationClient(),
+            new ExposureComputationRequestBuilder(db),
+            pythonAdapter,
+            pythonFeatureOptions,
+            new ExposureSummaryPersistenceService(db));
+
+        var result = await controller.ProcessExposureAnalysisJob(
+            plan.Id,
+            job.Id,
+            command,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ExposureAnalysisJobDto>(ok.Value);
+        Assert.Equal("Failed", dto.Status);
+        Assert.Equal("Exposure computation results could not be persisted.", dto.ErrorMessage);
+
+        var activeSummaries = await db.ExposureSummaries
+            .Where(s => !s.IsDeleted && s.ExposureAnalysisJobId == job.Id)
+            .ToListAsync(CancellationToken.None);
+        Assert.Single(activeSummaries);
+        Assert.Equal(existingSummary.Id, activeSummaries[0].Id);
+        Assert.False(activeSummaries[0].IsDeleted);
+    }
+
+    [Fact]
     public async Task Process_exposure_analysis_job_fails_when_barangay_boundaries_are_missing_before_engine_call()
     {
         await using var db = CreateDbContext();
