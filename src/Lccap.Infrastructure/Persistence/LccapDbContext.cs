@@ -1,6 +1,7 @@
 using Lccap.Application.Common.Interfaces;
 using Lccap.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Lccap.Infrastructure.Persistence.Transactions;
 
 namespace Lccap.Infrastructure.Persistence;
 
@@ -88,5 +89,12 @@ public class LccapDbContext : DbContext, ILccapDbContext
         // Additional global filters can be layered when tenant scoping is introduced.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LccapDbContext).Assembly);
 
+    }
+
+    public async Task<ILccapDbTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var transaction = await Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        return new EfCoreLccapDbTransaction(transaction);
     }
 }

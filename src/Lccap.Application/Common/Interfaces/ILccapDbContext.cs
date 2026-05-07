@@ -54,4 +54,6 @@ public interface ILccapDbContext
     DbSet<CollaborationGroupMember> CollaborationGroupMembers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    Task<ILccapDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
 }

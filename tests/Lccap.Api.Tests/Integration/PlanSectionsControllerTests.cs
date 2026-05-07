@@ -14,6 +14,15 @@ namespace Lccap.Api.Tests.Integration;
 
 public sealed class PlanSectionsControllerTests
 {
+    private sealed class NoopLccapDbTransaction : ILccapDbTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     [Fact]
     public async Task SaveSection_SucceedsForCurrentAccountPlan()
     {
@@ -710,6 +719,9 @@ public sealed class PlanSectionsControllerTests
                 entity.Ignore(u => u.CreatedPlans);
             });
         }
+
+        public Task<ILccapDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<ILccapDbTransaction>(new NoopLccapDbTransaction());
     }
 
     private sealed class FixedClock : IClock

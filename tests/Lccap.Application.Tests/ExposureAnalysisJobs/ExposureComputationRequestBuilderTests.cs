@@ -12,6 +12,15 @@ namespace Lccap.Application.Tests.ExposureAnalysisJobs;
 
 public sealed class ExposureComputationRequestBuilderTests
 {
+    private sealed class NoopLccapDbTransaction : ILccapDbTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     [Fact]
     public async Task Build_request_succeeds_with_valid_stored_data()
     {
@@ -624,6 +633,9 @@ public sealed class ExposureComputationRequestBuilderTests
             modelBuilder.Entity<ExposureAnalysisJob>().Property(e => e.InputJson).HasConversion(jsonDocToString);
             modelBuilder.Entity<ExposureAnalysisJob>().Property(e => e.OutputJson).HasConversion(jsonDocNullableToString);
         }
+
+        public Task<ILccapDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<ILccapDbTransaction>(new NoopLccapDbTransaction());
     }
 }
 
