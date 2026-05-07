@@ -42,6 +42,20 @@ public sealed class PythonClientDiRegistrationTests
     }
 
     [Fact]
+    public void AddInfrastructureServices_registers_python_exposure_adapter()
+    {
+        var provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] = "Host=localhost;Port=5432;Database=lccap_test;Username=postgres;Password=postgres",
+            ["PythonAi:BaseUrl"] = "http://localhost:8000",
+            ["PythonAi:TimeoutSeconds"] = "7",
+        });
+
+        var adapter = provider.GetRequiredService<IPythonExposureComputationClientAdapter>();
+        Assert.NotNull(adapter);
+    }
+
+    [Fact]
     public void AddInfrastructureServices_preserves_not_configured_computation_client()
     {
         var provider = BuildProvider(new Dictionary<string, string?>
