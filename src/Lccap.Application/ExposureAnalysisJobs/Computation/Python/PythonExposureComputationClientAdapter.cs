@@ -33,7 +33,10 @@ public sealed class PythonExposureComputationClientAdapter : IPythonExposureComp
                 ErrorMessage: null,
                 EngineName: response.EngineName,
                 EngineVersion: response.EngineVersion,
-                CompletedAtUtc: response.CompletedAtUtc);
+                CompletedAtUtc: response.CompletedAtUtc,
+                ComputationRunId: response.ComputationRunId,
+                Diagnostics: response.Diagnostics,
+                Results: response.Results);
         }
 
         var errorCode = response.ErrorCode;
@@ -49,7 +52,10 @@ public sealed class PythonExposureComputationClientAdapter : IPythonExposureComp
                 errorMessage: "Exposure computation engine is not configured.",
                 engineName: response.EngineName,
                 engineVersion: response.EngineVersion,
-                completedAtUtc: response.CompletedAtUtc);
+                completedAtUtc: response.CompletedAtUtc,
+                computationRunId: response.ComputationRunId,
+                diagnostics: response.Diagnostics,
+                results: Array.Empty<ExposureComputationServiceResultRow>());
         }
 
         var isValidationFailed =
@@ -64,13 +70,19 @@ public sealed class PythonExposureComputationClientAdapter : IPythonExposureComp
                 errorMessage: "Exposure computation service returned an invalid response.",
                 engineName: response.EngineName,
                 engineVersion: response.EngineVersion,
-                completedAtUtc: response.CompletedAtUtc);
+                completedAtUtc: response.CompletedAtUtc,
+                computationRunId: response.ComputationRunId,
+                diagnostics: response.Diagnostics,
+                results: Array.Empty<ExposureComputationServiceResultRow>());
         }
 
         return ExposureComputationResult.Failed(
             errorMessage: "Exposure computation service returned an invalid response.",
             engineName: response.EngineName,
             engineVersion: response.EngineVersion,
-            completedAtUtc: response.CompletedAtUtc);
+            completedAtUtc: response.CompletedAtUtc,
+            computationRunId: response.ComputationRunId,
+            diagnostics: response.Diagnostics,
+            results: Array.Empty<ExposureComputationServiceResultRow>());
     }
 }

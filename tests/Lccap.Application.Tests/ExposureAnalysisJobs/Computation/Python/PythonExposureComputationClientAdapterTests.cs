@@ -86,15 +86,29 @@ public sealed class PythonExposureComputationClientAdapterTests
 
     private static ExposureComputationServiceResponse SuccessResponse(
         DateTimeOffset completedAtUtc,
-        string engineName = "ExposureComputationScaffold",
-        string? engineVersion = "scaffold")
+        string engineName = "FacilityExposureEngine",
+        string? engineVersion = "facility-v1")
     {
         var hazardType = "Flood";
         var hazardLayerId = Guid.NewGuid();
         var criticalFacilityId = Guid.NewGuid();
+        var summaryJson = JsonDocument.Parse(
+            """
+            {
+              "mode": "FacilityOnlyPointInPolygon",
+              "boundaryPolicy": "BoundaryInclusive",
+              "matchedHazardFeatureIds": ["hazard-1"]
+            }
+            """);
 
-        // SummaryJson exists to satisfy the result-row contract; adapter ignores Results for this slice.
-        var summaryJson = JsonDocument.Parse("{}");
+        var diagnostics = new ExposureComputationDiagnostics(
+            Message: "Facility-only point-in-polygon computation completed.",
+            Warnings: new[] { "Skipped critical facility fac-2 due to missing latitude/longitude." },
+            ValidationNotes: new[] { "exposedAreaHectares, exposedPopulation, and riskScore are deferred." },
+            GeometryFeatureCount: 1,
+            BarangayCount: 1,
+            CriticalFacilityCount: 1,
+            CrsDescription: "EPSG:4326 (Explicit)");
 
         var row = new ExposureComputationServiceResultRow(
             BarangayId: null,
@@ -112,11 +126,11 @@ public sealed class PythonExposureComputationClientAdapterTests
             Success: true,
             EngineName: engineName,
             EngineVersion: engineVersion,
-            ComputationRunId: null,
+            ComputationRunId: "run-123",
             CompletedAtUtc: completedAtUtc,
             ErrorCode: null,
             ErrorMessage: null,
-            Diagnostics: CreateDiagnostics(),
+            Diagnostics: diagnostics,
             Results: new[] { row });
     }
 
@@ -136,6 +150,9 @@ public sealed class PythonExposureComputationClientAdapterTests
         Assert.Equal("ExposureComputationScaffold", result.EngineName);
         Assert.Equal("scaffold", result.EngineVersion);
         Assert.Equal(completedAtUtc, result.CompletedAtUtc);
+        Assert.Empty(result.Results);
+        Assert.NotNull(result.Diagnostics);
+        Assert.Null(result.ComputationRunId);
         Assert.Equal(1, stubClient.CallCount);
     }
 
@@ -157,6 +174,9 @@ public sealed class PythonExposureComputationClientAdapterTests
         Assert.Equal("ExposureComputationScaffold", result.EngineName);
         Assert.Equal("scaffold", result.EngineVersion);
         Assert.Equal(completedAtUtc, result.CompletedAtUtc);
+        Assert.Empty(result.Results);
+        Assert.NotNull(result.Diagnostics);
+        Assert.Null(result.ComputationRunId);
         Assert.Equal(1, stubClient.CallCount);
     }
 
@@ -178,6 +198,9 @@ public sealed class PythonExposureComputationClientAdapterTests
         Assert.Equal("ExposureComputationScaffold", result.EngineName);
         Assert.Equal("scaffold", result.EngineVersion);
         Assert.Equal(completedAtUtc, result.CompletedAtUtc);
+        Assert.Empty(result.Results);
+        Assert.NotNull(result.Diagnostics);
+        Assert.Null(result.ComputationRunId);
         Assert.Equal(1, stubClient.CallCount);
     }
 
@@ -194,9 +217,21 @@ public sealed class PythonExposureComputationClientAdapterTests
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.ErrorMessage);
-        Assert.Equal("ExposureComputationScaffold", result.EngineName);
-        Assert.Equal("scaffold", result.EngineVersion);
+        Assert.Equal("FacilityExposureEngine", result.EngineName);
+        Assert.Equal("facility-v1", result.EngineVersion);
         Assert.Equal(completedAtUtc, result.CompletedAtUtc);
+        Assert.Equal("run-123", result.ComputationRunId);
+        Assert.NotNull(result.Diagnostics);
+        Assert.Equal(
+            "Facility-only point-in-polygon computation completed.",
+            result.Diagnostics.Message);
+        Assert.Single(result.Results);
+        var row = result.Results[0];
+        Assert.NotNull(row.SummaryJson);
+        Assert.Equal(1, row.ExposedFacilityCount);
+        Assert.Null(row.ExposedAreaHectares);
+        Assert.Null(row.ExposedPopulation);
+        Assert.Null(row.RiskScore);
         Assert.Equal(1, stubClient.CallCount);
     }
 
