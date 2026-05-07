@@ -5,6 +5,12 @@ obj/
 *.user
 *.suo
 
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
 # Frontend
 frontend/node_modules/
 frontend/.next/
