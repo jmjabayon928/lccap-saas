@@ -89,17 +89,19 @@ public sealed class PythonExposureComputationClientAdapterTests
         string engineName = "ExposureComputationScaffold",
         string? engineVersion = "scaffold")
     {
-        var hazardType = "River";
+        var hazardType = "Flood";
+        var hazardLayerId = Guid.NewGuid();
+        var criticalFacilityId = Guid.NewGuid();
 
         // SummaryJson exists to satisfy the result-row contract; adapter ignores Results for this slice.
         var summaryJson = JsonDocument.Parse("{}");
 
         var row = new ExposureComputationServiceResultRow(
             BarangayId: null,
-            CriticalFacilityId: null,
-            HazardLayerId: null,
+            CriticalFacilityId: criticalFacilityId,
+            HazardLayerId: hazardLayerId,
             HazardType: hazardType,
-            Severity: null,
+            Severity: "High",
             ExposedAreaHectares: null,
             ExposedFacilityCount: 1,
             ExposedPopulation: null,
